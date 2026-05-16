@@ -253,4 +253,111 @@ if frame == "world":
 
 ---
 
-## Open bug count: 0 | Fixed bug count: 11 | Total: 11
+## BATCH 3 — Runtime issues found during smoke test (commit `d29f048`)
+
+---
+
+### NEW-1 | HIGH | `gz_x500` model has no LiDAR — 0 scans, avoidance blind
+**File:** `launch.sh`  
+**Status:** ✅ FIXED (commit `d29f048`, LiDAR topic also fixed in `d7cf336`)
+
+**Problem:** Default `PX4_MAKE_MODEL=gz_x500` has no LiDAR sensor. `lidar_gz_reader()` subscribed to `/lidar_360/scan` which never existed. Zero scans received, avoidance loop ran blind for every flight.
+
+**Fix:** Changed default to `gz_x500_lidar_2d`. LiDAR topic also corrected (see NEW-5).
+
+---
+
+### NEW-2 | MEDIUM | `param.Param(drone)` broken in MAVSDK ≥ 1.4
+**File:** `isr_lidar_mpc.py`  
+**Status:** ✅ FIXED (commit `d29f048`)
+
+**Problem:** `param.Param(drone)` uses internal `_channel` attribute removed in MAVSDK ≥ 1.4. Every run printed `'System' object has no attribute 'channel'`.
+
+**Fix:** Removed broken param block. Kept `drone.action.set_takeoff_altitude()` via stable action API.
+
+---
+
+### NEW-3 | MEDIUM | MAVSDK callback queue overflow at 50 Hz LiDAR
+**File:** `isr_lidar_mpc.py`  
+**Status:** ✅ FIXED (commit `d29f048`)
+
+**Problem:** Tight `async for pos in drone.telemetry.position()` loop in `_do_orbit_phase` approach consumed every ~50 Hz GPS fix, saturating MAVSDK's gRPC callback queue (hit size 38). Also GCS push at 5 Hz added daemon thread contention.
+
+**Fix:** Added `asyncio.sleep(0.1)` inside approach loop (10 Hz). Reduced GCS push 5 Hz → 2.5 Hz.
+
+---
+
+### NEW-4 | MEDIUM | `_do_orbit_phase` approach loop — no timeout
+**File:** `isr_lidar_mpc.py`  
+**Status:** ✅ FIXED (commit `d29f048`)
+
+**Problem:** `goto_location` approach had no timeout. CHARLIE-3 (350m away) hung the entire mission indefinitely.
+
+**Fix:** Added 120s `APPROACH_TIMEOUT_S` with warning log and graceful continue to orbit.
+
+---
+
+### NEW-5 | HIGH | Wrong LiDAR topic — `/lidar_360/scan` never published
+**File:** `isr_lidar_mpc.py`  
+**Status:** ✅ FIXED (commit `d7cf336`, branch `fix/lidar-topic-discovery` merged `5d34b0f`)
+
+**Problem:** `LIDAR_TOPIC = "/lidar_360/scan"` was hardcoded. `gz_x500_lidar_2d` publishes on:
+`/world/default/model/x500_lidar_2d_0/link/link/sensor/lidar_2d_v2/scan`
+Topic pattern confirmed from `GZBridge.cpp` source.
+
+**Fix:**
+- Updated `LIDAR_TOPIC` to correct path
+- `ISR_LIDAR_TOPIC` env var for override
+- `_discover_lidar_topic()` auto-discovers via `gz topic -l` if no scan within 8s
+
+**Verified:** 4384 scans received, 2 avoidances triggered, full mission exit 0.
+
+---
+
+## BATCH 4 — Performance / quality fixes (branch `fix/approach-orbit-queue`, NOT YET MERGED)
+
+---
+
+### FIX-1 | HIGH | `goto_location` transit speed ~1-2 m/s — approach timeouts on all targets
+**File:** `isr_lidar_mpc.py` — `_do_orbit_phase()`  
+**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+
+**Problem:** `goto_location` ignores mission speed. PX4 SITL defaults to ~2 m/s. ALPHA-2 (49m), BRAVO-1 (258m), CHARLIE-3 (243m) all hit 120s timeout. Orbits executed from wrong position.
+
+**Fix:** `await drone.action.set_maximum_speed(SPEED)` before each `goto_location`.
+
+---
+
+### FIX-2 | MEDIUM | Orbit cold-start at radius=0 — never reaches commanded radius
+**File:** `isr_lidar_mpc.py` — `_do_orbit_phase()`  
+**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+
+**Problem:** Drone arrives within 25m of target centre, then `do_orbit` starts. PX4 begins orbit at radius=0 and spirals outward. In 15-25s dwell the drone only reaches 30-45m of a 50-80m commanded radius.
+
+**Fix:** Fly to orbit entry point (`project_waypoint(t_lat, t_lon, 0.0, t_r)`) before calling `do_orbit`. Arrival threshold changed from `dist < 25m` to `dist <= t_r × 1.3`. Approach timeout raised 120s → 180s.
+
+---
+
+### FIX-3 | LOW | `Queue.put_nowait` race — "Exception in callback" log spam
+**File:** `isr_lidar_mpc.py` — `lidar_gz_reader()` `on_scan` callback  
+**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+
+**Problem:** Queue drain ran in gz callback thread, put_nowait via `call_soon_threadsafe`. Race: queue could refill between drain and put → `QueueFull` exception logged on every scan burst.
+
+**Fix:** Wrap drain+put in single closure scheduled on the asyncio loop via `call_soon_threadsafe(_drain_and_put)`.
+
+---
+
+### FIX-4 | LOW | `scenarios.json` CRLF line endings
+**File:** `scenarios.json`  
+**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+
+**Problem:** Windows CRLF corrupted `scenarios.json`, causing git CRLF warnings on every commit.
+
+**Fix:** `sed -i 's/\r//' scenarios.json`. `.gitattributes` prevents recurrence.
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 16 | Total: 20
+
+**Next action:** Run `fix/approach-orbit-queue` to verified exit 0, then merge to main.

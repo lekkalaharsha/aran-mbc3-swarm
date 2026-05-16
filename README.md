@@ -213,7 +213,27 @@ All bearings are **world-absolute** (0 = North, clockwise). The LiDAR sensor ret
 
 ---
 
-### Previously Fixed (v10–v12, documented in source)
+### Batch 2 — Dynamic Mission Control (commit `6d6a758`)
+
+| ID | File | Fix |
+|----|------|-----|
+| BUG-1 | `telemetry_web.py` | `add_nfz()`: append to GCS-process `NO_FLY_ZONES` (process isolation) |
+| BUG-2 | `telemetry_web.py` | `add_target()`: append to GCS-process `SECONDARY_TARGETS` |
+| BUG-3 | `isr_lidar_mpc.py` | Secondary orbit loop: live re-evaluation instead of frozen snapshot |
+| BUG-4 | `isr_lidar_mpc.py` | `threading.Lock` in asyncio coroutine → GIL-atomic list ops |
+| BUG-5 | `telemetry_web.py` | `inject_event`: document bearing frame; add `frame: sensor/world` param |
+
+### Batch 3 — Smoke Test Runtime (commits `d29f048`, `d7cf336`)
+
+| ID | File | Fix |
+|----|------|-----|
+| NEW-1 | `launch.sh` | Default model `gz_x500` → `gz_x500_lidar_2d` (LiDAR equipped) |
+| NEW-2 | `isr_lidar_mpc.py` | Removed `param.Param(drone)` broken in MAVSDK ≥ 1.4 |
+| NEW-3 | `isr_lidar_mpc.py` | Approach loop throttled 50 Hz → 10 Hz; GCS push 5 Hz → 2.5 Hz |
+| NEW-4 | `isr_lidar_mpc.py` | Added 120s approach timeout in `_do_orbit_phase` |
+| NEW-5 | `isr_lidar_mpc.py` | LiDAR topic corrected to `/world/default/model/x500_lidar_2d_0/.../scan`; auto-discovery fallback via `gz topic -l` |
+
+### Previously Fixed (v10–v13, documented in source)
 
 | ID | File | Fix |
 |----|------|-----|
@@ -223,18 +243,9 @@ All bearings are **world-absolute** (0 = North, clockwise). The LiDAR sensor ret
 | v11-D | `isr_lidar_mpc.py` | Climb escape: early `continue` guards horizontal goto spam |
 | v11-E | `isr_lidar_mpc.py` | `_compute_eta()` home-WP index offset |
 | v11-F | `isr_lidar_mpc.py` | `telemetry_tracker()` independent retry loops |
-| v11-G | `isr_lidar_mpc.py` | Bearing frame: sensor→world conversion in `_bearing_to_nearest()` + `_compute_sectors()` |
-| v10-A | `isr_lidar_mpc.py` | `avoidance_count` increments once per event, not per tick |
-| v10-B | `isr_lidar_mpc.py` | ETA uses live groundspeed, not constant SPEED |
-| v10-C | `pid_controller.py` | Back-calculation anti-windup: removed spurious `* dt` |
-| v10-D | `pid_controller.py` | `best_escape_bearing()`: removed double-add of drone heading |
-| v10-E | `pid_controller.py` | `compute_avoidance_waypoint()`: removed spurious +90° rotation |
-| v13-A | `telemetry_web.py` | Jinja2 `| safe` on all three server-injected JSON blobs |
-| v13-B | `telemetry_web.py` | NFZ / targets buttons: added `active` CSS class at init |
-| v13-C | `telemetry_web.py` | `nearest_bearing` inf/nan guard in `emit_loop` |
-| v13-D | `telemetry_web.py` | `scenario_list()`: `abspath(__file__)` to fix relative-path CWD |
-| v13-E | `isr_lidar_mpc.py` | NFZ fence check: per-zone haversine instead of global closest |
-| v13-F | `isr_lidar_mpc.py` | Scenario PID override written to shared state, not local variable |
+| v11-G | `isr_lidar_mpc.py` | Bearing frame: sensor→world conversion |
+| v10-A–E | various | avoidance_count, ETA, anti-windup, escape bearing, waypoint rotation |
+| v13-A–F | `telemetry_web.py` / `isr_lidar_mpc.py` | Jinja2 escaping, button state, bearing guard, scenario path, NFZ per-zone, PID override |
 
 ---
 

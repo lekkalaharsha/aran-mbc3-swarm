@@ -377,13 +377,18 @@ async def lidar_gz_reader():
     loop = asyncio.get_event_loop()
 
     def on_scan(msg):
-        try:
+        # FIX-3: drain+put must both run in the asyncio thread.
+        # Old code drained from the gz callback thread then called put_nowait via
+        # call_soon_threadsafe — the queue could refill between drain and put,
+        # causing "Exception in callback Queue.put_nowait: QueueFull" log spam.
+        # Wrapping both in a single closure scheduled on the loop fixes the race.
+        def _drain_and_put():
             while not scan_queue.empty():
                 try: scan_queue.get_nowait()
-                except asyncio.QueueEmpty: break
-            loop.call_soon_threadsafe(scan_queue.put_nowait, msg)
-        except Exception:
-            pass
+                except Exception: break
+            try: scan_queue.put_nowait(msg)
+            except Exception: pass
+        loop.call_soon_threadsafe(_drain_and_put)
 
     node.subscribe(LaserScan, active_topic, on_scan)
     log("LiDAR 360: subscriber active")
@@ -1330,29 +1335,40 @@ async def run():
         log(f"Target: {t_lat:.6f}, {t_lon:.6f}")
         goto_alt = home_abs_alt + t_alt
 
-        await drone.action.goto_location(t_lat, t_lon, goto_alt, float("nan"))
-        log("Flying to target...")
-        # NEW-4 FIX: added 120s timeout so a slow/stuck approach does not hang
-        # the entire mission.  At 40 m/s cruise, 120s covers ~4.8 km — more than
-        # enough for any target in the ISR grid.  Timeout logs a warning and
-        # continues to orbit at whatever position the drone has reached.
+        # FIX-1: set_maximum_speed so goto_location uses cruise speed not SITL default.
+        # Without this, PX4 SITL caps goto_location at ~2 m/s causing 120s timeouts
+        # on targets 50-350m away.
+        try:
+            await drone.action.set_maximum_speed(SPEED)
+        except Exception as e:
+            log_warn(f"set_maximum_speed failed (non-critical): {e}")
+
+        # FIX-2: fly to orbit entry point (North of target at orbit radius) instead
+        # of target centre.  When goto_location goes to the centre, do_orbit starts
+        # at radius=0 and spirals outward — the drone never reaches the commanded
+        # radius during the dwell window.  Starting at the orbit circle edge means
+        # do_orbit locks onto the correct radius immediately.
+        from mpc_controller import project_waypoint as _project_wp
+        entry_lat, entry_lon = _project_wp(t_lat, t_lon, 0.0, t_r)
+        await drone.action.goto_location(entry_lat, entry_lon, goto_alt, float("nan"))
+        log(f"Flying to orbit entry point ({t_r:.0f}m North of target)...")
+
         t_approach = asyncio.get_event_loop().time()
-        APPROACH_TIMEOUT_S = 120.0
+        APPROACH_TIMEOUT_S = 180.0   # raised: 40 m/s × 180s = 7.2 km max range
         async for pos in drone.telemetry.position():
             dist = haversine(pos.latitude_deg, pos.longitude_deg, t_lat, t_lon)
-            print(f"\r  Distance to {t_name}: {dist:.1f}m     ", end="", flush=True)
-            if dist < 25.0:
+            print(f"\r  Distance to {t_name}: {dist:.1f}m  "
+                  f"(entry at {t_r:.0f}m)     ", end="", flush=True)
+            # Arrived when within 1.3× orbit radius — on or near the orbit circle
+            if dist <= t_r * 1.3:
                 print()
-                log("Arrived at target")
+                log(f"At orbit entry — dist={dist:.1f}m  target_r={t_r:.0f}m")
                 break
             if asyncio.get_event_loop().time() - t_approach > APPROACH_TIMEOUT_S:
                 print()
                 log_warn(f"Approach timeout ({APPROACH_TIMEOUT_S:.0f}s) — "
                          f"still {dist:.0f}m from {t_name}, proceeding to orbit")
                 break
-            # NEW-3: yield at 10Hz instead of consuming every ~50Hz position fix.
-            # Tight async-for on telemetry.position() processes 50 callbacks/s and
-            # was the primary driver of "User callback queue slow" warnings.
             await asyncio.sleep(0.1)
 
         # In-flight NFZ check before committing to orbit

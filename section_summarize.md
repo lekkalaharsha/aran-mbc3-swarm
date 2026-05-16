@@ -1,5 +1,6 @@
 # Aran Technologies — Session Summary
 ## ISR Mission + LiDAR MPC Avoidance v12-MPC-v5
+## Last updated: 2026-05-16
 
 > Nirmaan Incubation — IIT Hyderabad Demo Build
 
@@ -7,19 +8,19 @@
 
 ## Project Overview
 
-Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone stack.  
+Full autonomous ISR drone stack.  
 **Stack:** PX4 SITL + Gazebo Harmonic + MAVSDK Python + Flask/SocketIO GCS
 
 ```
-[PX4 SITL + Gazebo]
+[PX4 SITL + Gazebo Harmonic]
        │ MAVLink UDP:14540
        ▼
-[isr_lidar_mpc.py]  ◄── 360° LiDAR (gz-transport or sim)
-       │                 AvoidanceMPC / OrbitMPC / AltitudeMPC
-       │ POST /lidar_update (5 Hz)
+[isr_lidar_mpc.py]  ◄── 360° LiDAR gz_x500_lidar_2d
+       │                 /world/default/model/x500_lidar_2d_0/link/link/sensor/lidar_2d_v2/scan
+       │ POST /lidar_update (2.5 Hz)
        ▼
 [telemetry_web.py]  ──── MAVSDK telemetry streams
-       │ SocketIO (2.5 Hz)
+       │ SocketIO
        ▼
 [Browser GCS v13]   ──── Leaflet map, sector overlay, target panel
 ```
@@ -36,13 +37,32 @@ Aran_Technologies_v1/
 ├── mission_config.py     Single config: coords, grid, NFZ, targets, racing params
 ├── telemetry_web.py      Flask/SocketIO GCS dashboard (v13)
 ├── mapping_3d.py         3D voxel map builder (PointCloudAccumulator + VoxelGrid)
-├── scenarios.json        24 named LiDAR sim scenarios
+├── scenarios.json        24 named LiDAR sim scenarios (LF line endings)
 ├── launch.sh             Orchestration: SITL → GCS → Mission
-├── testcode.py           Dev scratch / test harness
-├── architecture.drawio   System architecture diagram
-├── bugs.md               Full bug register (this session)
+├── bugs.md               Full bug register (20 bugs, 16 fixed, 4 in-branch)
 ├── section_summarize.md  This file
-└── logs/                 Timestamped run logs (auto-created)
+├── CODING_RULES.md       Branch policy, logic-change rules, merge checklist
+├── .gitattributes        Enforces LF line endings on all text files
+└── logs/ map_output/     Auto-created at runtime
+```
+
+---
+
+## Current Git State (2026-05-16)
+
+### Branch: `fix/approach-orbit-queue` (ACTIVE — not yet merged)
+Contains FIX-1 through FIX-4. Needs verified exit-0 run then merge to main.
+
+### Main branch log
+```
+5d34b0f  merge: fix/lidar-topic-discovery → main
+d7cf336  fix: correct LiDAR topic for gz_x500_lidar_2d model
+44db1a8  docs: add CODING_RULES.md
+d29f048  fix: 4 runtime issues found during smoke test (NEW-1 through NEW-4)
+6d6a758  fix: resolve 5 dynamic-mission-control bugs (BUG-1 through BUG-5)
+4ca6f70  merge: feature/dynamic-mission-control → main
+5ab4597  feat: dynamic mission control — NFZ/target/config/event injection
+8c811e9  fix: resolve 6 bugs across mission, GCS, and mapping stack
 ```
 
 ---
@@ -52,10 +72,32 @@ Aran_Technologies_v1/
 | Phase | Label | Description |
 |-------|-------|-------------|
 | 1 | `STANDBY` | Pre-arm, NFZ fence check, mission upload (8 retries) |
-| 2 | `SURVEY` | Boustrophedon grid, 360° LiDAR avoidance active at 50 Hz |
-| 3 | `LOITER` | Primary target orbit (50 m radius, 30 m AGL) |
-| 4.1–4.N | `SEC-1/2/3` | Secondary ISR targets sorted by priority |
+| 2 | `SURVEY` | Boustrophedon grid, 360° LiDAR avoidance at 50 Hz |
+| 3 | `LOITER` | Primary target orbit |
+| 4.1–4.N | `SEC-1/2/3` | Secondary ISR targets sorted by priority (live re-evaluation) |
 | 5 | `RTL` | 3D map save → Return-to-launch → land |
+
+---
+
+## Last Verified Run (2026-05-16 — commit 5d34b0f)
+
+```
+Scenario:          iit_panel_demo
+LiDAR model:       gz_x500_lidar_2d
+LiDAR scans:       4384  ✅
+Avoidances:        2  ✅
+Survey WPs:        11/11  ✅
+Phase 3 PRIMARY:   orbit complete  ✅
+Phase 4.1 ALPHA-2: orbit complete  ✅
+Phase 4.2 BRAVO-1: orbit complete  ✅
+Phase 4.3 CHARLIE: orbit complete (approach timeout hit)  ✅
+3D map saved:      raw + voxel .pcd  ✅
+Exit code:         0  ✅
+```
+
+**Known issue in this run:** All 3 secondary targets hit 120s approach timeout because
+`goto_location` defaults to ~2 m/s in SITL. FIX-1+FIX-2 on branch `fix/approach-orbit-queue`
+address this.
 
 ---
 
@@ -68,8 +110,6 @@ Aran_Technologies_v1/
 | Altitude hold | `AltitudeMPC` | Vertical acceleration cmd |
 | Core engine | `MPCEngine` | L-BFGS-B finite-horizon QP (scipy) |
 
-**State:** `x = [n, e, d, vn, ve, vd]` NED  
-**Input:** `u = [an, ae, ad]` m/s²  
 **AvoidanceMPC speed tiers:**
 
 | Speed | N | W_obs | Description |
@@ -80,60 +120,17 @@ Aran_Technologies_v1/
 
 ---
 
-## Work Done This Session
+## Bug Summary
 
-### 1. Code Review + Bug Audit
-Reviewed all 8 source files. Found 11 bugs total across two passes.
+| Batch | Count | Status |
+|-------|-------|--------|
+| Batch 1 (code review) | 6 | All fixed — commit `8c811e9` |
+| Batch 2 (dynamic mission) | 5 | All fixed — commit `6d6a758` |
+| Batch 3 (smoke test) | 5 | All fixed — commits `d29f048`, `d7cf336` |
+| Batch 4 (perf/quality) | 4 | In branch `fix/approach-orbit-queue` — NOT merged |
+| **Total** | **20** | **16 fixed, 4 in-branch** |
 
-### 2. Bug Fixes — Batch 1 (commit `8c811e9`)
-Six pre-existing bugs fixed:
-
-| ID | Severity | File | Fix |
-|----|----------|------|-----|
-| BUG-A | Critical | `telemetry_web.py` | Phase race: MAVSDK stream overwrote SEC-1/2/3. Added `_phase_state` timestamp guard in `_mode()`. |
-| BUG-B | High | `isr_lidar_mpc.py` | `MapBuilder` never instantiated. Wired ingest into both lidar readers; map_stats pushed to GCS; PCD saved at RTL. |
-| BUG-C | High | `mission_config.py` | `RACING_MODE = True` hardcoded. Now reads `os.environ`. `./launch.sh` env injection works. |
-| BUG-D | Medium | `mission_config.py` | Wrong NFZ reported in breach alert. Fixed by tracking `breaching_dist` separately from global `closest_dist`. |
-| BUG-E | Medium | `mapping_3d.py` | `MapBuilder.ingest()` mutated accumulator without lock. Now holds `accumulator._lock` explicitly. |
-| BUG-F | Low | `isr_lidar_mpc.py` | Final banner showed `v12-MPC-v4`. Corrected to `v12-MPC-v5`. |
-
-### 3. .gitignore + Repo Cleanup (commit `8c811e9`)
-- Added `.gitignore` covering `__pycache__/`, `*.pyc`, `logs/`, `map_output/`, `*.pcd`, `*.log`, `.env`, `.claude/`, Zone.Identifier files.
-- Untracked 17 existing `*:Zone.Identifier` files from git index.
-
-### 4. Dynamic Mission Control Feature (branch `feature/dynamic-mission-control`, commit `5ab4597`, merged `4ca6f70`)
-Four new GCS endpoints enabling runtime mission modification without restart:
-
-| Endpoint | What it does |
-|----------|-------------|
-| `POST /add_nfz` | Add no-fly zone mid-flight |
-| `POST /add_target` | Queue ISR target for orbit |
-| `POST /config_update` | Patch `LIDAR_WARN_DIST`, `LIDAR_AVOID_DIST`, `AVOIDANCE_OFFSET`, `SAFE_RESUME_DIST` live |
-| `POST /inject_event` | Inject timed obstacle into sim LiDAR reader |
-
-**Command channel architecture:** GCS queues commands in `dynamic_commands{}` → drained atomically on each `POST /lidar_update` → returned in JSON response body → mission script's `_apply_dynamic_commands()` applies within 0.2s. No extra HTTP server or port required.
-
-### 5. Bug Audit — Batch 2 (found in new feature, not yet fixed)
-Five bugs found in the dynamic mission control code. See `bugs.md` for full details.
-
-| ID | Severity | Status | Problem |
-|----|----------|--------|---------|
-| BUG-1 | Critical | 🔴 OPEN | New NFZ not shown on GCS map (process isolation) |
-| BUG-2 | Critical | 🔴 OPEN | New target not shown on GCS map (process isolation) |
-| BUG-3 | High | 🔴 OPEN | Mid-loop targets never visited (frozen snapshot) |
-| BUG-4 | Medium | 🔴 OPEN | `threading.Lock` blocks asyncio event loop |
-| BUG-5 | Low | 🔴 OPEN | `inject_event` bearing frame undocumented |
-
----
-
-## Git History
-
-```
-4ca6f70  merge: feature/dynamic-mission-control → main
-5ab4597  feat: dynamic mission control — NFZ/target/config/event injection
-8c811e9  fix: resolve 6 bugs across mission, GCS, and mapping stack
-680fd3b  current cahges
-```
+See `bugs.md` for full details.
 
 ---
 
@@ -153,31 +150,66 @@ Five bugs found in the dynamic mission control code. See `bugs.md` for full deta
 
 ---
 
-## Next Actions (priority order)
+## LiDAR Configuration
 
-1. **Fix BUG-1 + BUG-2** — append to GCS-process lists in `add_nfz()` / `add_target()` (2 lines each)
-2. **Fix BUG-3** — replace frozen `sorted_secondaries` snapshot with live loop
-3. **Fix BUG-4** — replace `threading.Lock` in async context with GIL-atomic list copy
-4. **Fix BUG-5** — document bearing frame; optionally add `frame: "sensor"|"world"` param
-5. **Test end-to-end** — `./launch.sh --scenario iit_panel_demo` with GCS open
-6. **IIT panel demo prep** — confirm `iit_panel_demo` scenario runs cleanly in headless mode
+| Setting | Value |
+|---------|-------|
+| PX4 model | `gz_x500_lidar_2d` (airframe 4013) |
+| Topic | `/world/default/model/x500_lidar_2d_0/link/link/sensor/lidar_2d_v2/scan` |
+| Override env var | `ISR_LIDAR_TOPIC` |
+| Auto-discovery | `_discover_lidar_topic()` — runs `gz topic -l` if no scan in 8s |
+| Sensor range | 0.1–30 m, 1080 rays, ±135° horizontal |
+| Update rate | 30 Hz |
+| Poll rate in code | 50 Hz (LIDAR_POLL_HZ) |
 
 ---
 
-## GCS REST API Reference
+## GCS REST API
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/` | GCS dashboard |
-| `POST` | `/lidar_update` | Mission script → GCS push (returns queued commands) |
+| `POST` | `/lidar_update` | Mission → GCS push (returns queued commands) |
 | `POST` | `/pid_tune` | Live gain update |
 | `GET` | `/pid_gains` | Current gains |
 | `GET` | `/download_log` | CSV flight log |
-| `GET` | `/scenario_list` | All scenario names |
+| `GET` | `/scenario_list` | All 24 scenario names |
 | `GET` | `/nfz_status` | Live NFZ proximity |
-| `GET` | `/map_stats` | 3D voxel map statistics |
-| `GET` | `/map_slice` | GeoJSON slice at drone altitude |
-| `POST` | `/add_nfz` | *(new)* Add NFZ mid-flight |
-| `POST` | `/add_target` | *(new)* Queue ISR target |
-| `POST` | `/config_update` | *(new)* Patch live config |
-| `POST` | `/inject_event` | *(new)* Inject sim LiDAR obstacle |
+| `GET` | `/map_slice` | Live 2D voxel GeoJSON |
+| `GET` | `/map_stats` | 3D occupancy grid stats |
+| `POST` | `/add_nfz` | Add NFZ mid-flight |
+| `POST` | `/add_target` | Queue ISR target |
+| `POST` | `/config_update` | Patch live avoidance config |
+| `POST` | `/inject_event` | Inject sim LiDAR obstacle (`frame: sensor/world`) |
+
+---
+
+## Next Actions (priority order)
+
+1. **Complete + merge `fix/approach-orbit-queue`** — run to verified exit 0, then merge
+2. **Check approach speed actually improved** — confirm no timeouts with FIX-1 (`set_maximum_speed`)
+3. **Check orbit cold-start fixed** — confirm radius starts near commanded value with FIX-2
+4. **Update README.md** — section 6 (bug fixes) is out of date; add Batch 3 + 4
+5. **IIT panel demo dry-run** — screen-record GCS at `http://localhost:5000`
+
+---
+
+## Launch Commands
+
+```bash
+# Standard demo launch
+./launch.sh --headless --scenario iit_panel_demo
+
+# With GUI (if display available)
+./launch.sh --scenario iit_panel_demo
+
+# LiDAR model override (default is gz_x500_lidar_2d)
+PX4_MAKE_MODEL=gz_x500_lidar_2d ./launch.sh --headless
+
+# GCS only (SITL already running)
+./launch.sh --gcs-only
+
+# Custom LiDAR topic (non-default world/vehicle)
+ISR_LIDAR_TOPIC=/world/my_world/model/x500_lidar_2d_0/link/link/sensor/lidar_2d_v2/scan \
+  ./launch.sh --headless
+```
