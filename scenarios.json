@@ -1,0 +1,280 @@
+{
+  "_comment": "Aran Technologies — LiDAR Stress Test Scenarios. Each scenario has a name, description, and a list of obstacle events. Each event fires at t=start_s seconds after scenario begins, injects the obstacle for duration_s seconds, at dist_m metres and bearing_deg degrees (drone-relative). Multiple events can overlap to simulate simultaneous obstacles.",
+
+  "scenarios": [
+
+    {
+      "name": "single_frontal",
+      "description": "Baseline — one obstacle dead ahead at 4.5m. Validates basic avoidance trigger.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 3.0, "duration_s": 5.0, "dist_m": 4.5, "bearing_deg": 0.0 }
+      ]
+    },
+
+    {
+      "name": "rear_obstacle",
+      "description": "Obstacle at 180deg (directly behind). PID should NOT trigger — rear is not a threat. Validates bearing filtering.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 2.0, "duration_s": 6.0, "dist_m": 3.0, "bearing_deg": 180.0 }
+      ]
+    },
+
+    {
+      "name": "side_obstacle_left",
+      "description": "Obstacle at 270deg (left flank). Tests lateral avoidance direction.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 2.0, "duration_s": 5.0, "dist_m": 5.0, "bearing_deg": 270.0 }
+      ]
+    },
+
+    {
+      "name": "side_obstacle_right",
+      "description": "Obstacle at 90deg (right flank). Mirror of left-flank test.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 2.0, "duration_s": 5.0, "dist_m": 5.0, "bearing_deg": 90.0 }
+      ]
+    },
+
+    {
+      "name": "rapid_approach",
+      "description": "Obstacle starts at warning zone (9m) and ramps in to 2m over 3 seconds. Tests PID response to fast-closing obstacle.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 2.0, "duration_s": 1.0, "dist_m": 9.0, "bearing_deg": 15.0 },
+        { "id": 2, "start_s": 3.0, "duration_s": 1.0, "dist_m": 6.0, "bearing_deg": 15.0 },
+        { "id": 3, "start_s": 4.0, "duration_s": 1.0, "dist_m": 4.0, "bearing_deg": 15.0 },
+        { "id": 4, "start_s": 5.0, "duration_s": 2.0, "dist_m": 2.0, "bearing_deg": 15.0 }
+      ]
+    },
+
+    {
+      "name": "rapid_withdrawal",
+      "description": "Obstacle appears at 3m then instantly clears. Tests that PID resets cleanly and mission resumes without lingering avoidance.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 2.0, "duration_s": 0.5, "dist_m": 3.0, "bearing_deg": 30.0 }
+      ]
+    },
+
+    {
+      "name": "dual_simultaneous",
+      "description": "Two obstacles at the same time — one at 45deg (4m), one at 315deg (5m). Tests nearest-obstacle priority logic.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 3.0, "duration_s": 5.0, "dist_m": 4.0, "bearing_deg": 45.0 },
+        { "id": 2, "start_s": 3.0, "duration_s": 5.0, "dist_m": 5.0, "bearing_deg": 315.0 }
+      ]
+    },
+
+    {
+      "name": "triple_simultaneous",
+      "description": "Three simultaneous obstacles — front, left, right. Maximum stress on nearest-pick logic. Only nearest should drive avoidance.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 3.0, "duration_s": 6.0, "dist_m": 3.5, "bearing_deg": 0.0   },
+        { "id": 2, "start_s": 3.0, "duration_s": 6.0, "dist_m": 5.0, "bearing_deg": 90.0  },
+        { "id": 3, "start_s": 3.0, "duration_s": 6.0, "dist_m": 5.5, "bearing_deg": 270.0 }
+      ]
+    },
+
+    {
+      "name": "sequential_gauntlet",
+      "description": "Four obstacles in sequence from different bearings with short gaps. Tests repeated avoidance + resume cycles.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 2.0,  "duration_s": 3.0, "dist_m": 4.0, "bearing_deg": 10.0  },
+        { "id": 2, "start_s": 7.0,  "duration_s": 3.0, "dist_m": 4.5, "bearing_deg": 350.0 },
+        { "id": 3, "start_s": 12.0, "duration_s": 3.0, "dist_m": 5.0, "bearing_deg": 45.0  },
+        { "id": 4, "start_s": 17.0, "duration_s": 3.0, "dist_m": 3.5, "bearing_deg": 315.0 }
+      ]
+    },
+
+    {
+      "name": "oscillating_distance",
+      "description": "Obstacle alternates between 4m (avoidance) and 8m (warning) every second. Tests PID integral windup and reset stability.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1,  "start_s": 2.0,  "duration_s": 1.0, "dist_m": 4.0, "bearing_deg": 20.0 },
+        { "id": 2,  "start_s": 3.0,  "duration_s": 1.0, "dist_m": 8.5, "bearing_deg": 20.0 },
+        { "id": 3,  "start_s": 4.0,  "duration_s": 1.0, "dist_m": 4.0, "bearing_deg": 20.0 },
+        { "id": 4,  "start_s": 5.0,  "duration_s": 1.0, "dist_m": 8.5, "bearing_deg": 20.0 },
+        { "id": 5,  "start_s": 6.0,  "duration_s": 1.0, "dist_m": 4.0, "bearing_deg": 20.0 },
+        { "id": 6,  "start_s": 7.0,  "duration_s": 1.0, "dist_m": 8.5, "bearing_deg": 20.0 },
+        { "id": 7,  "start_s": 8.0,  "duration_s": 1.0, "dist_m": 4.0, "bearing_deg": 20.0 },
+        { "id": 8,  "start_s": 9.0,  "duration_s": 1.0, "dist_m": 8.5, "bearing_deg": 20.0 }
+      ]
+    },
+
+    {
+      "name": "tight_gains_frontal",
+      "description": "Same as single_frontal but with aggressive PID gains. Tests faster response vs oscillation risk.",
+      "pid_gains": { "kp": 2.5, "ki": 0.0, "kd": 0.4 },
+      "events": [
+        { "id": 1, "start_s": 3.0, "duration_s": 5.0, "dist_m": 4.5, "bearing_deg": 0.0 }
+      ]
+    },
+
+    {
+      "name": "tight_gains_gauntlet",
+      "description": "Sequential gauntlet with aggressive PID gains. Cross-compare response time vs default gains.",
+      "pid_gains": { "kp": 2.5, "ki": 0.0, "kd": 0.4 },
+      "events": [
+        { "id": 1, "start_s": 2.0,  "duration_s": 3.0, "dist_m": 4.0, "bearing_deg": 10.0  },
+        { "id": 2, "start_s": 7.0,  "duration_s": 3.0, "dist_m": 4.5, "bearing_deg": 350.0 },
+        { "id": 3, "start_s": 12.0, "duration_s": 3.0, "dist_m": 5.0, "bearing_deg": 45.0  },
+        { "id": 4, "start_s": 17.0, "duration_s": 3.0, "dist_m": 3.5, "bearing_deg": 315.0 }
+      ]
+    },
+
+    {
+      "name": "iit_panel_demo",
+      "description": "Clean scripted demo sequence for IIT panel presentation. One clear avoidance event, then clear passage. Deterministic and visually readable on GCS.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 5.0,  "duration_s": 1.5, "dist_m": 8.5, "bearing_deg": 20.0 },
+        { "id": 2, "start_s": 6.5,  "duration_s": 1.5, "dist_m": 5.5, "bearing_deg": 20.0 },
+        { "id": 3, "start_s": 8.0,  "duration_s": 4.0, "dist_m": 3.5, "bearing_deg": 20.0 },
+        { "id": 4, "start_s": 12.0, "duration_s": 3.0, "dist_m": 9.5, "bearing_deg": 20.0 }
+      ]
+    },
+
+    {
+      "name": "urban_canyon",
+      "description": "Simulates a tight urban corridor — walls at 90deg (right, 4m) and 270deg (left, 4.5m) throughout the run, with a frontal pillar at t=6s. Classic city-block scenario: drone must navigate a narrow lane and dodge a protrusion. Tests whether the escape logic correctly favours the wider gap rather than blindly going left.",
+      "pid_gains": { "kp": 2.0, "ki": 0.0, "kd": 0.7 },
+      "events": [
+        { "id": 1, "start_s": 1.0,  "duration_s": 20.0, "dist_m": 4.0,  "bearing_deg": 90.0  },
+        { "id": 2, "start_s": 1.0,  "duration_s": 20.0, "dist_m": 4.5,  "bearing_deg": 270.0 },
+        { "id": 3, "start_s": 6.0,  "duration_s": 3.0,  "dist_m": 3.0,  "bearing_deg": 5.0   },
+        { "id": 4, "start_s": 12.0, "duration_s": 3.0,  "dist_m": 3.5,  "bearing_deg": 355.0 }
+      ]
+    },
+
+    {
+      "name": "pop_up_ambush",
+      "description": "Obstacle pops up from below (simulated rooftop protrusion or balloon) at zero warning — distance jumps instantly to 2.5m at 0deg. Tests whether the debounce+avoidance pipeline reacts fast enough with tight PID gains when there is no gradual approach phase.",
+      "pid_gains": { "kp": 2.8, "ki": 0.0, "kd": 0.9 },
+      "events": [
+        { "id": 1, "start_s": 3.0,  "duration_s": 4.0, "dist_m": 2.5,  "bearing_deg": 0.0   },
+        { "id": 2, "start_s": 10.0, "duration_s": 4.0, "dist_m": 2.8,  "bearing_deg": 30.0  },
+        { "id": 3, "start_s": 17.0, "duration_s": 4.0, "dist_m": 2.2,  "bearing_deg": 345.0 }
+      ]
+    },
+
+    {
+      "name": "crossing_fast_mover",
+      "description": "Simulates a fast-moving obstacle (bird, counter-UAV) that sweeps across from 90deg to 0deg in quick succession. Short duration events at 3m create near-miss windows that shift bearing rapidly. Tests bearing-tracking stability of the avoidance loop and escape-side flip logic when the threat changes quadrant mid-event.",
+      "pid_gains": { "kp": 2.5, "ki": 0.0, "kd": 0.8 },
+      "events": [
+        { "id": 1, "start_s": 3.0, "duration_s": 0.8, "dist_m": 3.2, "bearing_deg": 90.0  },
+        { "id": 2, "start_s": 3.8, "duration_s": 0.8, "dist_m": 3.0, "bearing_deg": 60.0  },
+        { "id": 3, "start_s": 4.6, "duration_s": 0.8, "dist_m": 2.8, "bearing_deg": 30.0  },
+        { "id": 4, "start_s": 5.4, "duration_s": 0.8, "dist_m": 2.5, "bearing_deg": 5.0   },
+        { "id": 5, "start_s": 6.2, "duration_s": 0.8, "dist_m": 2.8, "bearing_deg": 335.0 },
+        { "id": 6, "start_s": 7.0, "duration_s": 0.8, "dist_m": 3.2, "bearing_deg": 300.0 }
+      ]
+    },
+
+    {
+      "name": "diagonal_corridor",
+      "description": "Two angled walls at 45deg and 225deg, creating a diagonal slot the drone must thread. Then a third obstacle blocks the slot forcing a climb escape. Tests that sector binning in world-frame correctly identifies the only clear channel (N or S) and routes the detour through it.",
+      "pid_gains": { "kp": 1.8, "ki": 0.0, "kd": 0.65 },
+      "events": [
+        { "id": 1, "start_s": 2.0,  "duration_s": 12.0, "dist_m": 4.2,  "bearing_deg": 45.0  },
+        { "id": 2, "start_s": 2.0,  "duration_s": 12.0, "dist_m": 4.8,  "bearing_deg": 225.0 },
+        { "id": 3, "start_s": 8.0,  "duration_s": 5.0,  "dist_m": 3.0,  "bearing_deg": 0.0   },
+        { "id": 4, "start_s": 8.0,  "duration_s": 5.0,  "dist_m": 3.0,  "bearing_deg": 180.0 }
+      ]
+    },
+
+    {
+      "name": "five_obstacle_box",
+      "description": "Five simultaneous obstacles forming a near-enclosure: N(3.5m), NE(4.5m), E(4m), W(4m), NW(4.5m). Only S is clear. Tests sector analysis under maximum congestion — the escape logic must correctly identify the only open sector and route the drone South.",
+      "pid_gains": { "kp": 2.2, "ki": 0.0, "kd": 0.75 },
+      "events": [
+        { "id": 1, "start_s": 3.0, "duration_s": 8.0, "dist_m": 3.5, "bearing_deg": 0.0   },
+        { "id": 2, "start_s": 3.0, "duration_s": 8.0, "dist_m": 4.5, "bearing_deg": 45.0  },
+        { "id": 3, "start_s": 3.0, "duration_s": 8.0, "dist_m": 4.0, "bearing_deg": 90.0  },
+        { "id": 4, "start_s": 3.0, "duration_s": 8.0, "dist_m": 4.0, "bearing_deg": 270.0 },
+        { "id": 5, "start_s": 3.0, "duration_s": 8.0, "dist_m": 4.5, "bearing_deg": 315.0 }
+      ]
+    },
+
+    {
+      "name": "staggered_sweep",
+      "description": "Eight obstacles fire one at a time, stepping clockwise through all 8 sectors (0, 45, 90 ... 315deg). Each lasts 4s with a 2s gap before the next. A full 360deg sweep that exhaustively validates avoidance at every bearing, including the problematic 90/270 (side) and 180 (rear) bearings.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 2.0,  "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 0.0   },
+        { "id": 2, "start_s": 8.0,  "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 45.0  },
+        { "id": 3, "start_s": 14.0, "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 90.0  },
+        { "id": 4, "start_s": 20.0, "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 135.0 },
+        { "id": 5, "start_s": 26.0, "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 180.0 },
+        { "id": 6, "start_s": 32.0, "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 225.0 },
+        { "id": 7, "start_s": 38.0, "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 270.0 },
+        { "id": 8, "start_s": 44.0, "duration_s": 4.0, "dist_m": 4.0, "bearing_deg": 315.0 }
+      ]
+    },
+
+    {
+      "name": "altitude_stack",
+      "description": "Three sequential obstacles all dead-ahead but at increasing closeness: 9m (warning), 5m (avoid), then 2m (hard avoid). Each clears before the next appears. Mimics approaching a tower face at speed — validates that each avoidance event increments the counter exactly once and that the PID integral fully resets between events.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 3.0,  "duration_s": 3.0, "dist_m": 9.0, "bearing_deg": 2.0 },
+        { "id": 2, "start_s": 9.0,  "duration_s": 3.0, "dist_m": 5.0, "bearing_deg": 2.0 },
+        { "id": 3, "start_s": 15.0, "duration_s": 3.0, "dist_m": 2.0, "bearing_deg": 2.0 }
+      ]
+    },
+
+    {
+      "name": "persistent_blocker_climb_test",
+      "description": "A single immovable obstacle dead-ahead at 3m that never clears. Designed to trigger the AVOIDANCE_TIMEOUT climb-escape path. The obstacle remains for 20s, well beyond the 10s AVOIDANCE_TIMEOUT_S threshold. Validates the full timeout->climb->clear pipeline and confirms that horizontal detour commands cease once the climb is active.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 3.0, "duration_s": 20.0, "dist_m": 3.0, "bearing_deg": 0.0 }
+      ]
+    },
+
+    {
+      "name": "multi_target_recon",
+      "description": "ISR-specific: simulates flying past three separate point-of-interest structures, each generating a brief side-obstacle contact as the drone passes close. Obstacles appear at alternating 80deg and 280deg at 5s intervals to mimic building facades during a recon sweep. Tests that the system logs each as a distinct avoidance event rather than one continuous event.",
+      "pid_gains": { "kp": 1.5, "ki": 0.0, "kd": 0.6 },
+      "events": [
+        { "id": 1, "start_s": 3.0,  "duration_s": 2.5, "dist_m": 4.5, "bearing_deg": 80.0  },
+        { "id": 2, "start_s": 8.0,  "duration_s": 2.5, "dist_m": 4.2, "bearing_deg": 280.0 },
+        { "id": 3, "start_s": 13.0, "duration_s": 2.5, "dist_m": 4.8, "bearing_deg": 75.0  },
+        { "id": 4, "start_s": 18.0, "duration_s": 2.5, "dist_m": 4.0, "bearing_deg": 285.0 },
+        { "id": 5, "start_s": 23.0, "duration_s": 2.5, "dist_m": 5.0, "bearing_deg": 78.0  }
+      ]
+    },
+
+    {
+      "name": "formation_break",
+      "description": "Two friendly drones in simulated formation: one at 30deg (6m) and one at 330deg (6m). Then a third hostile obstacle enters dead-ahead at 3m while the formation obstacles persist. Tests that nearest-obstacle logic correctly prioritises the 3m frontal threat over the 6m formation members, and that only the frontal event fires avoidance.",
+      "pid_gains": { "kp": 2.0, "ki": 0.0, "kd": 0.7 },
+      "events": [
+        { "id": 1, "start_s": 1.0,  "duration_s": 15.0, "dist_m": 6.0, "bearing_deg": 30.0  },
+        { "id": 2, "start_s": 1.0,  "duration_s": 15.0, "dist_m": 6.0, "bearing_deg": 330.0 },
+        { "id": 3, "start_s": 6.0,  "duration_s": 5.0,  "dist_m": 3.0, "bearing_deg": 0.0   }
+      ]
+    },
+
+    {
+      "name": "night_isr_low_speed",
+      "description": "Slow, careful night-recon pass at reduced speed (simulated via tight soft gains). Multiple low-confidence obstacles at warning range (18-24m), one of which closes to 6m. Tests that soft PID gains produce smooth, minimal corrections rather than aggressive jerks at low speed — suitable for low-observable night ISR profiles.",
+      "pid_gains": { "kp": 0.9, "ki": 0.0, "kd": 0.4 },
+      "events": [
+        { "id": 1, "start_s": 4.0,  "duration_s": 4.0, "dist_m": 22.0, "bearing_deg": 10.0  },
+        { "id": 2, "start_s": 10.0, "duration_s": 4.0, "dist_m": 18.0, "bearing_deg": 350.0 },
+        { "id": 3, "start_s": 16.0, "duration_s": 5.0, "dist_m": 6.0,  "bearing_deg": 5.0   },
+        { "id": 4, "start_s": 23.0, "duration_s": 4.0, "dist_m": 20.0, "bearing_deg": 15.0  }
+      ]
+    }
+
+  ]
+}
