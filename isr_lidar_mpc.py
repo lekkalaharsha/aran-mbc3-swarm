@@ -456,12 +456,17 @@ async def lidar_sim_reader():
             pass
 
         # ── dynamic event injection (POST /inject_event via GCS) ────
-        now_wall = time.time()
-        with _dyn_lock:
-            dynamic_state["pending_events"] = [
-                e for e in dynamic_state["pending_events"] if e["expire_at"] > now_wall
-            ]
-            active_dyn = list(dynamic_state["pending_events"])
+        # BUG-4 FIX: replaced threading.Lock() with GIL-atomic list operations.
+        # lidar_sim_reader is an asyncio coroutine — acquiring a threading.Lock()
+        # blocks the OS thread synchronously, freezing the entire event loop
+        # (telemetry, avoidance, lidar) if _apply_dynamic_commands() holds _dyn_lock.
+        # list.copy() and dict-key assignment are each GIL-atomic in CPython,
+        # making the lock unnecessary for these sub-millisecond operations.
+        now_wall     = time.time()
+        snapshot     = dynamic_state["pending_events"].copy()
+        still_active = [e for e in snapshot if e["expire_at"] > now_wall]
+        dynamic_state["pending_events"] = still_active
+        active_dyn   = still_active
         for ev in active_dyn:
             ev_dist  = ev["dist_m"] + random.uniform(-0.2, 0.2)
             center   = int(ev["bearing_deg"]) % 360
@@ -1329,10 +1334,26 @@ async def run():
     await _do_orbit_phase(primary_target, "PHASE 3 — PRIMARY TARGET ACQUIRED", home_abs_alt)
 
     # ── PHASE 4: Secondary ISR targets (sorted by priority) ──
-    sorted_secondaries = sorted(SECONDARY_TARGETS, key=lambda t: t.get("priority", 99))
-    for i, sec in enumerate(sorted_secondaries, start=1):
-        mission_state["mission_phase"] = f"SEC-{i}"
-        label = f"PHASE 4.{i} — SECONDARY TARGET {i}/{len(sorted_secondaries)}"
+    # BUG-3 FIX: replaced frozen sorted_secondaries snapshot with live re-evaluation.
+    # Old code: sorted_secondaries captured before the loop; targets appended by
+    # _apply_dynamic_commands() mid-loop (while SEC-1 is orbiting) were in
+    # SECONDARY_TARGETS but not in the snapshot — never visited.
+    # New code: re-reads SECONDARY_TARGETS after each orbit; visited set prevents
+    # re-flying targets already completed.
+    visited_targets = set()
+    sec_idx = 0
+    while True:
+        remaining = sorted(
+            [t for t in SECONDARY_TARGETS if id(t) not in visited_targets],
+            key=lambda t: t.get("priority", 99)
+        )
+        if not remaining:
+            break
+        sec = remaining[0]
+        visited_targets.add(id(sec))
+        sec_idx += 1
+        mission_state["mission_phase"] = f"SEC-{sec_idx}"
+        label = f"PHASE 4.{sec_idx} — SECONDARY TARGET {sec_idx}"
         await _do_orbit_phase(sec, label, home_abs_alt)
 
     # ── PHASE 5: RTL ──────────────────────────────────────

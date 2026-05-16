@@ -324,6 +324,10 @@ def add_nfz():
         "radius_m": float(payload.get("radius_m", 50.0)),
         "reason":   payload.get("reason",   "Dynamic GCS injection"),
     }
+    # BUG-1 FIX: append to GCS-process list so emit_loop reflects new NFZ on map.
+    # GCS and mission script are separate OS processes with separate NO_FLY_ZONES
+    # copies — queuing for mission script only left GCS map showing stale zones.
+    NO_FLY_ZONES.append(nfz)
     with _dyn_cmd_lock:
         dynamic_commands["nfz_queue"].append(nfz)
     socketio.emit("dynamic_nfz", nfz)
@@ -352,6 +356,9 @@ def add_target():
         "orbit_duration_s": int(payload.get("orbit_duration_s",   15)),
         "priority":         int(payload.get("priority",           99)),
     }
+    # BUG-2 FIX: append to GCS-process list so emit_loop shows new target on map.
+    # Same process-isolation issue as BUG-1 for NO_FLY_ZONES.
+    SECONDARY_TARGETS.append(target)
     with _dyn_cmd_lock:
         dynamic_commands["target_queue"].append(target)
     socketio.emit("dynamic_target", target)
@@ -384,17 +391,33 @@ def inject_event():
 
     Only effective in LiDAR-SIM mode (no gz-transport). For real LiDAR,
     use a physical obstacle or Gazebo model spawn.
-    Body: {"bearing_deg": float, "dist_m": float, "duration_s": float}
+
+    Body:
+        bearing_deg  : float  — obstacle bearing (default 0.0)
+        dist_m       : float  — obstacle distance in metres (default 10.0)
+        duration_s   : float  — how long obstacle persists (default 5.0)
+        frame        : str    — "sensor" (default) or "world"
+                                "sensor": 0° = drone forward, clockwise
+                                "world":  0° = North, clockwise (converted to sensor frame)
+
+    BUG-5 FIX: bearing_deg was silently sensor-relative with no documentation.
+    Operators using map/compass bearings (0=North) got obstacles injected in the
+    wrong sector.  Added optional frame param; "world" converts to sensor frame
+    using current drone heading from data["heading"].
     """
     payload = request.get_json(silent=True) or {}
+    bearing = float(payload.get("bearing_deg", 0.0))
+    frame   = payload.get("frame", "sensor")
+    if frame == "world":
+        bearing = (bearing - data.get("heading", 0.0)) % 360
     event = {
-        "bearing_deg": float(payload.get("bearing_deg", 0.0)),
-        "dist_m":      float(payload.get("dist_m",      10.0)),
+        "bearing_deg": bearing,
+        "dist_m":      float(payload.get("dist_m",     10.0)),
         "duration_s":  float(payload.get("duration_s",  5.0)),
     }
     with _dyn_cmd_lock:
         dynamic_commands["event_queue"].append(event)
-    return jsonify({"ok": True, "event": event,
+    return jsonify({"ok": True, "event": event, "frame_used": frame,
                     "note": "Active in SIM mode only — injected into lidar_sim_reader"})
 
 
@@ -547,7 +570,7 @@ def emit_loop():
             "alt_range_m":   map_data["alt_range_m"],
         }
         socketio.emit("telemetry", payload)
-        socketio.sleep(0.4)
+        time.sleep(0.4)
 
 
 HTML = r"""
