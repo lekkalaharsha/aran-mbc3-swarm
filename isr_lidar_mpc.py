@@ -145,6 +145,13 @@ abort_avoidance = asyncio.Event()
 # completely non-functional.  Single instance shared by both lidar readers.
 map_builder     = MapBuilder()
 
+# Dynamic runtime state — populated by push_to_gcs() from GCS response.
+# _dyn_lock guards access across the daemon push thread and asyncio coroutines.
+_dyn_lock     = threading.Lock()
+dynamic_state = {
+    "pending_events": [],   # [{expire_at, bearing_deg, dist_m}] for lidar_sim_reader
+}
+
 
 # ══════════════════════════════════════════════════════════
 #  GCS PUSH
@@ -190,9 +197,55 @@ def push_to_gcs():
             "mission_phase":    mission_state["mission_phase"],
             "map_stats":        map_builder.stats(),
         }
-        requests.post(GCS_URL, json=payload, timeout=0.2)
+        resp = requests.post(GCS_URL, json=payload, timeout=0.2)
+        if resp.ok:
+            cmds = resp.json().get("commands", {})
+            if any(cmds.get(k) for k in ("nfz_queue", "target_queue",
+                                          "config_updates", "event_queue")):
+                _apply_dynamic_commands(cmds)
     except Exception:
         pass
+
+
+def _apply_dynamic_commands(cmds):
+    """Apply dynamic commands received from GCS in the /lidar_update response.
+
+    Called from push_to_gcs() (daemon thread) at most once per 0.2s push cycle.
+    Mutations to NO_FLY_ZONES and SECONDARY_TARGETS are safe because both are
+    module-level lists imported by reference — appends are visible everywhere.
+    """
+    global LIDAR_WARN_DIST, LIDAR_AVOID_DIST, AVOIDANCE_OFFSET_M, SAFE_RESUME_DIST
+
+    for nfz in cmds.get("nfz_queue", []):
+        NO_FLY_ZONES.append(nfz)
+        log(f"[DYN] NFZ added: {nfz.get('name','?')}  "
+            f"lat={nfz.get('lat',0):.4f} lon={nfz.get('lon',0):.4f} "
+            f"r={nfz.get('radius_m',0):.0f}m")
+
+    for target in cmds.get("target_queue", []):
+        SECONDARY_TARGETS.append(target)
+        log(f"[DYN] Target queued: {target.get('name','?')}  "
+            f"lat={target.get('lat',0):.4f} lon={target.get('lon',0):.4f}  "
+            f"priority={target.get('priority',99)}")
+
+    cfg = cmds.get("config_updates", {})
+    if cfg:
+        if "LIDAR_WARN_DIST"  in cfg: LIDAR_WARN_DIST    = float(cfg["LIDAR_WARN_DIST"])
+        if "LIDAR_AVOID_DIST" in cfg: LIDAR_AVOID_DIST   = float(cfg["LIDAR_AVOID_DIST"])
+        if "AVOIDANCE_OFFSET" in cfg: AVOIDANCE_OFFSET_M = float(cfg["AVOIDANCE_OFFSET"])
+        if "SAFE_RESUME_DIST" in cfg: SAFE_RESUME_DIST   = float(cfg["SAFE_RESUME_DIST"])
+        log(f"[DYN] Config patched: {cfg}")
+
+    for ev in cmds.get("event_queue", []):
+        expire_at = time.time() + float(ev.get("duration_s", 5.0))
+        with _dyn_lock:
+            dynamic_state["pending_events"].append({
+                "expire_at":   expire_at,
+                "bearing_deg": float(ev.get("bearing_deg", 0.0)),
+                "dist_m":      float(ev.get("dist_m", 10.0)),
+            })
+        log(f"[DYN] Event injected: bearing={ev.get('bearing_deg',0):.0f}deg  "
+            f"dist={ev.get('dist_m',10):.1f}m  duration={ev.get('duration_s',5):.1f}s")
 
 
 def start_gcs_push_loop():
@@ -401,6 +454,21 @@ async def lidar_sim_reader():
                 fake_ranges = [2.0] * 360   # hard wall in every direction
         except Exception:
             pass
+
+        # ── dynamic event injection (POST /inject_event via GCS) ────
+        now_wall = time.time()
+        with _dyn_lock:
+            dynamic_state["pending_events"] = [
+                e for e in dynamic_state["pending_events"] if e["expire_at"] > now_wall
+            ]
+            active_dyn = list(dynamic_state["pending_events"])
+        for ev in active_dyn:
+            ev_dist  = ev["dist_m"] + random.uniform(-0.2, 0.2)
+            center   = int(ev["bearing_deg"]) % 360
+            for offset in range(-6, 7):
+                idx = (center + offset) % 360
+                if ev_dist < fake_ranges[idx]:
+                    fake_ranges[idx] = ev_dist
 
         # ── update shared lidar state ─────────────────────────────────
         min_dist, bearing = _bearing_to_nearest(fake_ranges, 0.0, ANGLE_INC)

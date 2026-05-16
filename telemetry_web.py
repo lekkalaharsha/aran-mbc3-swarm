@@ -44,6 +44,7 @@ v13 Additions:
 import asyncio
 import math
 import threading
+import time
 from datetime import datetime
 from flask import Flask, render_template_string, request, jsonify, Response
 from flask_socketio import SocketIO
@@ -113,6 +114,19 @@ pid_gains = {
 start_time   = datetime.now()
 trail        = []
 flight_log   = []
+
+# Dynamic command queues — populated by REST endpoints, consumed once by the
+# mission script via the JSON response to POST /lidar_update.  The mission
+# script applies them immediately (NFZ append, target append, config patch,
+# event injection) without needing a separate HTTP server on its side.
+_dyn_cmd_lock    = threading.Lock()
+dynamic_commands = {
+    "nfz_queue":      [],   # [{name,lat,lon,radius_m,reason}]
+    "target_queue":   [],   # [{name,lat,lon,orbit_*,priority}]
+    "config_updates": {},   # {LIDAR_WARN_DIST|LIDAR_AVOID_DIST|AVOIDANCE_OFFSET|SAFE_RESUME_DIST: float}
+    "event_queue":    [],   # [{bearing_deg,dist_m,duration_s}]
+}
+
 # BUG-A FIX: timestamp of last mission_phase push from isr_lidar_mpc.
 # _mode() checks this before overwriting — prevents MAVSDK HOLD mapping
 # from reverting SEC-1/2/3 phases written by the mission script.
@@ -162,7 +176,21 @@ def lidar_update():
         map_data["scan_count"]      = ms.get("scan_count",      0)
         map_data["bounds"]          = ms.get("bounds")
         map_data["alt_range_m"]     = ms.get("alt_range_m")
-    return jsonify({"ok": True})
+
+    # Drain the dynamic command queues into the response so the mission script
+    # can apply them on the next push cycle without a separate channel.
+    with _dyn_cmd_lock:
+        cmds = {
+            "nfz_queue":      list(dynamic_commands["nfz_queue"]),
+            "target_queue":   list(dynamic_commands["target_queue"]),
+            "config_updates": dict(dynamic_commands["config_updates"]),
+            "event_queue":    list(dynamic_commands["event_queue"]),
+        }
+        dynamic_commands["nfz_queue"].clear()
+        dynamic_commands["target_queue"].clear()
+        dynamic_commands["config_updates"].clear()
+        dynamic_commands["event_queue"].clear()
+    return jsonify({"ok": True, "commands": cmds})
 
 
 # ── 3D map endpoints ───────────────────────────────────────────────
@@ -276,6 +304,98 @@ def download_log():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=flight_log.csv"}
     )
+
+
+# ── Dynamic mission control endpoints ─────────────────────────────────
+
+@app.route("/add_nfz", methods=["POST"])
+def add_nfz():
+    """Queue a no-fly zone to be applied by the mission script on next push cycle.
+
+    Body: {"lat": float, "lon": float, "radius_m": float, "name": str, "reason": str}
+    """
+    payload = request.get_json(silent=True) or {}
+    if "lat" not in payload or "lon" not in payload:
+        return jsonify({"ok": False, "error": "lat and lon required"}), 400
+    nfz = {
+        "name":     payload.get("name",     f"DYN-NFZ-{int(time.time())}"),
+        "lat":      float(payload["lat"]),
+        "lon":      float(payload["lon"]),
+        "radius_m": float(payload.get("radius_m", 50.0)),
+        "reason":   payload.get("reason",   "Dynamic GCS injection"),
+    }
+    with _dyn_cmd_lock:
+        dynamic_commands["nfz_queue"].append(nfz)
+    socketio.emit("dynamic_nfz", nfz)
+    return jsonify({"ok": True, "nfz": nfz,
+                    "note": "Will be applied by mission script on next push cycle (~0.2s)"})
+
+
+@app.route("/add_target", methods=["POST"])
+def add_target():
+    """Queue an ISR target to orbit after the current secondary sequence.
+
+    Body: {"lat": float, "lon": float, "name": str, "orbit_radius_m": float,
+           "orbit_speed_ms": float, "orbit_altitude_m": float,
+           "orbit_duration_s": int, "priority": int}
+    """
+    payload = request.get_json(silent=True) or {}
+    if "lat" not in payload or "lon" not in payload:
+        return jsonify({"ok": False, "error": "lat and lon required"}), 400
+    target = {
+        "name":             payload.get("name",             f"DYN-TGT-{int(time.time())}"),
+        "lat":              float(payload["lat"]),
+        "lon":              float(payload["lon"]),
+        "orbit_radius_m":   float(payload.get("orbit_radius_m",   50.0)),
+        "orbit_speed_ms":   float(payload.get("orbit_speed_ms",   12.0)),
+        "orbit_altitude_m": float(payload.get("orbit_altitude_m", 50.0)),
+        "orbit_duration_s": int(payload.get("orbit_duration_s",   15)),
+        "priority":         int(payload.get("priority",           99)),
+    }
+    with _dyn_cmd_lock:
+        dynamic_commands["target_queue"].append(target)
+    socketio.emit("dynamic_target", target)
+    return jsonify({"ok": True, "target": target,
+                    "note": "Will be appended to SECONDARY_TARGETS on next push cycle"})
+
+
+@app.route("/config_update", methods=["POST"])
+def config_update():
+    """Patch live mission config values in the running mission script.
+
+    Allowed keys: LIDAR_WARN_DIST, LIDAR_AVOID_DIST, AVOIDANCE_OFFSET, SAFE_RESUME_DIST
+    Body: {"LIDAR_WARN_DIST": 30.0, "LIDAR_AVOID_DIST": 20.0}
+    """
+    payload = request.get_json(silent=True) or {}
+    allowed = {"LIDAR_WARN_DIST", "LIDAR_AVOID_DIST", "AVOIDANCE_OFFSET", "SAFE_RESUME_DIST"}
+    updates = {k: float(v) for k, v in payload.items() if k in allowed}
+    if not updates:
+        return jsonify({"ok": False,
+                        "error": f"No valid keys. Allowed: {sorted(allowed)}"}), 400
+    with _dyn_cmd_lock:
+        dynamic_commands["config_updates"].update(updates)
+    return jsonify({"ok": True, "updates": updates,
+                    "note": "Will be applied by mission script on next push cycle"})
+
+
+@app.route("/inject_event", methods=["POST"])
+def inject_event():
+    """Inject a timed LiDAR obstacle event into the running sim reader.
+
+    Only effective in LiDAR-SIM mode (no gz-transport). For real LiDAR,
+    use a physical obstacle or Gazebo model spawn.
+    Body: {"bearing_deg": float, "dist_m": float, "duration_s": float}
+    """
+    payload = request.get_json(silent=True) or {}
+    event = {
+        "bearing_deg": float(payload.get("bearing_deg", 0.0)),
+        "dist_m":      float(payload.get("dist_m",      10.0)),
+        "duration_s":  float(payload.get("duration_s",  5.0)),
+    }
+    with _dyn_cmd_lock:
+        dynamic_commands["event_queue"].append(event)
+    return jsonify({"ok": True, "event": event,
+                    "note": "Active in SIM mode only — injected into lidar_sim_reader"})
 
 
 RETRY_DELAY = 3.0
