@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+
+# Runtime output
+logs/
+map_output/
+*.pcd
+*.log
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# Windows NTFS alternate data streams (WSL artefact)
+*:Zone.Identifier
+*Zone.Identifier
+
+# IDE / tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code session data
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

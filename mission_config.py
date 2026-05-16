@@ -216,7 +216,9 @@ MAP_SLICE_BAND_M = 5.0          # ± metres around drone altitude for 2D slices
 #  Used by mpc_controller.py and isr_lidar_mpc.py when
 #  RACING_MODE = True.  All values tuned for 30–60 m/s.
 # ══════════════════════════════════════════════════════════
-RACING_MODE             = True
+import os as _os_cfg
+# BUG-C FIX: was hardcoded True — launch.sh env injection had no effect.
+RACING_MODE             = _os_cfg.environ.get("RACING_MODE", "1") not in ("0", "false", "False")
 
 # Avoidance distances scale up at racing speeds — drone needs more room to stop
 RACING_LIDAR_WARN_DIST  = 40.0   # m  (was 25 m at ISR speed)
@@ -243,16 +245,17 @@ def get_nfz_exclusion_check(lat, lon):
     is_inside_nfz is True if the position violates any NFZ radius.
     nfz_name is the name of the BREACHING zone (if any), otherwise the closest zone.
     Used by the avoidance loop as a pre-flight and in-flight fence check.
-
-    BUG FIX: previously tracked closest_name independently of the inside flag,
-    so when a farther NFZ was breaching but a nearer NFZ was not, nfz_name
-    returned the non-breaching closest zone instead of the actual breach zone.
-    Now breaching_name takes priority over closest_name in the return value.
     """
     import math
     closest_dist    = float("inf")
     closest_name    = None
     breaching_name  = None
+    # BUG-D FIX: track closest breaching distance separately from global closest.
+    # Previously used closest_dist (global minimum including non-breaching zones)
+    # as the comparison — a nearby non-breaching zone made closest_dist small,
+    # so later breaching zones at larger distances never updated breaching_name
+    # even when they were closer than the first breach zone.
+    breaching_dist  = float("inf")
     inside          = False
     for nfz in NO_FLY_ZONES:
         R = 6371000
@@ -266,8 +269,8 @@ def get_nfz_exclusion_check(lat, lon):
             closest_name = nfz["name"]
         if dist < nfz["radius_m"]:
             inside = True
-            # Keep the first (or closest) breaching zone name for the alert
-            if breaching_name is None or dist < closest_dist:
+            if dist < breaching_dist:
+                breaching_dist = dist
                 breaching_name = nfz["name"]
     reported_name = breaching_name if inside else closest_name
     return inside, reported_name, closest_dist

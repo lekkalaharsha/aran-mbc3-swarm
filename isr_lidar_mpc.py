@@ -141,6 +141,10 @@ mission_state = {
 mission_done    = asyncio.Event()
 abort_avoidance = asyncio.Event()
 
+# BUG-B FIX: MapBuilder was imported but never instantiated — 3D mapping was
+# completely non-functional.  Single instance shared by both lidar readers.
+map_builder     = MapBuilder()
+
 
 # ══════════════════════════════════════════════════════════
 #  GCS PUSH
@@ -184,6 +188,7 @@ def push_to_gcs():
             # secondary orbits.  Push the explicit phase string so the GCS
             # phase list and target queue correctly advance through SEC-1/2/3.
             "mission_phase":    mission_state["mission_phase"],
+            "map_stats":        map_builder.stats(),
         }
         requests.post(GCS_URL, json=payload, timeout=0.2)
     except Exception:
@@ -310,6 +315,7 @@ async def lidar_gz_reader():
             "sectors":         sectors,
         })
         lidar_state["scan_count"] += 1
+        map_builder.ingest(ranges, msg.angle_min, msg.angle_step, drone_state)
 
 
 async def lidar_sim_reader():
@@ -407,6 +413,7 @@ async def lidar_sim_reader():
             "sectors":         sectors,
         })
         lidar_state["scan_count"] += 1
+        map_builder.ingest(fake_ranges, 0.0, ANGLE_INC, drone_state)
         await asyncio.sleep(1.0 / LIDAR_POLL_HZ)
 
 
@@ -1263,6 +1270,12 @@ async def run():
     # ── PHASE 5: RTL ──────────────────────────────────────
     mission_state["mission_phase"] = "RTL"
     banner("PHASE 5 — RETURN TO LAUNCH")
+    log("Saving 3D occupancy map before RTL...")
+    try:
+        saved = map_builder.save(MAP_SAVE_PATH)
+        log(f"3D map saved — raw: {saved['raw_pcd']}  voxel: {saved['voxel_pcd']}")
+    except Exception as e:
+        log_warn(f"Map save failed (non-critical): {e}")
     log("Initiating RTL...")
     await drone.action.return_to_launch()
 
@@ -1278,7 +1291,7 @@ async def run():
                          return_exceptions=True)
 
     total_targets = 1 + len(SECONDARY_TARGETS)
-    banner("FULL ISR + LiDAR MPC MISSION COMPLETE v12-MPC-v4")
+    banner("FULL ISR + LiDAR MPC MISSION COMPLETE v12-MPC-v5")
     log(f"Survey -> {avoidance_state['count']} obstacle(s) avoided -> "
         f"{total_targets} target(s) acquired & orbited -> RTL")
     log("Aran Technologies — Ready for IIT Panel Demo")

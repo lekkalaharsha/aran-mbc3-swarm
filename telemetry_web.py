@@ -110,9 +110,13 @@ pid_gains = {
     "orbit":     {"kp": 0.8, "ki": 0.05,"kd": 0.3, "output_limit": 5.0},
 }
 
-start_time = datetime.now()
-trail      = []
-flight_log = []
+start_time   = datetime.now()
+trail        = []
+flight_log   = []
+# BUG-A FIX: timestamp of last mission_phase push from isr_lidar_mpc.
+# _mode() checks this before overwriting — prevents MAVSDK HOLD mapping
+# from reverting SEC-1/2/3 phases written by the mission script.
+_phase_state = {"push_time": 0.0}
 
 
 # ── LiDAR update endpoint ──────────────────────────────────────────
@@ -141,7 +145,9 @@ def lidar_update():
     # written into data[], so SEC-1/2/3 phases were invisible to the GCS
     # frontend — the phase panel stayed frozen at "LOITER" for all secondary
     # orbits (PX4 reports HOLD for every do_orbit call).
-    if "mission_phase" in payload: data["mission_phase"] = payload["mission_phase"]
+    if "mission_phase" in payload:
+        data["mission_phase"] = payload["mission_phase"]
+        _phase_state["push_time"] = datetime.now().timestamp()
     # BUG FIX: wp_current / wp_total pushed from isr_lidar_mpc were never
     # written into data[] — waypoint progress bar only updated from MAVSDK
     # stream which stops during orbit/RTL phases. Now kept in sync from push.
@@ -328,11 +334,17 @@ async def telemetry_loop():
         async for m in drone.telemetry.flight_mode():
             fm = str(m).replace("FlightMode.", "")
             data["flight_mode"] = fm
-            if fm == "TAKEOFF":            data["mission_phase"] = "TAKEOFF"
-            elif fm == "MISSION":          data["mission_phase"] = "SURVEY"
-            elif fm == "HOLD":             data["mission_phase"] = "LOITER"
-            elif fm == "RETURN_TO_LAUNCH": data["mission_phase"] = "RTL"
-            elif fm == "LAND":             data["mission_phase"] = "LANDING"
+            # BUG-A FIX: only write mission_phase from MAVSDK stream if the
+            # mission script hasn't pushed a more specific phase recently.
+            # Without this guard, HOLD→"LOITER" overwrites "SEC-1"/"SEC-2"/"SEC-3"
+            # pushed by isr_lidar_mpc every 0.2s, making secondary orbits
+            # permanently invisible on the GCS phase panel.
+            if datetime.now().timestamp() - _phase_state["push_time"] > 5.0:
+                if fm == "TAKEOFF":            data["mission_phase"] = "TAKEOFF"
+                elif fm == "MISSION":          data["mission_phase"] = "SURVEY"
+                elif fm == "HOLD":             data["mission_phase"] = "LOITER"
+                elif fm == "RETURN_TO_LAUNCH": data["mission_phase"] = "RTL"
+                elif fm == "LAND":             data["mission_phase"] = "LANDING"
 
     async def _armed():
         async for a in drone.telemetry.armed():

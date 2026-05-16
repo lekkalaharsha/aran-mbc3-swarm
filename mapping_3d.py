@@ -536,8 +536,12 @@ class MapBuilder:
             pts = _scan_to_points(dx, dy, alt, heading_rad,
                                    ranges, angle_min, angle_increment)
             if pts:
-                self.accumulator._pts.extend(pts)
-                self.accumulator._count += 1
+                # BUG-E FIX: accumulator._pts and _count were mutated without
+                # holding accumulator._lock, creating a race with points() and
+                # reset() which both acquire that lock.  Hold it explicitly here.
+                with self.accumulator._lock:
+                    self.accumulator._pts.extend(pts)
+                    self.accumulator._count += 1
                 self.grid.ingest_points(pts)
 
     def stats(self):
