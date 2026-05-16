@@ -1,0 +1,8 @@
+# Force LF for all text files — prevents Windows CRLF corruption
+* text=auto eol=lf
+
+# Explicitly LF for scripts and source
+*.py    text eol=lf
+*.sh    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf

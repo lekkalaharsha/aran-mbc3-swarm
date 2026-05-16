@@ -39,10 +39,11 @@ banner() {
 #  DEFAULTS
 # ══════════════════════════════════════════════════════════
 PX4_DIR="${PX4_DIR:-${HOME}/PX4-Autopilot}"
-# Racing x500 — standard x500 quad with LiDAR, gains tuned for 30-60 m/s
-# To revert to ISR speed: set PX4_MAKE_MODEL=gz_x500_lidar_2d
+# gz_x500_lidar_2d: x500 quad with 360° 2D LiDAR — required for real obstacle avoidance.
+# gz_x500: standard quad WITHOUT LiDAR — isr_lidar_mpc falls back to SIM mode (0 real scans).
+# Override at runtime: PX4_MAKE_MODEL=gz_x500 ./launch.sh
 PX4_MAKE_DIR="px4_sitl"
-PX4_MAKE_MODEL="${PX4_MAKE_MODEL:-gz_x500}"
+PX4_MAKE_MODEL="${PX4_MAKE_MODEL:-gz_x500_lidar_2d}"
 PYTHON="${PYTHON:-python3}"
 GCS_PORT=5000
 GCS_READY_TIMEOUT=20   # seconds Flask has to bind

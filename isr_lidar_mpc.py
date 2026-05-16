@@ -14,7 +14,6 @@ from mavsdk.mission import MissionItem, MissionPlan
 from mavsdk.action import OrbitYawBehavior
 from mavsdk.telemetry import LandedState
 import random, json, os
-from mavsdk import param
 
 from mpc_controller import (
     AvoidanceMPC, AltitudeMPC, OrbitMPC,
@@ -251,7 +250,10 @@ def _apply_dynamic_commands(cmds):
 def start_gcs_push_loop():
     while True:
         push_to_gcs()
-        time.sleep(0.2)
+        # NEW-3: reduced from 0.2s (5Hz) to 0.4s (2.5Hz).
+        # requests.post() from this daemon thread competes with asyncio telemetry
+        # callbacks — cutting push rate halves the contention.
+        time.sleep(0.4)
 
 
 # ══════════════════════════════════════════════════════════
@@ -1066,27 +1068,15 @@ async def run():
     log("Arming drone...")
     await drone.action.arm()
 
-    # ── Force PX4 parameters for reliable climb ──
-    log("Configuring climb parameters...")
+    # ── Set takeoff altitude ──
+    # NEW-2 FIX: param.Param(drone) uses an internal _channel attribute removed
+    # in MAVSDK ≥ 1.4. drone.action.set_takeoff_altitude() uses the stable
+    # action plugin API and is sufficient for SITL climb.
     try:
-        # Set takeoff altitude
         await drone.action.set_takeoff_altitude(ALTITUDE)
-        
-        # These parameters help with SITL climb performance
-        param_plugin = param.Param(drone)
-        
-        # Increase takeoff altitude threshold
-        await param_plugin.set_param_int("MIS_TAKEOFF_ALT", int(ALTITUDE))
-        # Disable preflight disarm checks
-        await param_plugin.set_param_int("COM_DISARM_PRFLT", 0)
-        # Increase navigation acceptance radius
-        await param_plugin.set_param_float("NAV_ACC_RAD", 5.0)
-        # Set hover thrust appropriately (0.5 is typical for SITL)
-        await param_plugin.set_param_float("MPC_THR_HOVER", 0.5)
-        
-        log("  PX4 parameters configured for climb")
+        log(f"  Takeoff altitude set to {ALTITUDE}m")
     except Exception as e:
-        log_warn(f"Parameter configuration failed (non-critical): {e}")
+        log_warn(f"set_takeoff_altitude failed (non-critical): {e}")
 
     log("Commanding takeoff...")
     await drone.action.takeoff()
@@ -1282,6 +1272,12 @@ async def run():
 
         await drone.action.goto_location(t_lat, t_lon, goto_alt, float("nan"))
         log("Flying to target...")
+        # NEW-4 FIX: added 120s timeout so a slow/stuck approach does not hang
+        # the entire mission.  At 40 m/s cruise, 120s covers ~4.8 km — more than
+        # enough for any target in the ISR grid.  Timeout logs a warning and
+        # continues to orbit at whatever position the drone has reached.
+        t_approach = asyncio.get_event_loop().time()
+        APPROACH_TIMEOUT_S = 120.0
         async for pos in drone.telemetry.position():
             dist = haversine(pos.latitude_deg, pos.longitude_deg, t_lat, t_lon)
             print(f"\r  Distance to {t_name}: {dist:.1f}m     ", end="", flush=True)
@@ -1289,6 +1285,15 @@ async def run():
                 print()
                 log("Arrived at target")
                 break
+            if asyncio.get_event_loop().time() - t_approach > APPROACH_TIMEOUT_S:
+                print()
+                log_warn(f"Approach timeout ({APPROACH_TIMEOUT_S:.0f}s) — "
+                         f"still {dist:.0f}m from {t_name}, proceeding to orbit")
+                break
+            # NEW-3: yield at 10Hz instead of consuming every ~50Hz position fix.
+            # Tight async-for on telemetry.position() processes 50 callbacks/s and
+            # was the primary driver of "User callback queue slow" warnings.
+            await asyncio.sleep(0.1)
 
         # In-flight NFZ check before committing to orbit
         nfz_inside, nfz_name, _ = get_nfz_exclusion_check(t_lat, t_lon)
