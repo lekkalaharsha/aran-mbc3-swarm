@@ -389,6 +389,12 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
 
     [[ "${OPT_HEADLESS}" == true ]] && export HEADLESS=1 && log_info "Headless mode enabled (no Gazebo GUI)"
 
+    # PX4's px4-rc.gzsim only starts Gazebo when PX4_GZ_WORLD is set.
+    # The default CMake target (gz_<model>) omits PX4_GZ_WORLD so Gazebo
+    # never launches and PX4 hangs forever "Waiting for Gazebo world".
+    export PX4_GZ_WORLD="${PX4_GZ_WORLD:-default}"
+    log_info "Gazebo world: ${PX4_GZ_WORLD}"
+
     # ── Build-only mode: compile in foreground, exit when make finishes ──
     # Uses px4_sitl_default (compile only). make px4_sitl gz_<model> builds
     # AND runs PX4, which then waits for Gazebo — fails if Gazebo isn't up.
