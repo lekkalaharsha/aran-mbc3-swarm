@@ -21,8 +21,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="${SCRIPT_DIR}/src"
 LOG_DIR="${SCRIPT_DIR}/logs"
 TS="$(date +%Y%m%d_%H%M%S)"
-LOG_FILE="${LOG_DIR}/launch_${TS}.log"
-mkdir -p "${LOG_DIR}"
+SESSION_DIR="${LOG_DIR}/${TS}"
+LOG_FILE="${SESSION_DIR}/launch.log"
+mkdir -p "${SESSION_DIR}"
 
 log()      { echo -e "${WHT}[$(date +%H:%M:%S)]  $*${RST}"    | tee -a "${LOG_FILE}"; }
 log_ok()   { echo -e "${GRN}[$(date +%H:%M:%S)] ✓  $*${RST}" | tee -a "${LOG_FILE}"; }
@@ -161,7 +162,7 @@ cleanup() {
     pkill -f "px4.*sitl"     2>/dev/null || true
     # Kill stale MAVSDK server — holds UDP :14540 and causes upload failures on re-launch
     pkill -f "mavsdk_server" 2>/dev/null || true
-    log_info "All logs saved to: ${LOG_DIR}/"
+    log_info "All logs saved to: ${SESSION_DIR}/"
     log_ok   "Shutdown complete"
 }
 
@@ -183,7 +184,7 @@ cat << 'EOF'
 EOF
 echo -e "${RST}"
 log_info "Working directory : ${SCRIPT_DIR}"
-log_info "Log file          : ${LOG_FILE}"
+log_info "Session log dir   : ${SESSION_DIR}/"
 log_info "Python            : ${PYTHON}"
 log_info "PX4 directory     : ${PX4_DIR}"
 log_info "PX4 make target   : make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}"
@@ -196,7 +197,7 @@ echo ""
 # ══════════════════════════════════════════════════════════
 if [[ "${OPT_CLEAN_LOGS}" == true ]]; then
     log "Cleaning old logs…"
-    find "${LOG_DIR}" -name "*.log" ! -name "launch_${TS}.log" -delete 2>/dev/null || true
+    find "${LOG_DIR}" -mindepth 1 -maxdepth 1 -type d ! -name "${TS}" -exec rm -rf {} + 2>/dev/null || true
     log_ok "Old logs removed"
 fi
 
@@ -384,7 +385,7 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
         log_ok "Make target confirmed"
     fi
 
-    PX4_LOG="${LOG_DIR}/px4_${TS}.log"
+    PX4_LOG="${SESSION_DIR}/px4.log"
 
     [[ "${OPT_HEADLESS}" == true ]] && export HEADLESS=1 && log_info "Headless mode enabled (no Gazebo GUI)"
 
@@ -505,7 +506,7 @@ if (echo >/dev/tcp/127.0.0.1/${GCS_PORT}) &>/dev/null 2>&1; then
     log_ok "Port ${GCS_PORT} freed"
 fi
 
-GCS_LOG="${LOG_DIR}/gcs_${TS}.log"
+GCS_LOG="${SESSION_DIR}/gcs.log"
 (
     cd "${SRC_DIR}"
     "${PYTHON}" telemetry_web.py
@@ -579,7 +580,7 @@ fi
 # Also evict any lingering MAVSDK gRPC server that may be holding the port
 pkill -f "mavsdk_server" 2>/dev/null && sleep 1 || true
 
-MISSION_LOG="${LOG_DIR}/mission_${TS}.log"
+MISSION_LOG="${SESSION_DIR}/mission.log"
 
 # Build optional scenario env injection
 SCENARIO_ENV=""
@@ -663,8 +664,9 @@ fi
 # ══════════════════════════════════════════════════════════
 echo ""
 banner "Mission finished — logs"
-log_info "  PX4     → ${LOG_DIR}/px4_${TS}.log"
-log_info "  GCS     → ${LOG_DIR}/gcs_${TS}.log"
-log_info "  Mission → ${LOG_DIR}/mission_${TS}.log"
-log_info "  Launch  → ${LOG_FILE}"
+log_info "  Session → ${SESSION_DIR}/"
+log_info "  PX4     → ${SESSION_DIR}/px4.log"
+log_info "  GCS     → ${SESSION_DIR}/gcs.log"
+log_info "  Mission → ${SESSION_DIR}/mission.log"
+log_info "  Launch  → ${SESSION_DIR}/launch.log"
 log_info "  3D Map  → ${MAP_OUT_DIR}/"
