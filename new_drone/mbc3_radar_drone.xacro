@@ -1,0 +1,1946 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  MBC-3 COLLABORATIVE RADAR DRONE — ADVANCED XACRO URDF
+  ================================================================
+  File        : mbc3_radar_drone.xacro
+  Version     : 2.0 (Advanced)
+  Description : Production-grade XACRO URDF for IAF MBC-3
+                360° FMCW Radar Hexacopter — Single Swarm Node
+  ROS         : ROS2 Jazzy + Gazebo Harmonic (gz-sim 8.x)
+  Units       : SI (metres, kg, radians, seconds)
+
+  Structure   : 68 links, 67 joints
+  Geometry    : Multi-body realistic visuals per component
+  Physics     : Correct inertia tensors, Gazebo mu/kp/kd, damping
+  Sensors     : IMU 400Hz (VN-100), GPS/GNSS 10Hz (Here3+),
+                Barometer 50Hz, Magnetometer 50Hz,
+                Optical-flow 60Hz, 4× FMCW Radar panels 10Hz
+  Control     : ros2_control gz_ros2_control::GazeboSimSystem
+                VelocityJointInterface × 6 motors
+  Actuators   : 6× continuous motor_N_spin joints (CW/CCW)
+
+  HOW TO BUILD:
+    xacro mbc3_radar_drone.xacro > mbc3_radar_drone.urdf
+    check_urdf mbc3_radar_drone.urdf
+
+  HOW TO LAUNCH (RViz display):
+    ros2 launch mbc3_radar_drone display.launch.py
+
+  HOW TO SIMULATE (Gazebo Harmonic):
+    ros2 launch mbc3_radar_drone gazebo.launch.py
+
+  COORDINATE FRAME (FLU — ROS REP-103):
+    +X = Forward  (Panel A faces forward)
+    +Y = Left     (Panel D faces left)
+    +Z = Up
+    Origin at body_hub centre, mid-height
+
+  KEY CHANGES vs v1.0:
+    • Battery z-offset increased for clearance from arm/ESC band
+    • Legacy <transmission> replaced by <ros2_control> block
+    • Gazebo Harmonic gz_ros2_control plugin added
+    • IMU: VN-100-accurate noise model (ARW, RRW, bias stability)
+    • GPS: navsat sensor type with HDOP/VDOP error model
+    • NEW: Barometer (altimeter) sensor — 50 Hz
+    • NEW: Magnetometer sensor — 50 Hz
+    • Optical flow: proper rangefinder + downward camera
+    • Radar: gpu_lidar type for GPU-accelerated ray-casting
+    • Landing gear: kp/kd/mu1/mu2 contact surface tuning
+    • Rotor thrust: LiftDrag plugin hint per motor
+    • Hollow-cylinder inertia macro added (motor bell)
+    • Propeller inertia: separate Ixx/Iyy for thin-disc accuracy
+    • Hub geometry: added vibration-isolator disc detail
+    • Collision meshes: tightened to actual visual bounds
+  ================================================================
+-->
+<robot name="mbc3_radar_drone" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- drone_ns: topic prefix for swarm mode.
+       Default "" = single-drone (topics: /radar_A/scan etc.)
+       Swarm: "drone_L", "drone_S1" etc. (topics: /drone_L/radar_A/scan etc.) -->
+  <xacro:arg name="drone_ns" default=""/>
+  <xacro:arg name="use_ros2_control" default="true"/>
+  <xacro:arg name="viz_scale" default="1.0"/>
+  <xacro:property name="ns" value="$(arg drone_ns)"/>
+  <xacro:property name="tp" value="${('/' + ns) if ns else ''}"/>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 1 — CONSTANTS AND PROPERTIES
+═══════════════════════════════════════════════════════════════ -->
+
+  <xacro:property name="PI"  value="3.14159265358979323846"/>
+  <xacro:property name="D2R" value="${PI/180.0}"/>
+  <xacro:property name="viz_scale" value="$(arg viz_scale)"/>
+
+  <!-- ── Aerodynamics ─────────────────────────────────────── -->
+  <!-- Rotor thrust coeff Ct and torque coeff Cm (12-inch CF prop) -->
+  <xacro:property name="rotor_Ct"   value="1.740e-05"/>  <!-- N·s²/rad²  -->
+  <xacro:property name="rotor_Cm"   value="2.450e-07"/>  <!-- N·m·s²/rad²-->
+  <xacro:property name="rotor_mass" value="0.022"/>      <!-- kg          -->
+  <xacro:property name="rotor_r"    value="0.152"/>      <!-- m, 6-inch radius = 12-inch dia -->
+
+  <!-- ── Frame ──────────────────────────────────────────── -->
+  <xacro:property name="hub_r"          value="${0.125*viz_scale}"/>
+  <xacro:property name="hub_h"          value="${0.020*viz_scale}"/>
+  <xacro:property name="hub_flange_r"   value="${0.138*viz_scale}"/>
+  <xacro:property name="hub_flange_h"   value="${0.005*viz_scale}"/>
+  <xacro:property name="arm_len"        value="0.360"/>
+  <xacro:property name="arm_od"         value="${0.016*viz_scale}"/>
+  <xacro:property name="arm_id"         value="${0.012*viz_scale}"/>
+  <xacro:property name="arm_clamp_r"    value="${0.022*viz_scale}"/>
+  <xacro:property name="arm_clamp_h"    value="${0.018*viz_scale}"/>
+
+  <!-- ── Motor ──────────────────────────────────────────── -->
+  <xacro:property name="mbell_r"        value="${0.0165*viz_scale}"/>
+  <xacro:property name="mbell_h"        value="${0.018*viz_scale}"/>
+  <xacro:property name="mstat_r"        value="${0.012*viz_scale}"/>
+  <xacro:property name="mstat_h"        value="${0.022*viz_scale}"/>
+  <xacro:property name="mshaft_r"       value="${0.003*viz_scale}"/>
+  <xacro:property name="mshaft_h"       value="${0.015*viz_scale}"/>
+  <!-- Number of cooling vanes on motor bell -->
+  <xacro:property name="bell_vane_w"    value="${0.002*viz_scale}"/>
+  <xacro:property name="bell_vane_h"    value="${0.006*viz_scale}"/>
+
+  <!-- ── Propeller ─────────────────────────────────────── -->
+  <xacro:property name="prop_r"         value="${0.1524*viz_scale}"/>  <!-- 12-inch -->
+  <xacro:property name="phub_r"         value="${0.014*viz_scale}"/>
+  <xacro:property name="phub_h"         value="${0.012*viz_scale}"/>
+  <xacro:property name="blade_len"      value="${0.130*viz_scale}"/>   <!-- 12-inch blade reach -->
+  <xacro:property name="blade_chord"    value="${0.038*viz_scale}"/>
+  <xacro:property name="blade_t"        value="${0.003*viz_scale}"/>
+
+  <!-- ── ESC ───────────────────────────────────────────── -->
+  <xacro:property name="esc_l"          value="${0.048*viz_scale}"/>
+  <xacro:property name="esc_w"          value="${0.022*viz_scale}"/>
+  <xacro:property name="esc_h"          value="${0.010*viz_scale}"/>
+
+  <!-- ── Bottom plate ──────────────────────────────────── -->
+  <xacro:property name="plate_l"        value="${0.220*viz_scale}"/>
+  <xacro:property name="plate_w"        value="${0.220*viz_scale}"/>
+  <xacro:property name="plate_t"        value="${0.003*viz_scale}"/>
+
+  <!-- ── Standoff ──────────────────────────────────────── -->
+  <xacro:property name="so_r"           value="${0.004*viz_scale}"/>
+  <xacro:property name="so_len"         value="${0.045*viz_scale}"/>
+  <xacro:property name="so_pcd"         value="${0.072*viz_scale}"/>
+
+  <!-- ── Radar box ─────────────────────────────────────── -->
+  <xacro:property name="rbox_l"         value="${0.220*viz_scale}"/>
+  <xacro:property name="rbox_w"         value="${0.220*viz_scale}"/>
+  <xacro:property name="rbox_h"         value="${0.036*viz_scale}"/>
+
+  <!-- ── Antenna panel ─────────────────────────────────── -->
+  <xacro:property name="panel_l"        value="${0.120*viz_scale}"/>
+  <xacro:property name="panel_h"        value="${0.080*viz_scale}"/>
+  <xacro:property name="panel_t"        value="${0.008*viz_scale}"/>
+  <xacro:property name="panel_arm_off"  value="${0.110*viz_scale}"/>
+  <xacro:property name="radome_t"       value="${0.005*viz_scale}"/>
+  <!-- 24 GHz FMCW: ±27.5° H-FOV, ±22.5° V-FOV per panel -->
+  <xacro:property name="radar_h_fov"    value="${55.0*D2R}"/>
+  <xacro:property name="radar_v_fov"    value="${45.0*D2R}"/>
+  <xacro:property name="radar_range_min" value="2.0"/>
+  <xacro:property name="radar_range_max" value="5000.0"/>
+  <xacro:property name="radar_res"      value="0.120"/>
+
+  <!-- ── Landing gear ──────────────────────────────────── -->
+  <xacro:property name="lg_post_r"      value="${0.006*viz_scale}"/>
+  <xacro:property name="lg_post_h"      value="${0.090*viz_scale}"/>
+  <xacro:property name="lg_skid_l"      value="${0.220*viz_scale}"/>
+  <xacro:property name="lg_skid_r"      value="${0.005*viz_scale}"/>
+  <xacro:property name="lg_support_r"   value="${0.004*viz_scale}"/>
+  <xacro:property name="lg_y"           value="${0.145*viz_scale}"/>
+  <xacro:property name="lg_mount_z"     value="${rbox_z - panel_h/2 - 0.016}"/>
+  <xacro:property name="lg_support_top_x"  value="${0.040*viz_scale}"/>
+  <xacro:property name="lg_support_foot_x" value="${lg_skid_l/2 - 0.015}"/>
+  <xacro:property name="lg_support_top_z"  value="${lg_mount_z}"/>
+  <xacro:property name="lg_support_foot_z" value="${lg_mount_z - lg_post_h - 0.005}"/>
+  <xacro:property name="lg_support_dx" value="${lg_support_foot_x - lg_support_top_x}"/>
+  <xacro:property name="lg_support_dz" value="${lg_support_foot_z - lg_support_top_z}"/>
+  <xacro:property name="lg_support_l"  value="${sqrt(lg_support_dx*lg_support_dx + lg_support_dz*lg_support_dz)}"/>
+  <xacro:property name="lg_support_pitch" value="${atan2(lg_support_dx, -lg_support_dz)}"/>
+  <!-- Gazebo contact surface parameters (skid on concrete) -->
+  <xacro:property name="skid_mu1"  value="1.8"/>
+  <xacro:property name="skid_mu2"  value="1.8"/>
+  <xacro:property name="skid_kp"   value="1e6"/>
+  <xacro:property name="skid_kd"   value="100.0"/>
+
+  <!-- ── Battery (6S 10000mAh single pack ~255×65×53mm, 1050g) ── -->
+  <xacro:property name="bat_l"          value="${0.255*viz_scale}"/>
+  <xacro:property name="bat_w"          value="${0.065*viz_scale}"/>
+  <xacro:property name="bat_h"          value="${0.053*viz_scale}"/>
+
+  <!-- ── Mass budget (kg) ──────────────────────────────── -->
+  <xacro:property name="m_hub"          value="0.300"/>
+  <xacro:property name="m_arm"          value="0.060"/>
+  <xacro:property name="m_motor"        value="0.095"/>
+  <xacro:property name="m_prop"         value="0.020"/>
+  <xacro:property name="m_esc"          value="0.032"/>
+  <xacro:property name="m_plate"        value="0.070"/>
+  <xacro:property name="m_so"           value="0.010"/>
+  <xacro:property name="m_rbox"         value="0.750"/>  <!-- Al shell + AWR1843×4 + Doodle Labs + Jetson Orin NX + misc -->
+  <xacro:property name="m_panel"        value="0.055"/>
+  <xacro:property name="m_bat"          value="1.050"/>  <!-- 6S 10000mAh single pack -->
+  <xacro:property name="m_lg"           value="0.055"/>
+
+  <!-- ── Sensor mass (kg) ──────────────────────────────── -->
+  <xacro:property name="m_imu"          value="0.020"/>
+  <xacro:property name="m_gps"          value="0.028"/>
+  <xacro:property name="m_fcu"          value="0.065"/>
+  <xacro:property name="m_flow"         value="0.016"/>
+  <xacro:property name="m_baro"         value="0.004"/>
+  <xacro:property name="m_mag"          value="0.003"/>
+
+  <!-- ── IMU noise (VectorNav VN-100, datasheet values) ── -->
+  <!-- Gyro ARW: 0.0035°/√s → rad/√s -->
+  <xacro:property name="imu_gyro_stddev"      value="6.107e-5"/>
+  <xacro:property name="imu_gyro_bias_mean"   value="0.0"/>
+  <xacro:property name="imu_gyro_bias_stddev" value="8.7266e-5"/>
+  <!-- Accel VRW: 0.14 mg/√Hz → m/s²/√s -->
+  <xacro:property name="imu_accel_stddev"      value="0.01374"/>
+  <xacro:property name="imu_accel_bias_mean"   value="0.0"/>
+  <xacro:property name="imu_accel_bias_stddev" value="0.196"/>
+
+  <!-- ── Derived geometry ──────────────────────────────── -->
+  <!-- plate_z: battery sits between hub flange and plate
+       v1 bug: battery top was within 1mm of ESC bottoms.
+       Fix: use explicit clearance from hub_flange_h so battery
+            is clearly below the flange before the plate begins. -->
+  <xacro:property name="bat_z"    value="${-hub_h/2 - hub_flange_h - bat_h/2 - 0.006}"/>
+  <xacro:property name="plate_z"  value="${bat_z - bat_h/2 - plate_t/2 - 0.004}"/>
+  <xacro:property name="rbox_z"   value="${plate_z - plate_t/2 - so_len - rbox_h/2 - 0.004}"/>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 2 — INERTIA HELPER MACROS
+═══════════════════════════════════════════════════════════════ -->
+
+  <!-- Solid cylinder, spin axis Z -->
+  <xacro:macro name="icyl" params="m r h">
+    <inertia ixx="${m*(3*r*r+h*h)/12}" ixy="0" ixz="0"
+             iyy="${m*(3*r*r+h*h)/12}" iyz="0"
+             izz="${m*r*r/2}"/>
+  </xacro:macro>
+
+  <!-- Hollow thin-walled cylinder, spin axis Z -->
+  <xacro:macro name="ihcyl" params="m r_o r_i h">
+    <inertia ixx="${m*(3*(r_o*r_o+r_i*r_i)+h*h)/12}" ixy="0" ixz="0"
+             iyy="${m*(3*(r_o*r_o+r_i*r_i)+h*h)/12}" iyz="0"
+             izz="${m*(r_o*r_o+r_i*r_i)/2}"/>
+  </xacro:macro>
+
+  <!-- Solid box -->
+  <xacro:macro name="ibox" params="m x y z">
+    <inertia ixx="${m*(y*y+z*z)/12}" ixy="0" ixz="0"
+             iyy="${m*(x*x+z*z)/12}" iyz="0"
+             izz="${m*(x*x+y*y)/12}"/>
+  </xacro:macro>
+
+  <!-- Thin rod along X, outer radius r -->
+  <xacro:macro name="irod_x" params="m l r">
+    <inertia ixx="${m*r*r/2}"           ixy="0" ixz="0"
+             iyy="${m*(3*r*r+l*l)/12}"  iyz="0"
+             izz="${m*(3*r*r+l*l)/12}"/>
+  </xacro:macro>
+
+  <!-- Thin annular disc, axis Z (correct for propeller) -->
+  <xacro:macro name="idisc_annular" params="m r_o r_i">
+    <inertia ixx="${m*(r_o*r_o+r_i*r_i)/4}" ixy="0" ixz="0"
+             iyy="${m*(r_o*r_o+r_i*r_i)/4}" iyz="0"
+             izz="${m*(r_o*r_o+r_i*r_i)/2}"/>
+  </xacro:macro>
+
+  <!-- Point-mass (for tiny sensor links) -->
+  <xacro:macro name="ipoint" params="">
+    <inertia ixx="1e-9" ixy="0" ixz="0"
+             iyy="1e-9" iyz="0" izz="1e-9"/>
+  </xacro:macro>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 3 — MATERIALS
+═══════════════════════════════════════════════════════════════ -->
+
+  <material name="cf_dark">       <color rgba="0.10 0.10 0.12 1.00"/></material>
+  <material name="cf_mid">        <color rgba="0.15 0.15 0.18 1.00"/></material>
+  <material name="cf_hollow">     <color rgba="0.20 0.20 0.25 0.30"/></material>
+  <material name="al_bright">     <color rgba="0.82 0.82 0.84 1.00"/></material>
+  <material name="al_dark">       <color rgba="0.55 0.58 0.60 1.00"/></material>
+  <material name="al_anodised">   <color rgba="0.30 0.35 0.40 1.00"/></material>
+  <material name="motor_bell">    <color rgba="0.85 0.12 0.08 1.00"/></material>
+  <material name="motor_stat">    <color rgba="0.12 0.12 0.15 1.00"/></material>
+  <material name="copper">        <color rgba="0.72 0.45 0.20 1.00"/></material>
+  <material name="prop_cf">       <color rgba="0.08 0.08 0.10 0.88"/></material>
+  <material name="esc_body">      <color rgba="0.06 0.06 0.08 1.00"/></material>
+  <material name="pcb_grn">       <color rgba="0.72 0.58 0.32 1.00"/></material>
+  <material name="radome">        <color rgba="0.94 0.94 0.96 0.55"/></material>
+  <material name="radar_hous">    <color rgba="0.20 0.36 0.28 1.00"/></material>
+  <material name="steel_bolt">    <color rgba="0.55 0.55 0.58 1.00"/></material>
+  <material name="cable">         <color rgba="0.05 0.05 0.06 1.00"/></material>
+  <material name="silicone">      <color rgba="0.18 0.55 0.22 1.00"/></material>
+  <material name="led_grn">       <color rgba="0.00 1.00 0.20 1.00"/></material>
+  <material name="led_red">       <color rgba="1.00 0.10 0.10 1.00"/></material>
+  <material name="lipo_blue">     <color rgba="0.18 0.32 0.80 1.00"/></material>
+  <material name="lg_al">         <color rgba="0.60 0.62 0.65 1.00"/></material>
+  <material name="rubber">        <color rgba="0.10 0.10 0.10 1.00"/></material>
+  <material name="foam_white">    <color rgba="0.92 0.92 0.90 1.00"/></material>
+  <material name="heat_shrink">   <color rgba="0.80 0.10 0.10 1.00"/></material>
+  <material name="solder_mask">   <color rgba="0.04 0.28 0.10 1.00"/></material>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 4 — ARM + MOTOR + PROP MACRO
+     params: num (0-5)  angle_deg (0,60,…,300)  spin (+1 CCW / -1 CW)
+═══════════════════════════════════════════════════════════════ -->
+
+  <xacro:macro name="arm_assembly" params="num angle_deg spin">
+
+    <!-- 4.1  ARM TUBE ─────────────────────────────────────────── -->
+    <link name="arm_${num}">
+      <inertial>
+        <mass value="${m_arm}"/>
+        <origin xyz="${arm_len/2} 0 0" rpy="0 0 0"/>
+        <!-- Hollow tube inertia: m*(3*(ro²+ri²)+l²)/12 transverse -->
+        <inertia ixx="${m_arm*(arm_od/2)*(arm_od/2)/2}"
+                 ixy="0" ixz="0"
+                 iyy="${m_arm*(3*((arm_od/2)*(arm_od/2)+(arm_id/2)*(arm_id/2))+arm_len*arm_len)/12}"
+                 iyz="0"
+                 izz="${m_arm*(3*((arm_od/2)*(arm_od/2)+(arm_id/2)*(arm_id/2))+arm_len*arm_len)/12}"/>
+      </inertial>
+      <!-- outer CF tube -->
+      <visual>
+        <origin xyz="${arm_len/2} 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${arm_od/2}" length="${arm_len}"/></geometry>
+        <material name="cf_dark"/>
+      </visual>
+      <!-- inner hollow (visual only, alpha 0.30) -->
+      <visual>
+        <origin xyz="${arm_len/2} 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${arm_id/2}" length="${arm_len-0.006}"/></geometry>
+        <material name="cf_hollow"/>
+      </visual>
+      <!-- arm-end clamp block -->
+      <visual>
+        <origin xyz="${arm_len-0.008} 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${arm_clamp_r}" length="${arm_clamp_h}"/></geometry>
+        <material name="al_dark"/>
+      </visual>
+      <!-- hub-end clamp block -->
+      <visual>
+        <origin xyz="0.008 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${arm_clamp_r}" length="${arm_clamp_h}"/></geometry>
+        <material name="al_dark"/>
+      </visual>
+      <!-- cable conduit (heat-shrink sleeve on arm underside) -->
+      <visual>
+        <origin xyz="${arm_len*0.50} 0 ${-arm_od/2-0.002}" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.004" length="${arm_len*0.60}"/></geometry>
+        <material name="heat_shrink"/>
+      </visual>
+      <!-- LED status strip (even=green, odd=red) -->
+      <xacro:if value="${num % 2 == 0}">
+        <visual>
+          <origin xyz="${arm_len*0.70} 0 ${arm_od/2+0.001}" rpy="0 0 0"/>
+          <geometry><box size="${arm_len*0.22} 0.004 0.002"/></geometry>
+          <material name="led_grn"/>
+        </visual>
+      </xacro:if>
+      <xacro:unless value="${num % 2 == 0}">
+        <visual>
+          <origin xyz="${arm_len*0.70} 0 ${arm_od/2+0.001}" rpy="0 0 0"/>
+          <geometry><box size="${arm_len*0.22} 0.004 0.002"/></geometry>
+          <material name="led_red"/>
+        </visual>
+      </xacro:unless>
+      <collision>
+        <origin xyz="${arm_len/2} 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${arm_od/2}" length="${arm_len}"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="hub_to_arm_${num}" type="fixed">
+      <parent link="body_hub"/>
+      <child link="arm_${num}"/>
+      <origin xyz="0 0 0" rpy="0 0 ${angle_deg * D2R}"/>
+    </joint>
+
+    <!-- 4.2  ESC (bolted under arm, 55% along) ──────────────── -->
+    <link name="esc_${num}">
+      <inertial>
+        <mass value="${m_esc}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <xacro:ibox m="${m_esc}" x="${esc_l}" y="${esc_w}" z="${esc_h}"/>
+      </inertial>
+      <!-- ESC body -->
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="${esc_l} ${esc_w} ${esc_h}"/></geometry>
+        <material name="esc_body"/>
+      </visual>
+      <!-- shrink-wrap label -->
+      <visual>
+        <origin xyz="0 0 ${esc_h/2+0.001}" rpy="0 0 0"/>
+        <geometry><box size="${esc_l*0.85} ${esc_w*0.85} 0.002"/></geometry>
+        <material name="led_grn"/>
+      </visual>
+      <!-- Al heatsink fins -->
+      <visual>
+        <origin xyz="0 0 ${esc_h/2+0.003}" rpy="0 0 0"/>
+        <geometry><box size="${esc_l*0.90} ${esc_w*0.75} 0.004"/></geometry>
+        <material name="al_bright"/>
+      </visual>
+      <!-- individual fin strips (3) -->
+      <visual><origin xyz="-0.012 0 ${esc_h/2+0.006}" rpy="0 0 0"/>
+        <geometry><box size="0.002 ${esc_w*0.65} 0.006"/></geometry><material name="al_bright"/></visual>
+      <visual><origin xyz=" 0.000 0 ${esc_h/2+0.006}" rpy="0 0 0"/>
+        <geometry><box size="0.002 ${esc_w*0.65} 0.006"/></geometry><material name="al_bright"/></visual>
+      <visual><origin xyz=" 0.012 0 ${esc_h/2+0.006}" rpy="0 0 0"/>
+        <geometry><box size="0.002 ${esc_w*0.65} 0.006"/></geometry><material name="al_bright"/></visual>
+      <!-- power wire stub -->
+      <visual>
+        <origin xyz="${esc_l/2+0.005} 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.002" length="0.010"/></geometry>
+        <material name="cable"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="${esc_l} ${esc_w} ${esc_h}"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="arm_to_esc_${num}" type="fixed">
+      <parent link="arm_${num}"/>
+      <child link="esc_${num}"/>
+      <origin xyz="${arm_len*0.55} 0 ${-(arm_od/2+esc_h/2+0.002)}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- 4.3  MOTOR STATOR (fixed to arm tip) ────────────────── -->
+    <link name="motor_stator_${num}">
+      <inertial>
+        <mass value="${m_motor*0.45}"/>
+        <origin xyz="0 0 ${mstat_h/2}" rpy="0 0 0"/>
+        <xacro:icyl m="${m_motor*0.45}" r="${mstat_r}" h="${mstat_h}"/>
+      </inertial>
+      <!-- stator cylinder -->
+      <visual>
+        <origin xyz="0 0 ${mstat_h/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mstat_r}" length="${mstat_h}"/></geometry>
+        <material name="motor_stat"/>
+      </visual>
+      <!-- copper windings ring -->
+      <visual>
+        <origin xyz="0 0 ${mstat_h*0.55}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mstat_r+0.003}" length="${mstat_h*0.55}"/></geometry>
+        <material name="copper"/>
+      </visual>
+      <!-- base plate (Al) -->
+      <visual>
+        <origin xyz="0 0 0.002" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mbell_r+0.005}" length="0.004"/></geometry>
+        <material name="al_bright"/>
+      </visual>
+      <!-- 4× M3 mount bolts -->
+      <visual><origin xyz=" ${mbell_r*0.72}  0              0.001" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+      <visual><origin xyz="${-mbell_r*0.72}  0              0.001" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+      <visual><origin xyz=" 0               ${mbell_r*0.72} 0.001" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+      <visual><origin xyz=" 0              ${-mbell_r*0.72} 0.001" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+      <collision>
+        <origin xyz="0 0 ${mstat_h/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mbell_r}" length="${mstat_h}"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="arm_to_stator_${num}" type="fixed">
+      <parent link="arm_${num}"/>
+      <child link="motor_stator_${num}"/>
+      <origin xyz="${arm_len} 0 ${arm_od/2+0.002}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- 4.4  MOTOR BELL (rotating) ─────────────────────────── -->
+    <link name="motor_bell_${num}">
+      <inertial>
+        <mass value="${m_motor*0.55}"/>
+        <origin xyz="0 0 ${mbell_h/2}" rpy="0 0 0"/>
+        <!-- Hollow bell: treated as thin-walled cylinder -->
+        <xacro:ihcyl m="${m_motor*0.55}" r_o="${mbell_r}" r_i="${mbell_r-0.002}" h="${mbell_h}"/>
+      </inertial>
+      <!-- outer shell -->
+      <visual>
+        <origin xyz="0 0 ${mbell_h/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mbell_r}" length="${mbell_h}"/></geometry>
+        <material name="motor_bell"/>
+      </visual>
+      <!-- top cap -->
+      <visual>
+        <origin xyz="0 0 ${mbell_h+0.003}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mbell_r-0.002}" length="0.006"/></geometry>
+        <material name="motor_bell"/>
+      </visual>
+      <!-- cooling vanes (4 fins at 90°) -->
+      <visual><origin xyz=" ${mbell_r-0.002} 0 ${mbell_h*0.5}" rpy="0 0 0"/>
+        <geometry><box size="${bell_vane_w} ${bell_vane_h} ${mbell_h}"/></geometry>
+        <material name="motor_bell"/></visual>
+      <visual><origin xyz="${-mbell_r+0.002} 0 ${mbell_h*0.5}" rpy="0 0 0"/>
+        <geometry><box size="${bell_vane_w} ${bell_vane_h} ${mbell_h}"/></geometry>
+        <material name="motor_bell"/></visual>
+      <visual><origin xyz="0  ${mbell_r-0.002} ${mbell_h*0.5}" rpy="0 0 0"/>
+        <geometry><box size="${bell_vane_h} ${bell_vane_w} ${mbell_h}"/></geometry>
+        <material name="motor_bell"/></visual>
+      <visual><origin xyz="0 ${-mbell_r+0.002} ${mbell_h*0.5}" rpy="0 0 0"/>
+        <geometry><box size="${bell_vane_h} ${bell_vane_w} ${mbell_h}"/></geometry>
+        <material name="motor_bell"/></visual>
+      <!-- shaft -->
+      <visual>
+        <origin xyz="0 0 ${mbell_h+0.006+mshaft_h/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mshaft_r}" length="${mshaft_h}"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <!-- prop nut -->
+      <visual>
+        <origin xyz="0 0 ${mbell_h+0.006+mshaft_h+0.003}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.006" length="0.005"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${(mbell_h+mshaft_h)/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${mbell_r}" length="${mbell_h+mshaft_h+0.020}"/></geometry>
+      </collision>
+    </link>
+
+    <!-- MOTOR SPIN JOINT — continuous, driven by ros2_control -->
+    <joint name="motor_${num}_spin" type="continuous">
+      <parent link="motor_stator_${num}"/>
+      <child link="motor_bell_${num}"/>
+      <origin xyz="0 0 ${mstat_h}" rpy="0 0 0"/>
+      <axis xyz="0 0 ${spin}"/>
+      <dynamics damping="0.0010" friction="0.0002"/>
+      <limit effort="18.0" velocity="1500.0"/>
+    </joint>
+
+    <!-- 4.5  PROPELLER (hub + 2 blades) ─────────────────────── -->
+    <link name="prop_${num}">
+      <inertial>
+        <mass value="${m_prop}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <!-- Annular disc: hub bore ≈ 12mm, tip radius prop_r -->
+        <xacro:idisc_annular m="${m_prop}" r_o="${prop_r}" r_i="${phub_r}"/>
+      </inertial>
+      <!-- prop hub collar -->
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><cylinder radius="${phub_r}" length="${phub_h}"/></geometry>
+        <material name="cf_dark"/>
+      </visual>
+      <!-- blade 1 root section -->
+      <visual>
+        <origin xyz="${blade_len*0.40+phub_r} 0 0.0015"
+                rpy="0 ${-7.0*D2R} ${2.0*D2R}"/>
+        <geometry><box size="${blade_len*0.65} ${blade_chord} ${blade_t}"/></geometry>
+        <material name="prop_cf"/>
+      </visual>
+      <!-- blade 1 tip section (tapered) -->
+      <visual>
+        <origin xyz="${blade_len*0.82+phub_r} 0 0.0025"
+                rpy="0 ${-13.0*D2R} ${4.0*D2R}"/>
+        <geometry><box size="${blade_len*0.35} ${blade_chord*0.52} ${blade_t*0.65}"/></geometry>
+        <material name="prop_cf"/>
+      </visual>
+      <!-- blade 2 (180° opposite) -->
+      <visual>
+        <origin xyz="${-(blade_len*0.40+phub_r)} 0 0.0015"
+                rpy="0 ${-7.0*D2R} ${2.0*D2R}"/>
+        <geometry><box size="${blade_len*0.65} ${blade_chord} ${blade_t}"/></geometry>
+        <material name="prop_cf"/>
+      </visual>
+      <visual>
+        <origin xyz="${-(blade_len*0.82+phub_r)} 0 0.0025"
+                rpy="0 ${-13.0*D2R} ${-4.0*D2R}"/>
+        <geometry><box size="${blade_len*0.35} ${blade_chord*0.52} ${blade_t*0.65}"/></geometry>
+        <material name="prop_cf"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.002" rpy="0 0 0"/>
+        <geometry><cylinder radius="${prop_r}" length="0.005"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="bell_to_prop_${num}" type="fixed">
+      <parent link="motor_bell_${num}"/>
+      <child link="prop_${num}"/>
+      <origin xyz="0 0 ${mbell_h+0.006+mshaft_h}" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 5 — ANTENNA PANEL MACRO
+     params: id (A/B/C/D)  angle_deg (0/270/180/90)
+     Panel facing direction (global +X of radar_frame):
+       A → +X (forward),  B → -Y (right),
+       C → -X (rear),     D → +Y (left)
+═══════════════════════════════════════════════════════════════ -->
+
+  <xacro:macro name="antenna_panel" params="id angle_deg">
+
+    <!-- 5.1  PANEL ARM CONNECTOR ─────────────────────────────── -->
+    <link name="panel_arm_${id}">
+      <inertial>
+        <mass value="0.014"/>
+        <origin xyz="0.030 0 0" rpy="0 0 0"/>
+        <xacro:ibox m="0.014" x="0.060" y="0.018" z="0.018"/>
+      </inertial>
+      <visual>
+        <origin xyz="0.030 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.060 0.018 0.018"/></geometry>
+        <material name="al_dark"/>
+      </visual>
+      <!-- cable guide channel -->
+      <visual>
+        <origin xyz="0.015 0 0.010" rpy="0 0 0"/>
+        <geometry><box size="0.030 0.006 0.004"/></geometry>
+        <material name="cable"/>
+      </visual>
+      <!-- mounting bolt fore -->
+      <visual>
+        <origin xyz="0.050 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.0015" length="0.008"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <!-- mounting bolt aft -->
+      <visual>
+        <origin xyz="0.010 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.0015" length="0.008"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <collision>
+        <origin xyz="0.030 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.060 0.018 0.018"/></geometry>
+      </collision>
+    </link>
+
+    <!-- Panel arm origin at each face of radar_box.
+         The xyz offset vector is rotated by angle_deg so each panel
+         originates at its own face (not always the +X face). -->
+    <joint name="rbox_to_arm_${id}" type="fixed">
+      <parent link="radar_box"/>
+      <child link="panel_arm_${id}"/>
+      <origin xyz="${panel_arm_off * cos(angle_deg * D2R)} ${panel_arm_off * sin(angle_deg * D2R)} 0"
+              rpy="0 0 ${angle_deg * D2R}"/>
+    </joint>
+
+    <!-- 5.2  ANTENNA PANEL PCB (Rogers 4003C substrate) ──────── -->
+    <link name="antenna_panel_${id}">
+      <inertial>
+        <mass value="${m_panel}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <xacro:ibox m="${m_panel}" x="${panel_t}" y="${panel_l}" z="${panel_h}"/>
+      </inertial>
+
+      <!-- PCB substrate -->
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="${panel_t} ${panel_l} ${panel_h}"/></geometry>
+        <material name="pcb_grn"/>
+      </visual>
+      <!-- ground plane copper layer (back face) -->
+      <visual>
+        <origin xyz="${-panel_t/2-0.0002} 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.0004 ${panel_l-0.004} ${panel_h-0.004}"/></geometry>
+        <material name="copper"/>
+      </visual>
+
+      <!-- 4×3 patch array — 24 GHz radiating elements -->
+      <!-- Row z=-0.026 -->
+      <visual><origin xyz="${panel_t/2+0.001} -0.042 -0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001} -0.014 -0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001}  0.014 -0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001}  0.042 -0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <!-- Row z=0 -->
+      <visual><origin xyz="${panel_t/2+0.001} -0.042  0.000" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001} -0.014  0.000" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001}  0.014  0.000" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001}  0.042  0.000" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <!-- Row z=+0.026 -->
+      <visual><origin xyz="${panel_t/2+0.001} -0.042  0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001} -0.014  0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001}  0.014  0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.001}  0.042  0.026" rpy="0 0 0"/>
+        <geometry><box size="0.001 0.018 0.016"/></geometry><material name="copper"/></visual>
+
+      <!-- Feed network traces (horizontal runners) -->
+      <visual><origin xyz="${panel_t/2+0.0005}  0.000 -0.026" rpy="0 0 0"/>
+        <geometry><box size="0.0005 0.092 0.001"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.0005}  0.000  0.000" rpy="0 0 0"/>
+        <geometry><box size="0.0005 0.092 0.001"/></geometry><material name="copper"/></visual>
+      <visual><origin xyz="${panel_t/2+0.0005}  0.000  0.026" rpy="0 0 0"/>
+        <geometry><box size="0.0005 0.092 0.001"/></geometry><material name="copper"/></visual>
+      <!-- Vertical feed trunk -->
+      <visual><origin xyz="${panel_t/2+0.0005}  0.000  0.000" rpy="0 0 0"/>
+        <geometry><box size="0.0005 0.001 0.060"/></geometry><material name="copper"/></visual>
+
+      <!-- PTFE radome cover (RF-transparent) -->
+      <visual>
+        <origin xyz="${panel_t/2+radome_t/2+0.001} 0 0" rpy="0 0 0"/>
+        <geometry><box size="${radome_t} ${panel_l+0.004} ${panel_h+0.004}"/></geometry>
+        <material name="radome"/>
+      </visual>
+
+      <!-- Al border frame — top/bottom/left/right -->
+      <visual><origin xyz="0 0  ${panel_h/2+0.002}" rpy="0 0 0"/>
+        <geometry><box size="${panel_t+0.002} ${panel_l+0.008} 0.004"/></geometry>
+        <material name="al_dark"/></visual>
+      <visual><origin xyz="0 0 ${-panel_h/2-0.002}" rpy="0 0 0"/>
+        <geometry><box size="${panel_t+0.002} ${panel_l+0.008} 0.004"/></geometry>
+        <material name="al_dark"/></visual>
+      <visual><origin xyz="0  ${panel_l/2+0.002} 0" rpy="0 0 0"/>
+        <geometry><box size="${panel_t+0.002} 0.004 ${panel_h+0.008}"/></geometry>
+        <material name="al_dark"/></visual>
+      <visual><origin xyz="0 ${-panel_l/2-0.002} 0" rpy="0 0 0"/>
+        <geometry><box size="${panel_t+0.002} 0.004 ${panel_h+0.008}"/></geometry>
+        <material name="al_dark"/></visual>
+
+      <!-- SMA RF connector + hex nut -->
+      <visual>
+        <origin xyz="${panel_t/2+0.006} 0 ${-panel_h/2+0.008}" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.004" length="0.012"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <visual>
+        <origin xyz="${panel_t/2+0.013} 0 ${-panel_h/2+0.008}" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.006" length="0.004"/></geometry>
+        <material name="al_bright"/>
+      </visual>
+      <!-- RF coax to radar_box -->
+      <visual>
+        <origin xyz="0 0 ${-panel_h/2-0.010}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.003" length="0.020"/></geometry>
+        <material name="cable"/>
+      </visual>
+
+      <collision>
+        <origin xyz="${(panel_t+radome_t)/2} 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="${panel_t+radome_t+0.002} ${panel_l+0.012} ${panel_h+0.012}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="arm_to_panel_${id}" type="fixed">
+      <parent link="panel_arm_${id}"/>
+      <child link="antenna_panel_${id}"/>
+      <origin xyz="0.064 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <!-- 5.3  RADAR SENSOR FRAME (virtual, no geometry) ───────── -->
+    <link name="radar_frame_${id}">
+      <inertial>
+        <mass value="0.001"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <xacro:ipoint/>
+      </inertial>
+    </link>
+    <joint name="panel_to_rframe_${id}" type="fixed">
+      <parent link="antenna_panel_${id}"/>
+      <child link="radar_frame_${id}"/>
+      <!-- at radiating face (front of radome) -->
+      <origin xyz="${panel_t/2+radome_t+0.003} 0 0" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 6 — LANDING GEAR MACRO
+═══════════════════════════════════════════════════════════════ -->
+
+  <xacro:macro name="landing_gear" params="side y_sign">
+
+    <!-- Vertical post -->
+    <link name="lg_post_${side}">
+      <inertial>
+        <mass value="${m_lg*0.55}"/>
+        <origin xyz="0 0 ${-lg_post_h/2}" rpy="0 0 0"/>
+        <xacro:icyl m="${m_lg*0.55}" r="${lg_post_r}" h="${lg_post_h}"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 ${-lg_post_h/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${lg_post_r}" length="${lg_post_h}"/></geometry>
+        <material name="lg_al"/>
+      </visual>
+      <!-- saddle clamp block at top -->
+      <visual>
+        <origin xyz="0 0 -0.010" rpy="0 0 0"/>
+        <geometry><box size="0.028 0.030 0.018"/></geometry>
+        <material name="al_anodised"/>
+      </visual>
+      <!-- clamp bolt pair -->
+      <visual>
+        <origin xyz="0.012 0 -0.010" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.0015" length="0.030"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <visual>
+        <origin xyz="-0.012 0 -0.010" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="0.0015" length="0.030"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${-lg_post_h/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${lg_post_r+0.002}" length="${lg_post_h}"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="hub_to_lg_${side}" type="fixed">
+      <parent link="body_hub"/>
+      <child link="lg_post_${side}"/>
+      <origin xyz="0 ${y_sign*lg_y} ${lg_mount_z}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Horizontal skid rail -->
+    <link name="lg_skid_${side}">
+      <inertial>
+        <mass value="${m_lg*0.45}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <xacro:irod_x m="${m_lg*0.45}" l="${lg_skid_l}" r="${lg_skid_r}"/>
+      </inertial>
+      <!-- skid tube -->
+      <visual>
+        <origin xyz="0 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${lg_skid_r}" length="${lg_skid_l}"/></geometry>
+        <material name="lg_al"/>
+      </visual>
+      <!-- cross brace connector (slim vertical plate) -->
+      <visual>
+        <origin xyz="0 0 0.010" rpy="0 0 0"/>
+        <geometry><box size="0.018 ${lg_skid_r*2+0.004} 0.022"/></geometry>
+        <material name="al_anodised"/>
+      </visual>
+      <!-- rubber feet (front and rear) -->
+      <visual>
+        <origin xyz="${lg_skid_l/2-0.012} 0 -0.005" rpy="0 0 0"/>
+        <geometry><sphere radius="0.009"/></geometry>
+        <material name="rubber"/>
+      </visual>
+      <visual>
+        <origin xyz="${-(lg_skid_l/2-0.012)} 0 -0.005" rpy="0 0 0"/>
+        <geometry><sphere radius="0.009"/></geometry>
+        <material name="rubber"/>
+      </visual>
+      <!-- end caps -->
+      <visual>
+        <origin xyz="${ lg_skid_l/2} 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${lg_skid_r+0.002}" length="0.006"/></geometry>
+        <material name="al_anodised"/>
+      </visual>
+      <visual>
+        <origin xyz="${-lg_skid_l/2} 0 0" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${lg_skid_r+0.002}" length="0.006"/></geometry>
+        <material name="al_anodised"/>
+      </visual>
+      <!-- collision: slightly enlarged for stable contact -->
+      <collision>
+        <origin xyz="0 0 -0.005" rpy="0 ${PI/2} 0"/>
+        <geometry><cylinder radius="${lg_skid_r+0.009}" length="${lg_skid_l}"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="lg_post_to_skid_${side}" type="fixed">
+      <parent link="lg_post_${side}"/>
+      <child link="lg_skid_${side}"/>
+      <origin xyz="0 0 ${-lg_post_h-0.005}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Front diagonal support tube -->
+    <link name="lg_support_front_${side}">
+      <inertial>
+        <mass value="${m_lg*0.18}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <xacro:icyl m="${m_lg*0.18}" r="${lg_support_r}" h="${lg_support_l}"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 ${-lg_support_pitch} 0"/>
+        <geometry><cylinder radius="${lg_support_r}" length="${lg_support_l}"/></geometry>
+        <material name="lg_al"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 ${-lg_support_pitch} 0"/>
+        <geometry><cylinder radius="${lg_support_r+0.001}" length="${lg_support_l}"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="hub_to_lg_support_front_${side}" type="fixed">
+      <parent link="body_hub"/>
+      <child link="lg_support_front_${side}"/>
+      <origin xyz="${(lg_support_top_x + lg_support_foot_x)/2} ${y_sign*lg_y} ${(lg_support_top_z + lg_support_foot_z)/2}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Rear diagonal support tube -->
+    <link name="lg_support_rear_${side}">
+      <inertial>
+        <mass value="${m_lg*0.18}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <xacro:icyl m="${m_lg*0.18}" r="${lg_support_r}" h="${lg_support_l}"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 ${lg_support_pitch} 0"/>
+        <geometry><cylinder radius="${lg_support_r}" length="${lg_support_l}"/></geometry>
+        <material name="lg_al"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 ${lg_support_pitch} 0"/>
+        <geometry><cylinder radius="${lg_support_r+0.001}" length="${lg_support_l}"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="hub_to_lg_support_rear_${side}" type="fixed">
+      <parent link="body_hub"/>
+      <child link="lg_support_rear_${side}"/>
+      <origin xyz="${-(lg_support_top_x + lg_support_foot_x)/2} ${y_sign*lg_y} ${(lg_support_top_z + lg_support_foot_z)/2}" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 7 — STANDOFF + VIBRATION-DAMPER MACRO
+═══════════════════════════════════════════════════════════════ -->
+
+  <xacro:macro name="standoff" params="id px py">
+    <link name="standoff_${id}">
+      <inertial>
+        <mass value="${m_so}"/>
+        <origin xyz="0 0 ${-so_len/2}" rpy="0 0 0"/>
+        <xacro:icyl m="${m_so}" r="${so_r}" h="${so_len}"/>
+      </inertial>
+      <!-- hex standoff body -->
+      <visual>
+        <origin xyz="0 0 ${-so_len/2}" rpy="0 0 ${PI/6}"/>
+        <geometry><cylinder radius="${so_r}" length="${so_len}"/></geometry>
+        <material name="al_bright"/>
+      </visual>
+      <!-- upper M4 thread stub -->
+      <visual>
+        <origin xyz="0 0 -0.004" rpy="0 0 0"/>
+        <geometry><cylinder radius="${so_r*0.65}" length="0.008"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <!-- lower M4 thread stub -->
+      <visual>
+        <origin xyz="0 0 ${-so_len+0.004}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${so_r*0.65}" length="0.008"/></geometry>
+        <material name="steel_bolt"/>
+      </visual>
+      <!-- silicone vibration-isolation damper disc (top) -->
+      <visual>
+        <origin xyz="0 0 -0.001" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.010" length="0.006"/></geometry>
+        <material name="silicone"/>
+      </visual>
+      <!-- silicone damper disc (bottom) -->
+      <visual>
+        <origin xyz="0 0 ${-so_len+0.001}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.010" length="0.006"/></geometry>
+        <material name="silicone"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${-so_len/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="${so_r}" length="${so_len}"/></geometry>
+      </collision>
+    </link>
+    <joint name="plate_to_so_${id}" type="fixed">
+      <parent link="bottom_plate"/>
+      <child link="standoff_${id}"/>
+      <origin xyz="${px} ${py} ${-plate_t/2}" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 8 — BASE LINK
+═══════════════════════════════════════════════════════════════ -->
+
+  <link name="base_link"/>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 9 — BODY HUB (multi-body realistic)
+═══════════════════════════════════════════════════════════════ -->
+
+  <link name="body_hub">
+    <inertial>
+      <mass value="${m_hub}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:icyl m="${m_hub}" r="${hub_r}" h="${hub_h}"/>
+    </inertial>
+
+    <!-- main CF cylinder body -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="${hub_r}" length="${hub_h}"/></geometry>
+      <material name="cf_dark"/>
+    </visual>
+    <!-- top CF dome cap -->
+    <visual>
+      <origin xyz="0 0 ${hub_h/2+0.004}" rpy="0 0 0"/>
+      <geometry><sphere radius="${hub_r*0.50}"/></geometry>
+      <material name="cf_mid"/>
+    </visual>
+    <!-- top plate ring -->
+    <visual>
+      <origin xyz="0 0 ${hub_h/2+0.001}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${hub_r*0.92}" length="0.003"/></geometry>
+      <material name="cf_dark"/>
+    </visual>
+    <!-- centre status LED ring -->
+    <visual>
+      <origin xyz="0 0 ${hub_h/2+0.002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${hub_r*0.28}" length="0.003"/></geometry>
+      <material name="led_grn"/>
+    </visual>
+    <!-- PDB (power distribution board) ring -->
+    <visual>
+      <origin xyz="0 0 ${-hub_h/4}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${hub_r*0.72}" length="0.004"/></geometry>
+      <material name="pcb_grn"/>
+    </visual>
+    <!-- main XT90-S power connector (front face) -->
+    <visual>
+      <origin xyz="${hub_r-0.005} 0 ${-hub_h/4}" rpy="0 ${PI/2} 0"/>
+      <geometry><box size="0.014 0.022 0.016"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+    <!-- bottom Al flange ring -->
+    <visual>
+      <origin xyz="0 0 ${-hub_h/2-hub_flange_h/2}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${hub_flange_r}" length="${hub_flange_h}"/></geometry>
+      <material name="al_bright"/>
+    </visual>
+    <!-- 6 arm root boss rings (one per arm, at 60° increments) -->
+    <visual><origin xyz="${hub_r*0.94} 0 0" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.015" length="0.016"/></geometry><material name="al_dark"/></visual>
+    <visual><origin xyz="${hub_r*0.94*0.5} ${hub_r*0.94*0.866} 0" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.015" length="0.016"/></geometry><material name="al_dark"/></visual>
+    <visual><origin xyz="${-hub_r*0.94*0.5} ${hub_r*0.94*0.866} 0" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.015" length="0.016"/></geometry><material name="al_dark"/></visual>
+    <visual><origin xyz="${-hub_r*0.94} 0 0" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.015" length="0.016"/></geometry><material name="al_dark"/></visual>
+    <visual><origin xyz="${-hub_r*0.94*0.5} ${-hub_r*0.94*0.866} 0" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.015" length="0.016"/></geometry><material name="al_dark"/></visual>
+    <visual><origin xyz="${hub_r*0.94*0.5} ${-hub_r*0.94*0.866} 0" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.015" length="0.016"/></geometry><material name="al_dark"/></visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="${hub_flange_r}" length="${hub_h+0.030}"/></geometry>
+    </collision>
+  </link>
+
+  <joint name="base_to_body" type="fixed">
+    <parent link="base_link"/>
+    <child link="body_hub"/>
+    <!-- Total ground-to-GPS height ≈ 280 mm per design spec -->
+    <origin xyz="0 0 0.1865" rpy="0 0 0"/>
+  </joint>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 10 — BATTERY (LiPo 6S 16000 mAh × 2)
+═══════════════════════════════════════════════════════════════ -->
+
+  <link name="battery">
+    <inertial>
+      <mass value="${m_bat}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:ibox m="${m_bat}" x="${bat_l}" y="${bat_w}" z="${bat_h}"/>
+    </inertial>
+    <!-- single 6S 10000mAh pack -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${bat_l} ${bat_w} ${bat_h}"/></geometry>
+      <material name="lipo_blue"/>
+    </visual>
+    <!-- label wrap -->
+    <visual>
+      <origin xyz="0 0 ${bat_h/2+0.001}" rpy="0 0 0"/>
+      <geometry><box size="${bat_l*0.85} ${bat_w*0.85} 0.002"/></geometry>
+      <material name="cable"/>
+    </visual>
+    <!-- velcro straps (front/rear) -->
+    <visual>
+      <origin xyz="${bat_l/2-0.015} 0 ${bat_h/2+0.002}" rpy="0 0 0"/>
+      <geometry><box size="0.022 ${bat_w+0.010} 0.004"/></geometry>
+      <material name="cable"/>
+    </visual>
+    <visual>
+      <origin xyz="${-(bat_l/2-0.015)} 0 ${bat_h/2+0.002}" rpy="0 0 0"/>
+      <geometry><box size="0.022 ${bat_w+0.010} 0.004"/></geometry>
+      <material name="cable"/>
+    </visual>
+    <!-- XT90-S connector -->
+    <visual>
+      <origin xyz="${bat_l/2+0.007} 0 0" rpy="0 ${PI/2} 0"/>
+      <geometry><box size="0.018 0.024 0.018"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+    <!-- balance lead (13S wire bundle) -->
+    <visual>
+      <origin xyz="${bat_l/2+0.007} 0 ${bat_h/4}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.005" length="0.030"/></geometry>
+      <material name="cable"/>
+    </visual>
+    <!-- foam pad top -->
+    <visual>
+      <origin xyz="0 0 ${bat_h/2+0.003}" rpy="0 0 0"/>
+      <geometry><box size="${bat_l*0.90} ${bat_w*0.90} 0.004"/></geometry>
+      <material name="foam_white"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${bat_l+0.010} ${bat_w+0.010} ${bat_h+0.006}"/></geometry>
+    </collision>
+  </link>
+
+  <joint name="hub_to_battery" type="fixed">
+    <parent link="body_hub"/>
+    <child link="battery"/>
+    <!-- bat_z computed with explicit clearance from hub_flange bottom.
+         v1 had 1mm clearance between battery top and ESC bottoms.
+         bat_z = -(hub_h/2 + hub_flange_h + bat_h/2 + 0.006) -->
+    <origin xyz="0 0 ${bat_z}" rpy="0 0 0"/>
+  </joint>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 11 — BOTTOM PLATE (CNC-cut CF)
+═══════════════════════════════════════════════════════════════ -->
+
+  <link name="bottom_plate">
+    <inertial>
+      <mass value="${m_plate}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:ibox m="${m_plate}" x="${plate_l}" y="${plate_w}" z="${plate_t}"/>
+    </inertial>
+    <!-- main plate -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${plate_l} ${plate_w} ${plate_t}"/></geometry>
+      <material name="cf_dark"/>
+    </visual>
+    <!-- engraved centre circle -->
+    <visual>
+      <origin xyz="0 0 ${plate_t/2+0.0002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.038" length="0.001"/></geometry>
+      <material name="cf_mid"/>
+    </visual>
+    <!-- weight-saving hex pockets -->
+    <visual><origin xyz=" 0.070  0.070 ${plate_t/2+0.0002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.018" length="0.001"/></geometry><material name="cf_hollow"/></visual>
+    <visual><origin xyz="-0.070  0.070 ${plate_t/2+0.0002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.018" length="0.001"/></geometry><material name="cf_hollow"/></visual>
+    <visual><origin xyz=" 0.070 -0.070 ${plate_t/2+0.0002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.018" length="0.001"/></geometry><material name="cf_hollow"/></visual>
+    <visual><origin xyz="-0.070 -0.070 ${plate_t/2+0.0002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.018" length="0.001"/></geometry><material name="cf_hollow"/></visual>
+    <visual><origin xyz=" 0.000  0.090 ${plate_t/2+0.0002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.014" length="0.001"/></geometry><material name="cf_hollow"/></visual>
+    <visual><origin xyz=" 0.000 -0.090 ${plate_t/2+0.0002}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.014" length="0.001"/></geometry><material name="cf_hollow"/></visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${plate_l} ${plate_w} ${plate_t}"/></geometry>
+    </collision>
+  </link>
+
+  <joint name="hub_to_plate" type="fixed">
+    <parent link="body_hub"/>
+    <child link="bottom_plate"/>
+    <origin xyz="0 0 ${plate_z}" rpy="0 0 0"/>
+  </joint>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 12 — RADAR ELECTRONICS BOX
+═══════════════════════════════════════════════════════════════ -->
+
+  <link name="radar_box">
+    <inertial>
+      <mass value="${m_rbox}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:ibox m="${m_rbox}" x="${rbox_l}" y="${rbox_w}" z="${rbox_h}"/>
+    </inertial>
+
+    <!-- outer Al 5052 shell -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${rbox_l} ${rbox_w} ${rbox_h}"/></geometry>
+      <material name="radar_hous"/>
+    </visual>
+    <!-- removable Al lid (top face) -->
+    <visual>
+      <origin xyz="0 0 ${rbox_h/2+0.002}" rpy="0 0 0"/>
+      <geometry><box size="${rbox_l-0.006} ${rbox_w-0.006} 0.004"/></geometry>
+      <material name="al_bright"/>
+    </visual>
+    <!-- lid M3 screws — 4 corners -->
+    <visual><origin xyz=" ${rbox_l/2-0.012}  ${rbox_w/2-0.012} ${rbox_h/2+0.005}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+    <visual><origin xyz="${-rbox_l/2+0.012}  ${rbox_w/2-0.012} ${rbox_h/2+0.005}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+    <visual><origin xyz=" ${rbox_l/2-0.012} ${-rbox_w/2+0.012} ${rbox_h/2+0.005}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+    <visual><origin xyz="${-rbox_l/2+0.012} ${-rbox_w/2+0.012} ${rbox_h/2+0.005}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.0015" length="0.006"/></geometry><material name="steel_bolt"/></visual>
+
+    <!-- 4× AWR1843BOOST radar PCBs (quadrant-mounted) -->
+    <visual><origin xyz=" 0.058  0.058 ${rbox_h/2-0.005}" rpy="0 0 0"/>
+      <geometry><box size="0.058 0.058 0.007"/></geometry><material name="pcb_grn"/></visual>
+    <visual><origin xyz="-0.058  0.058 ${rbox_h/2-0.005}" rpy="0 0 0"/>
+      <geometry><box size="0.058 0.058 0.007"/></geometry><material name="pcb_grn"/></visual>
+    <visual><origin xyz=" 0.058 -0.058 ${rbox_h/2-0.005}" rpy="0 0 0"/>
+      <geometry><box size="0.058 0.058 0.007"/></geometry><material name="pcb_grn"/></visual>
+    <visual><origin xyz="-0.058 -0.058 ${rbox_h/2-0.005}" rpy="0 0 0"/>
+      <geometry><box size="0.058 0.058 0.007"/></geometry><material name="pcb_grn"/></visual>
+
+    <!-- Jetson Orin NX compute module -->
+    <visual>
+      <origin xyz="0 0 ${-rbox_h/2+0.013}" rpy="0 0 0"/>
+      <geometry><box size="0.069 0.045 0.016"/></geometry>
+      <material name="al_bright"/>
+    </visual>
+    <!-- Jetson heatsink + fins -->
+    <visual>
+      <origin xyz="0 0 ${-rbox_h/2+0.013+0.012}" rpy="0 0 0"/>
+      <geometry><box size="0.060 0.038 0.012"/></geometry>
+      <material name="al_dark"/>
+    </visual>
+    <visual><origin xyz="-0.024 0 ${-rbox_h/2+0.020}" rpy="0 0 0"/>
+      <geometry><box size="0.002 0.036 0.014"/></geometry><material name="al_bright"/></visual>
+    <visual><origin xyz="-0.012 0 ${-rbox_h/2+0.020}" rpy="0 0 0"/>
+      <geometry><box size="0.002 0.036 0.014"/></geometry><material name="al_bright"/></visual>
+    <visual><origin xyz=" 0.000 0 ${-rbox_h/2+0.020}" rpy="0 0 0"/>
+      <geometry><box size="0.002 0.036 0.014"/></geometry><material name="al_bright"/></visual>
+    <visual><origin xyz=" 0.012 0 ${-rbox_h/2+0.020}" rpy="0 0 0"/>
+      <geometry><box size="0.002 0.036 0.014"/></geometry><material name="al_bright"/></visual>
+    <visual><origin xyz=" 0.024 0 ${-rbox_h/2+0.020}" rpy="0 0 0"/>
+      <geometry><box size="0.002 0.036 0.014"/></geometry><material name="al_bright"/></visual>
+
+    <!-- Doodle Labs mesh radio module -->
+    <visual>
+      <origin xyz="0.072 -0.072 ${-rbox_h/2+0.008}" rpy="0 0 0"/>
+      <geometry><box size="0.058 0.038 0.010"/></geometry>
+      <material name="pcb_grn"/>
+    </visual>
+    <!-- mesh radio SMA antenna stub -->
+    <visual>
+      <origin xyz="${rbox_l/2+0.007} -0.072 0.005" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.003" length="0.014"/></geometry>
+      <material name="steel_bolt"/>
+    </visual>
+
+    <!-- Vent slots on +X face (heat dissipation) -->
+    <visual><origin xyz="${rbox_l/2+0.0005}  0.045 0.006" rpy="0 0 0"/>
+      <geometry><box size="0.001 0.012 0.004"/></geometry><material name="cable"/></visual>
+    <visual><origin xyz="${rbox_l/2+0.0005}  0.025 0.006" rpy="0 0 0"/>
+      <geometry><box size="0.001 0.012 0.004"/></geometry><material name="cable"/></visual>
+    <visual><origin xyz="${rbox_l/2+0.0005}  0.005 0.006" rpy="0 0 0"/>
+      <geometry><box size="0.001 0.012 0.004"/></geometry><material name="cable"/></visual>
+    <visual><origin xyz="${rbox_l/2+0.0005} -0.015 0.006" rpy="0 0 0"/>
+      <geometry><box size="0.001 0.012 0.004"/></geometry><material name="cable"/></visual>
+
+    <!-- RF cable gland entries (one per face) -->
+    <visual><origin xyz="${rbox_l/2-0.006}  0            ${-rbox_h/4}" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.004" length="0.012"/></geometry><material name="esc_body"/></visual>
+    <visual><origin xyz="${-rbox_l/2+0.006} 0            ${-rbox_h/4}" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.004" length="0.012"/></geometry><material name="esc_body"/></visual>
+    <visual><origin xyz="0  ${rbox_w/2-0.006}            ${-rbox_h/4}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.004" length="0.012"/></geometry><material name="esc_body"/></visual>
+    <visual><origin xyz="0 ${-rbox_w/2+0.006}            ${-rbox_h/4}" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.004" length="0.012"/></geometry><material name="esc_body"/></visual>
+
+    <!-- IP67 rubber seal groove -->
+    <visual>
+      <origin xyz="0 0 ${rbox_h/2}" rpy="0 0 0"/>
+      <geometry><box size="${rbox_l} ${rbox_w} 0.003"/></geometry>
+      <material name="rubber"/>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${rbox_l+0.016} ${rbox_w+0.016} ${rbox_h+0.010}"/></geometry>
+    </collision>
+  </link>
+
+  <joint name="plate_to_rbox" type="fixed">
+    <parent link="bottom_plate"/>
+    <child link="radar_box"/>
+    <origin xyz="0 0 ${-plate_t/2-so_len-rbox_h/2-0.005}" rpy="0 0 0"/>
+  </joint>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 13 — SENSOR LINKS
+═══════════════════════════════════════════════════════════════ -->
+
+  <!-- ── 13.1  IMU — VectorNav VN-100 ─────────────────────── -->
+  <link name="imu_link">
+    <inertial>
+      <mass value="${m_imu}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:ibox m="${m_imu}" x="0.036" y="0.033" z="0.009"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.036 0.033 0.009"/></geometry>
+      <material name="pcb_grn"/>
+    </visual>
+    <visual>
+      <origin xyz="0.020 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.006 0.010 0.006"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+  </link>
+  <joint name="hub_to_imu" type="fixed">
+    <parent link="body_hub"/>
+    <child link="imu_link"/>
+    <origin xyz="0.028 0.028 ${-hub_h/4}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── 13.2  GPS/GNSS — Here3+ puck on mast ─────────────── -->
+  <link name="gps_link">
+    <inertial>
+      <mass value="${m_gps}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:icyl m="${m_gps}" r="0.032" h="0.012"/>
+    </inertial>
+    <!-- mast pole -->
+    <visual>
+      <origin xyz="0 0 -0.045" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.004" length="0.090"/></geometry>
+      <material name="al_dark"/>
+    </visual>
+    <!-- puck body -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.032" length="0.012"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+    <!-- puck label ring -->
+    <visual>
+      <origin xyz="0 0 -0.004" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.030" length="0.003"/></geometry>
+      <material name="led_grn"/>
+    </visual>
+    <!-- radome dome -->
+    <visual>
+      <origin xyz="0 0 0.007" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.028" length="0.004"/></geometry>
+      <material name="radome"/>
+    </visual>
+    <!-- mast cable -->
+    <visual>
+      <origin xyz="0.004 0 -0.090" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.002" length="0.060"/></geometry>
+      <material name="cable"/>
+    </visual>
+  </link>
+  <joint name="hub_to_gps" type="fixed">
+    <parent link="body_hub"/>
+    <child link="gps_link"/>
+    <origin xyz="0 0 ${hub_h/2 + hub_r*0.50 + 0.060}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── 13.3  Pixhawk 6C flight controller ───────────────── -->
+  <link name="fcu_link">
+    <inertial>
+      <mass value="${m_fcu}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:ibox m="${m_fcu}" x="0.038" y="0.038" z="0.022"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.038 0.038 0.022"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+    <!-- safety button -->
+    <visual>
+      <origin xyz="0.022 -0.010 0.012" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.005" length="0.006"/></geometry>
+      <material name="led_red"/>
+    </visual>
+    <!-- status LED strip -->
+    <visual>
+      <origin xyz="0.020 0.010 0.012" rpy="0 0 0"/>
+      <geometry><box size="0.004 0.014 0.004"/></geometry>
+      <material name="led_grn"/>
+    </visual>
+    <!-- USB-C port -->
+    <visual>
+      <origin xyz="-0.022 0 -0.006" rpy="0 ${PI/2} 0"/>
+      <geometry><box size="0.006 0.010 0.004"/></geometry>
+      <material name="al_dark"/>
+    </visual>
+    <!-- telemetry RF connector -->
+    <visual>
+      <origin xyz="0.022 0.012 -0.004" rpy="0 ${PI/2} 0"/>
+      <geometry><cylinder radius="0.003" length="0.008"/></geometry>
+      <material name="steel_bolt"/>
+    </visual>
+  </link>
+  <joint name="hub_to_fcu" type="fixed">
+    <parent link="body_hub"/>
+    <child link="fcu_link"/>
+    <origin xyz="0 -0.033 ${-hub_h/4}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── 13.4  Optical flow / downward lidar ──────────────── -->
+  <link name="optical_flow_link">
+    <inertial>
+      <mass value="${m_flow}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:icyl m="${m_flow}" r="0.015" h="0.018"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.015" length="0.018"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+    <!-- lens -->
+    <visual>
+      <origin xyz="0 0 -0.010" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.010" length="0.005"/></geometry>
+      <material name="radome"/>
+    </visual>
+  </link>
+  <!-- Sensor frame points straight down (−Z, π rotation around X) -->
+  <joint name="plate_to_optical_flow" type="fixed">
+    <parent link="bottom_plate"/>
+    <child link="optical_flow_link"/>
+    <origin xyz="0 0 ${-plate_t/2-0.010}" rpy="${PI} 0 0"/>
+  </joint>
+
+  <!-- ── 13.5  NEW: Barometer (MS5611-equivalent) ─────────── -->
+  <link name="baro_link">
+    <inertial>
+      <mass value="${m_baro}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:ibox m="${m_baro}" x="0.005" y="0.005" z="0.002"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.005 0.005 0.002"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+  </link>
+  <joint name="hub_to_baro" type="fixed">
+    <parent link="body_hub"/>
+    <child link="baro_link"/>
+    <!-- Co-located with FCU (embedded sensor) -->
+    <origin xyz="-0.005 -0.033 ${-hub_h/4+0.012}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── 13.6  NEW: Magnetometer (IST8310) ────────────────── -->
+  <link name="mag_link">
+    <inertial>
+      <mass value="${m_mag}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <xacro:ibox m="${m_mag}" x="0.004" y="0.004" z="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.004 0.004 0.001"/></geometry>
+      <material name="esc_body"/>
+    </visual>
+  </link>
+  <joint name="hub_to_mag" type="fixed">
+    <parent link="body_hub"/>
+    <child link="mag_link"/>
+    <!-- Mounted on GPS mast above hub to reduce EMI from motors -->
+    <origin xyz="0.006 0 ${hub_h/2 + hub_r*0.50 + 0.020}" rpy="0 0 0"/>
+  </joint>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 14 — INSTANTIATE ALL ASSEMBLIES
+═══════════════════════════════════════════════════════════════ -->
+
+  <!-- 6 arms (CW layout: 0°,60°,120°,180°,240°,300°) -->
+  <!-- Alternating spin: even=CCW (+1), odd=CW (−1) for torque balance -->
+  <xacro:arm_assembly num="0" angle_deg="0"   spin=" 1"/>
+  <xacro:arm_assembly num="1" angle_deg="60"  spin="-1"/>
+  <xacro:arm_assembly num="2" angle_deg="120" spin=" 1"/>
+  <xacro:arm_assembly num="3" angle_deg="180" spin="-1"/>
+  <xacro:arm_assembly num="4" angle_deg="240" spin=" 1"/>
+  <xacro:arm_assembly num="5" angle_deg="300" spin="-1"/>
+
+  <!-- 4 standoffs (130 mm PCD square, ±72 mm) -->
+  <xacro:standoff id="fl" px=" ${so_pcd}" py=" ${so_pcd}"/>
+  <xacro:standoff id="fr" px=" ${so_pcd}" py="${-so_pcd}"/>
+  <xacro:standoff id="rl" px="${-so_pcd}" py=" ${so_pcd}"/>
+  <xacro:standoff id="rr" px="${-so_pcd}" py="${-so_pcd}"/>
+
+  <!-- 4 antenna panels.
+       Panel faces (radar_frame +X):
+         A → +X (forward),  B → −Y (right, FLU convention),
+         C → −X (rear),     D → +Y (left)
+       Fusion node panel_yaws must match:
+         A=0, B=−π/2, C=π, D=+π/2                          -->
+  <xacro:antenna_panel id="A" angle_deg="0"/>
+  <xacro:antenna_panel id="B" angle_deg="270"/>
+  <xacro:antenna_panel id="C" angle_deg="180"/>
+  <xacro:antenna_panel id="D" angle_deg="90"/>
+
+  <!-- 2 landing gear sets -->
+  <xacro:landing_gear side="L" y_sign=" 1"/>
+  <xacro:landing_gear side="R" y_sign="-1"/>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 15 — ros2_control HARDWARE INTERFACE
+     use_ros2_control=false disables motor control for swarm mode.
+═══════════════════════════════════════════════════════════════ -->
+
+  <xacro:if value="$(arg use_ros2_control)">
+  <ros2_control name="mbc3_gz_control" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+
+    <!-- Motor 0 — arm 0, 0°, CCW -->
+    <joint name="motor_0_spin">
+      <command_interface name="velocity">
+        <param name="min">-1500</param>
+        <param name="max"> 1500</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- Motor 1 — arm 1, 60°, CW -->
+    <joint name="motor_1_spin">
+      <command_interface name="velocity">
+        <param name="min">-1500</param>
+        <param name="max"> 1500</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- Motor 2 — arm 2, 120°, CCW -->
+    <joint name="motor_2_spin">
+      <command_interface name="velocity">
+        <param name="min">-1500</param>
+        <param name="max"> 1500</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- Motor 3 — arm 3, 180°, CW -->
+    <joint name="motor_3_spin">
+      <command_interface name="velocity">
+        <param name="min">-1500</param>
+        <param name="max"> 1500</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- Motor 4 — arm 4, 240°, CCW -->
+    <joint name="motor_4_spin">
+      <command_interface name="velocity">
+        <param name="min">-1500</param>
+        <param name="max"> 1500</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- Motor 5 — arm 5, 300°, CW -->
+    <joint name="motor_5_spin">
+      <command_interface name="velocity">
+        <param name="min">-1500</param>
+        <param name="max"> 1500</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+  </xacro:if>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 16 — GAZEBO HARMONIC PLUGINS AND SENSOR TAGS
+═══════════════════════════════════════════════════════════════ -->
+
+  <!-- ── gz_ros2_control system plugin (single-drone only) ─── -->
+  <xacro:if value="$(arg use_ros2_control)">
+  <gazebo>
+    <plugin filename="gz_ros2_control-system"
+            name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(find mbc3_radar_drone)/config/ros2_controllers.yaml</parameters>
+      <ros>
+        <remapping>~/robot_description:=/robot_description</remapping>
+      </ros>
+    </plugin>
+  </gazebo>
+  </xacro:if>
+
+
+  <!-- ── IMU — VN-100 accurate noise model ─────────────────── -->
+  <gazebo reference="imu_link">
+    <material>Gazebo/Green</material>
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>400</update_rate>
+      <visualize>false</visualize>
+      <topic>${tp}/imu/data_raw</topic>
+      <imu>
+        <angular_velocity>
+          <x>
+            <noise type="gaussian">
+              <mean>${imu_gyro_bias_mean}</mean>
+              <stddev>${imu_gyro_stddev}</stddev>
+              <bias_mean>${imu_gyro_bias_mean}</bias_mean>
+              <bias_stddev>${imu_gyro_bias_stddev}</bias_stddev>
+              <dynamic_bias_stddev>4.34e-6</dynamic_bias_stddev>
+              <dynamic_bias_correlation_time>1000.0</dynamic_bias_correlation_time>
+              <precision>1.7e-7</precision>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>${imu_gyro_bias_mean}</mean>
+              <stddev>${imu_gyro_stddev}</stddev>
+              <bias_mean>${imu_gyro_bias_mean}</bias_mean>
+              <bias_stddev>${imu_gyro_bias_stddev}</bias_stddev>
+              <dynamic_bias_stddev>4.34e-6</dynamic_bias_stddev>
+              <dynamic_bias_correlation_time>1000.0</dynamic_bias_correlation_time>
+              <precision>1.7e-7</precision>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>${imu_gyro_bias_mean}</mean>
+              <stddev>${imu_gyro_stddev}</stddev>
+              <bias_mean>${imu_gyro_bias_mean}</bias_mean>
+              <bias_stddev>${imu_gyro_bias_stddev}</bias_stddev>
+              <dynamic_bias_stddev>4.34e-6</dynamic_bias_stddev>
+              <dynamic_bias_correlation_time>1000.0</dynamic_bias_correlation_time>
+              <precision>1.7e-7</precision>
+            </noise>
+          </z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x>
+            <noise type="gaussian">
+              <mean>${imu_accel_bias_mean}</mean>
+              <stddev>${imu_accel_stddev}</stddev>
+              <bias_mean>${imu_accel_bias_mean}</bias_mean>
+              <bias_stddev>${imu_accel_bias_stddev}</bias_stddev>
+              <dynamic_bias_stddev>1.96e-3</dynamic_bias_stddev>
+              <dynamic_bias_correlation_time>300.0</dynamic_bias_correlation_time>
+              <precision>2.0e-5</precision>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>${imu_accel_bias_mean}</mean>
+              <stddev>${imu_accel_stddev}</stddev>
+              <bias_mean>${imu_accel_bias_mean}</bias_mean>
+              <bias_stddev>${imu_accel_bias_stddev}</bias_stddev>
+              <dynamic_bias_stddev>1.96e-3</dynamic_bias_stddev>
+              <dynamic_bias_correlation_time>300.0</dynamic_bias_correlation_time>
+              <precision>2.0e-5</precision>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>${imu_accel_bias_mean}</mean>
+              <stddev>${imu_accel_stddev}</stddev>
+              <bias_mean>${imu_accel_bias_mean}</bias_mean>
+              <bias_stddev>${imu_accel_bias_stddev}</bias_stddev>
+              <dynamic_bias_stddev>1.96e-3</dynamic_bias_stddev>
+              <dynamic_bias_correlation_time>300.0</dynamic_bias_correlation_time>
+              <precision>2.0e-5</precision>
+            </noise>
+          </z>
+        </linear_acceleration>
+        <enable_orientation>false</enable_orientation>
+      </imu>
+    </sensor>
+  </gazebo>
+
+  <!-- ── GPS — Here3+, NavSat type with HDOP/VDOP error ────── -->
+  <gazebo reference="gps_link">
+    <sensor name="gps_sensor" type="navsat">
+      <always_on>true</always_on>
+      <update_rate>10</update_rate>
+      <topic>${tp}/gps/fix</topic>
+      <navsat>
+        <position_sensing>
+          <horizontal>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.50</stddev>  <!-- 0.5 m CEP -->
+            </noise>
+          </horizontal>
+          <vertical>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.80</stddev>  <!-- 0.8 m vertical -->
+            </noise>
+          </vertical>
+        </position_sensing>
+        <velocity_sensing>
+          <horizontal>
+            <noise type="gaussian"><mean>0.0</mean><stddev>0.05</stddev></noise>
+          </horizontal>
+          <vertical>
+            <noise type="gaussian"><mean>0.0</mean><stddev>0.05</stddev></noise>
+          </vertical>
+        </velocity_sensing>
+      </navsat>
+    </sensor>
+  </gazebo>
+
+  <!-- ── NEW: Barometer (Altimeter) — 50 Hz ────────────────── -->
+  <gazebo reference="baro_link">
+    <sensor name="barometer" type="altimeter">
+      <always_on>true</always_on>
+      <update_rate>50</update_rate>
+      <topic>${tp}/baro/data</topic>
+      <altimeter>
+        <vertical_position>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.1</stddev>   <!-- ±0.1 m typical MEMS baro -->
+          </noise>
+        </vertical_position>
+        <vertical_velocity>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </vertical_velocity>
+      </altimeter>
+    </sensor>
+  </gazebo>
+
+  <!-- ── NEW: Magnetometer — 50 Hz ─────────────────────────── -->
+  <gazebo reference="mag_link">
+    <sensor name="magnetometer" type="magnetometer">
+      <always_on>true</always_on>
+      <update_rate>50</update_rate>
+      <topic>${tp}/mag/data</topic>
+      <magnetometer>
+        <x>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.0001</stddev>  <!-- Gauss -->
+            <bias_mean>0.0</bias_mean>
+            <bias_stddev>5e-5</bias_stddev>
+          </noise>
+        </x>
+        <y>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.0001</stddev>
+            <bias_mean>0.0</bias_mean>
+            <bias_stddev>5e-5</bias_stddev>
+          </noise>
+        </y>
+        <z>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.0001</stddev>
+            <bias_mean>0.0</bias_mean>
+            <bias_stddev>5e-5</bias_stddev>
+          </noise>
+        </z>
+      </magnetometer>
+    </sensor>
+  </gazebo>
+
+  <!-- ── Radar panel sensors — gpu_lidar for GPU ray-casting ─ -->
+  <!-- Using gpu_lidar gives 10–50× better performance vs cpu ray.
+       Horizontal: 220 samples over ±radar_h_fov = 55° total.
+       Vertical:    90 samples over ±radar_v_fov = 45° total.
+       Range 0.5–5000 m, Gaussian noise σ=0.8 m (FMCW range error). -->
+  <xacro:macro name="radar_sensor_plugin" params="id">
+    <gazebo reference="radar_frame_${id}">
+      <sensor name="radar_${id}" type="gpu_lidar">
+        <always_on>true</always_on>
+        <update_rate>10</update_rate>
+        <visualize>false</visualize>
+        <topic>${tp}/radar_${id}/scan</topic>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>220</samples>
+              <resolution>1</resolution>
+              <min_angle>${-radar_h_fov/2}</min_angle>
+              <max_angle>${ radar_h_fov/2}</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>90</samples>
+              <resolution>1</resolution>
+              <min_angle>${-radar_v_fov/2}</min_angle>
+              <max_angle>${ radar_v_fov/2}</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>${radar_range_min}</min>
+            <max>${radar_range_max}</max>
+            <resolution>${radar_res}</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.8</stddev>
+          </noise>
+        </ray>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:radar_sensor_plugin id="A"/>
+  <xacro:radar_sensor_plugin id="B"/>
+  <xacro:radar_sensor_plugin id="C"/>
+  <xacro:radar_sensor_plugin id="D"/>
+
+  <!-- ── Optical flow: downward-facing rangefinder + camera ── -->
+  <gazebo reference="optical_flow_link">
+    <!-- Rangefinder (TFmini-equivalent) for altitude hold -->
+    <sensor name="rangefinder" type="ray">
+      <always_on>true</always_on>
+      <update_rate>60</update_rate>
+      <topic>${tp}/rangefinder/range</topic>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>1</samples>
+            <resolution>1</resolution>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.02</min>
+          <max>12.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.005</stddev>
+        </noise>
+      </ray>
+    </sensor>
+    <!-- Optical flow camera -->
+    <sensor name="optical_flow_cam" type="camera">
+      <always_on>true</always_on>
+      <update_rate>60</update_rate>
+      <topic>${tp}/optical_flow/image_raw</topic>
+      <camera>
+        <horizontal_fov>1.047</horizontal_fov>
+        <image><width>320</width><height>240</height><format>R8G8B8</format></image>
+        <clip><near>0.01</near><far>10</far></clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ── Rotor LiftDrag hints (Gazebo Harmonic) ──────────────
+       Model-level plugin block avoids urdf2sdf placing plugin
+       inside <link> element (which triggers SDF warning).    -->
+  <xacro:macro name="rotor_aero" params="num link_name spin_dir">
+    <gazebo reference="${link_name}">
+      <plugin filename="gz-sim-lift-drag-system"
+              name="gz::sim::systems::LiftDrag">
+        <a0>0.30</a0>
+        <cla>4.7520</cla>
+        <cda>0.06489</cda>
+        <cma>0.0</cma>
+        <alpha_stall>0.3391</alpha_stall>
+        <cla_stall>-3.85</cla_stall>
+        <cda_stall>1.4326</cda_stall>
+        <cma_stall>0.0</cma_stall>
+        <cp>0 0 0</cp>
+        <area>${PI*prop_r*prop_r}</area>
+        <air_density>1.2041</air_density>
+        <forward>${spin_dir} 0 0</forward>
+        <upward>0 0 1</upward>
+        <link_name>${link_name}</link_name>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Forward vectors alternate with spin direction -->
+  <xacro:rotor_aero num="0" link_name="prop_0" spin_dir=" 1"/>
+  <xacro:rotor_aero num="1" link_name="prop_1" spin_dir="-1"/>
+  <xacro:rotor_aero num="2" link_name="prop_2" spin_dir=" 1"/>
+  <xacro:rotor_aero num="3" link_name="prop_3" spin_dir="-1"/>
+  <xacro:rotor_aero num="4" link_name="prop_4" spin_dir=" 1"/>
+  <xacro:rotor_aero num="5" link_name="prop_5" spin_dir="-1"/>
+
+  <!-- ── Landing skid contact surface tuning ─────────────── -->
+  <gazebo reference="lg_skid_L">
+    <mu1>${skid_mu1}</mu1>
+    <mu2>${skid_mu2}</mu2>
+    <kp>${skid_kp}</kp>
+    <kd>${skid_kd}</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>0.5</maxVel>
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  <gazebo reference="lg_skid_R">
+    <mu1>${skid_mu1}</mu1>
+    <mu2>${skid_mu2}</mu2>
+    <kp>${skid_kp}</kp>
+    <kd>${skid_kd}</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>0.5</maxVel>
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <!-- ── Gazebo material overrides ─────────────────────────── -->
+  <gazebo reference="body_hub">
+    <material>Gazebo/DarkGrey</material>
+    <mu1>0.8</mu1><mu2>0.8</mu2>
+  </gazebo>
+  <gazebo reference="bottom_plate">  <material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="battery">       <material>Gazebo/Blue</material></gazebo>
+  <gazebo reference="radar_box">     <material>Gazebo/Green</material></gazebo>
+
+  <gazebo reference="arm_0"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="arm_1"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="arm_2"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="arm_3"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="arm_4"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="arm_5"><material>Gazebo/DarkGrey</material></gazebo>
+
+  <gazebo reference="motor_bell_0"><material>Gazebo/Red</material></gazebo>
+  <gazebo reference="motor_bell_1"><material>Gazebo/Red</material></gazebo>
+  <gazebo reference="motor_bell_2"><material>Gazebo/Red</material></gazebo>
+  <gazebo reference="motor_bell_3"><material>Gazebo/Red</material></gazebo>
+  <gazebo reference="motor_bell_4"><material>Gazebo/Red</material></gazebo>
+  <gazebo reference="motor_bell_5"><material>Gazebo/Red</material></gazebo>
+
+  <gazebo reference="prop_0"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="prop_1"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="prop_2"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="prop_3"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="prop_4"><material>Gazebo/DarkGrey</material></gazebo>
+  <gazebo reference="prop_5"><material>Gazebo/DarkGrey</material></gazebo>
+
+  <gazebo reference="antenna_panel_A"><material>Gazebo/WoodPallet</material></gazebo>
+  <gazebo reference="antenna_panel_B"><material>Gazebo/WoodPallet</material></gazebo>
+  <gazebo reference="antenna_panel_C"><material>Gazebo/WoodPallet</material></gazebo>
+  <gazebo reference="antenna_panel_D"><material>Gazebo/WoodPallet</material></gazebo>
+
+</robot>
