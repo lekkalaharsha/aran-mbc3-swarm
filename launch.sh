@@ -48,7 +48,7 @@ PX4_MAKE_MODEL="${PX4_MAKE_MODEL:-gz_mbc3_radar_drone}"
 PYTHON="${PYTHON:-python3}"
 GCS_PORT=5000
 GCS_READY_TIMEOUT=20   # seconds Flask has to bind
-PX4_READY_TIMEOUT=120  # seconds SITL+Gazebo has to boot (first build can be slow)
+PX4_READY_TIMEOUT=600  # seconds SITL+Gazebo has to boot (first build: cmake ~73s + 30 targets ~5-8min)
 
 # Racing mode: inject env var so mission script loads RACING_* params
 RACING_MODE="${RACING_MODE:-1}"
@@ -68,6 +68,7 @@ OPT_HEADLESS=false
 OPT_CLEAN_LOGS=false
 OPT_SIM_ONLY=false
 OPT_GCS_ONLY=false
+OPT_BUILD_ONLY=false
 
 PID_PX4=""
 PID_GCS=""
@@ -88,6 +89,7 @@ ${WHT}Options:${RST}
   ${CYN}--no-deps${RST}          Skip Python package installation checks
   ${CYN}--clean-logs${RST}       Delete previous log files before starting
   ${CYN}--px4-dir PATH${RST}     Override PX4-Autopilot path (default: ~/PX4-Autopilot)
+  ${CYN}--build-only${RST}       Build PX4 + model only — do not launch GCS or mission
   ${CYN}--help${RST}             Show this help and exit
 
 ${WHT}Environment overrides:${RST}
@@ -119,9 +121,10 @@ while [[ $# -gt 0 ]]; do
         --sim-only)   OPT_SIM_ONLY=true;  shift   ;;
         --gcs-only)   OPT_GCS_ONLY=true;  shift   ;;
         --no-deps)    OPT_NO_DEPS=true;   shift   ;;
-        --clean-logs) OPT_CLEAN_LOGS=true; shift  ;;
-        --px4-dir)    PX4_DIR="$2";       shift 2 ;;
-        --help|-h)    usage; exit 0 ;;
+        --clean-logs)  OPT_CLEAN_LOGS=true;  shift  ;;
+        --px4-dir)     PX4_DIR="$2";        shift 2 ;;
+        --build-only)  OPT_BUILD_ONLY=true; shift   ;;
+        --help|-h)     usage; exit 0 ;;
         *) log_err "Unknown option: $1"; usage; exit 1 ;;
     esac
 done
@@ -384,6 +387,23 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
     PX4_LOG="${LOG_DIR}/px4_${TS}.log"
 
     [[ "${OPT_HEADLESS}" == true ]] && export HEADLESS=1 && log_info "Headless mode enabled (no Gazebo GUI)"
+
+    # ── Build-only mode: compile in foreground, exit when make finishes ──
+    if [[ "${OPT_BUILD_ONLY}" == true ]]; then
+        log "BUILD-ONLY mode — running make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL} in foreground"
+        log_info "This compiles PX4 + model. Run ./launch.sh normally afterward."
+        log_info "Build log: ${PX4_LOG}"
+        if (
+            cd "${PX4_DIR}"
+            make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}
+        ) 2>&1 | tee -a "${PX4_LOG}"; then
+            log_ok "PX4 build complete — run ./launch.sh to start the full stack"
+        else
+            log_err "PX4 build FAILED — check ${PX4_LOG}"
+            exit 1
+        fi
+        exit 0
+    fi
 
     log "Launching: make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}"
     (
