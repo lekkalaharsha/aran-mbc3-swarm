@@ -389,13 +389,16 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
     [[ "${OPT_HEADLESS}" == true ]] && export HEADLESS=1 && log_info "Headless mode enabled (no Gazebo GUI)"
 
     # ── Build-only mode: compile in foreground, exit when make finishes ──
+    # Uses px4_sitl_default (compile only). make px4_sitl gz_<model> builds
+    # AND runs PX4, which then waits for Gazebo — fails if Gazebo isn't up.
     if [[ "${OPT_BUILD_ONLY}" == true ]]; then
-        log "BUILD-ONLY mode — running make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL} in foreground"
-        log_info "This compiles PX4 + model. Run ./launch.sh normally afterward."
+        log "BUILD-ONLY mode — running make px4_sitl_default in foreground"
+        log_info "Compiles PX4 binary + plugins. Does NOT start Gazebo or PX4."
+        log_info "Run ./launch.sh normally afterward."
         log_info "Build log: ${PX4_LOG}"
         if (
             cd "${PX4_DIR}"
-            make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}
+            make px4_sitl_default
         ) 2>&1 | tee -a "${PX4_LOG}"; then
             log_ok "PX4 build complete — run ./launch.sh to start the full stack"
         else
