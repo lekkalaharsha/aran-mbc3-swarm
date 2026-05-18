@@ -18,6 +18,7 @@ else
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC_DIR="${SCRIPT_DIR}/src"
 LOG_DIR="${SCRIPT_DIR}/logs"
 TS="$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="${LOG_DIR}/launch_${TS}.log"
@@ -274,10 +275,10 @@ REQUIRED_FILES=(
 )
 FILES_OK=true
 for f in "${REQUIRED_FILES[@]}"; do
-    if [[ -f "${SCRIPT_DIR}/${f}" ]]; then
+    if [[ -f "${SRC_DIR}/${f}" ]]; then
         log_ok "${f}"
     else
-        log_err "${f} — NOT FOUND in ${SCRIPT_DIR}"
+        log_err "${f} — NOT FOUND in ${SRC_DIR}"
         FILES_OK=false
     fi
 done
@@ -285,11 +286,11 @@ done
 
 # Auto-patch telemetry_web.py if allow_unsafe_werkzeug is missing
 # (flask-socketio ≥ 5.3 raises RuntimeError without this flag)
-if ! grep -q "allow_unsafe_werkzeug" "${SCRIPT_DIR}/telemetry_web.py"; then
+if ! grep -q "allow_unsafe_werkzeug" "${SRC_DIR}/telemetry_web.py"; then
     log_warn "telemetry_web.py: allow_unsafe_werkzeug=True not found — patching…"
     sed -i \
         's/socketio\.run(\(.*\)debug=False\(.*\))/socketio.run(\1debug=False\2, allow_unsafe_werkzeug=True)/' \
-        "${SCRIPT_DIR}/telemetry_web.py" \
+        "${SRC_DIR}/telemetry_web.py" \
         && log_ok "  telemetry_web.py patched successfully" \
         || {
             log_err "  Auto-patch failed — add allow_unsafe_werkzeug=True to socketio.run() manually"
@@ -311,7 +312,7 @@ fi
 
 # Syntax check mapping_3d.py
 log "Pre-flight syntax check: mapping_3d.py…"
-if ! "${PYTHON}" -m py_compile "${SCRIPT_DIR}/mapping_3d.py" 2>&1 | tee -a "${LOG_FILE}"; then
+if ! "${PYTHON}" -m py_compile "${SRC_DIR}/mapping_3d.py" 2>&1 | tee -a "${LOG_FILE}"; then
     log_err "Syntax error in mapping_3d.py — aborting"
     exit 1
 fi
@@ -321,10 +322,10 @@ log_ok "mapping_3d.py syntax OK"
 # py_compile only checks syntax; it does NOT verify the file is on sys.path when
 # isr_lidar_mpc.py runs.  This catches the "file exists but isn't in SCRIPT_DIR" case.
 log "Import check: mapping_3d importable from ${SCRIPT_DIR}…"
-if ! (cd "${SCRIPT_DIR}" && "${PYTHON}" -c "import mapping_3d" 2>&1 | tee -a "${LOG_FILE}"); then
-    log_err "mapping_3d is not importable from ${SCRIPT_DIR}"
+if ! (cd "${SRC_DIR}" && "${PYTHON}" -c "import mapping_3d" 2>&1 | tee -a "${LOG_FILE}"); then
+    log_err "mapping_3d is not importable from ${SRC_DIR}"
     log_info "Make sure mapping_3d.py is in the same directory as isr_lidar_mpc.py"
-    log_info "Expected path: ${SCRIPT_DIR}/mapping_3d.py"
+    log_info "Expected path: ${SRC_DIR}/mapping_3d.py"
     exit 1
 fi
 log_ok "mapping_3d import OK"
@@ -334,7 +335,7 @@ if [[ -n "${OPT_SCENARIO}" ]]; then
     log "Validating scenario '${OPT_SCENARIO}'…"
     if "${PYTHON}" - <<PYEOF
 import json, sys
-with open("${SCRIPT_DIR}/scenarios.json") as f:
+with open("${SRC_DIR}/scenarios.json") as f:
     d = json.load(f)
 names = [s["name"] for s in d["scenarios"]]
 if "${OPT_SCENARIO}" not in names:
@@ -474,7 +475,7 @@ fi
 
 GCS_LOG="${LOG_DIR}/gcs_${TS}.log"
 (
-    cd "${SCRIPT_DIR}"
+    cd "${SRC_DIR}"
     "${PYTHON}" telemetry_web.py
 ) >> "${GCS_LOG}" 2>&1 &
 PID_GCS=$!
@@ -557,7 +558,7 @@ fi
 
 # ── Pre-launch syntax check (catches indentation / SyntaxError instantly) ──
 log "Pre-flight syntax check: isr_lidar_mpc.py…"
-if ! (cd "${SCRIPT_DIR}" && "${PYTHON}" -m py_compile isr_lidar_mpc.py 2>&1 | tee -a "${LOG_FILE}"); then
+if ! (cd "${SRC_DIR}" && "${PYTHON}" -m py_compile isr_lidar_mpc.py 2>&1 | tee -a "${LOG_FILE}"); then
     log_err "Syntax error in isr_lidar_mpc.py — aborting before PX4/GCS start"
     log_info "Fix the error above and re-run: ./launch.sh"
     exit 1
@@ -566,7 +567,7 @@ log_ok "Syntax check passed"
 
 log "Launching isr_lidar_mpc.py…"
 (
-    cd "${SCRIPT_DIR}"
+    cd "${SRC_DIR}"
     # env prefix only added when SCENARIO_ENV is non-empty
     ${SCENARIO_ENV:+env "${SCENARIO_ENV}"} \
         env "RACING_MODE=${RACING_MODE}" \
@@ -622,7 +623,7 @@ elif (( MISSION_EXIT == 130 )); then
 else
     log_err "Mission FAILED — exit code ${MISSION_EXIT}"
     log_err "Check mission log: ${MISSION_LOG}"
-    log_info "Hint: 'python3 -m py_compile isr_lidar_mpc.py' to catch syntax errors before launch"
+    log_info "Hint: 'cd src && python3 -m py_compile isr_lidar_mpc.py' to catch syntax errors before launch"
 fi
 
 # ══════════════════════════════════════════════════════════
