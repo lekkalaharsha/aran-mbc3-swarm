@@ -10,12 +10,12 @@
   ROS         : ROS2 Jazzy + Gazebo Harmonic (gz-sim 8.x)
   Units       : SI (metres, kg, radians, seconds)
 
-  Structure   : 68 links, 67 joints
+  Structure   : 72 links, 71 joints
   Geometry    : Multi-body realistic visuals per component
   Physics     : Correct inertia tensors, Gazebo mu/kp/kd, damping
   Sensors     : IMU 400Hz (VN-100), GPS/GNSS 10Hz (Here3+),
                 Barometer 50Hz, Magnetometer 50Hz,
-                Optical-flow 60Hz, 4× FMCW Radar panels 10Hz
+                Optical-flow 60Hz, 6× FMCW Radar panels 10Hz
   Control     : ros2_control gz_ros2_control::GazeboSimSystem
                 VelocityJointInterface × 6 motors
   Actuators   : 6× continuous motor_N_spin joints (CW/CCW)
@@ -136,8 +136,9 @@
   <xacro:property name="panel_t"        value="${0.008*viz_scale}"/>
   <xacro:property name="panel_arm_off"  value="${0.110*viz_scale}"/>
   <xacro:property name="radome_t"       value="${0.005*viz_scale}"/>
-  <!-- 24 GHz FMCW: ±27.5° H-FOV, ±22.5° V-FOV per panel -->
-  <xacro:property name="radar_h_fov"    value="${55.0*D2R}"/>
+  <!-- 24 GHz FMCW: ±30° H-FOV, ±22.5° V-FOV per panel.
+       6 panels at 60° spacing × 60° FOV = seamless 360° coverage, zero gaps. -->
+  <xacro:property name="radar_h_fov"    value="${60.0*D2R}"/>
   <xacro:property name="radar_v_fov"    value="${45.0*D2R}"/>
   <xacro:property name="radar_range_min" value="2.0"/>
   <xacro:property name="radar_range_max" value="5000.0"/>
@@ -178,7 +179,7 @@
   <xacro:property name="m_esc"          value="0.032"/>
   <xacro:property name="m_plate"        value="0.070"/>
   <xacro:property name="m_so"           value="0.010"/>
-  <xacro:property name="m_rbox"         value="0.750"/>  <!-- Al shell + AWR1843×4 + Doodle Labs + Jetson Orin NX + misc -->
+  <xacro:property name="m_rbox"         value="0.860"/>  <!-- Al shell + AWR1843×6 + Doodle Labs + Jetson Orin NX + misc -->
   <xacro:property name="m_panel"        value="0.055"/>
   <xacro:property name="m_bat"          value="1.050"/>  <!-- 6S 10000mAh single pack -->
   <xacro:property name="m_lg"           value="0.055"/>
@@ -1481,16 +1482,19 @@
   <xacro:standoff id="rl" px="${-so_pcd}" py=" ${so_pcd}"/>
   <xacro:standoff id="rr" px="${-so_pcd}" py="${-so_pcd}"/>
 
-  <!-- 4 antenna panels.
-       Panel faces (radar_frame +X):
-         A → +X (forward),  B → −Y (right, FLU convention),
-         C → −X (rear),     D → +Y (left)
-       Fusion node panel_yaws must match:
-         A=0, B=−π/2, C=π, D=+π/2                          -->
+  <!-- 6 antenna panels at 60° spacing — one per arm (hex layout).
+       Panel faces (radar_frame +X), FLU convention:
+         A →   0° (forward)       D → 180° (rear)
+         B →  60° (fwd-left)      E → 240° (rear-right)
+         C → 120° (rear-left)     F → 300° (fwd-right)
+       6 × 60° FOV = seamless 360° coverage, zero gaps.
+       Fusion node panel_yaws must match these angles.       -->
   <xacro:antenna_panel id="A" angle_deg="0"/>
-  <xacro:antenna_panel id="B" angle_deg="270"/>
-  <xacro:antenna_panel id="C" angle_deg="180"/>
-  <xacro:antenna_panel id="D" angle_deg="90"/>
+  <xacro:antenna_panel id="B" angle_deg="60"/>
+  <xacro:antenna_panel id="C" angle_deg="120"/>
+  <xacro:antenna_panel id="D" angle_deg="180"/>
+  <xacro:antenna_panel id="E" angle_deg="240"/>
+  <xacro:antenna_panel id="F" angle_deg="300"/>
 
   <!-- 2 landing gear sets -->
   <xacro:landing_gear side="L" y_sign=" 1"/>
@@ -1764,9 +1768,10 @@
 
   <!-- ── Radar panel sensors — gpu_lidar for GPU ray-casting ─ -->
   <!-- Using gpu_lidar gives 10–50× better performance vs cpu ray.
-       Horizontal: 220 samples over ±radar_h_fov = 55° total.
-       Vertical:    90 samples over ±radar_v_fov = 45° total.
-       Range 0.5–5000 m, Gaussian noise σ=0.8 m (FMCW range error). -->
+       Horizontal: 220 samples over radar_h_fov = 60° total (±30°).
+       Vertical:    90 samples over radar_v_fov = 45° total (±22.5°).
+       Range 0.5–5000 m, Gaussian noise σ=0.8 m (FMCW range error).
+       6 panels × 60° = seamless 360° coverage.                     -->
   <xacro:macro name="radar_sensor_plugin" params="id">
     <gazebo reference="radar_frame_${id}">
       <sensor name="radar_${id}" type="gpu_lidar">
@@ -1808,6 +1813,8 @@
   <xacro:radar_sensor_plugin id="B"/>
   <xacro:radar_sensor_plugin id="C"/>
   <xacro:radar_sensor_plugin id="D"/>
+  <xacro:radar_sensor_plugin id="E"/>
+  <xacro:radar_sensor_plugin id="F"/>
 
   <!-- ── Optical flow: downward-facing rangefinder + camera ── -->
   <gazebo reference="optical_flow_link">
@@ -1942,6 +1949,8 @@
   <gazebo reference="antenna_panel_B"><material>Gazebo/WoodPallet</material></gazebo>
   <gazebo reference="antenna_panel_C"><material>Gazebo/WoodPallet</material></gazebo>
   <gazebo reference="antenna_panel_D"><material>Gazebo/WoodPallet</material></gazebo>
+  <gazebo reference="antenna_panel_E"><material>Gazebo/WoodPallet</material></gazebo>
+  <gazebo reference="antenna_panel_F"><material>Gazebo/WoodPallet</material></gazebo>
 
 <!-- ═══════════════════════════════════════════════════════════════
      SECTION 17 — PX4 GAZEBO HARMONIC MOTOR CONTROL

@@ -54,15 +54,19 @@ except ImportError:
 # ══════════════════════════════════════════════════════════
 # Radar panel topics for mbc3_radar_drone (gz-transport).
 # Each panel publishes on the explicit topic set in the xacro.
-# Override via ISR_RADAR_TOPIC_A/B/C/D env vars for non-default worlds.
-# Panel yaw offsets in body frame (CCW from forward): A=0°, D=90°, C=180°, B=270°
+# Override via ISR_RADAR_TOPIC_A/B/C/D/E/F env vars for non-default worlds.
+# 6 panels at 60° spacing × 60° H-FOV = seamless 360° coverage, zero gaps.
+# Panel yaw offsets in body frame (CCW from forward):
+#   A=0°, B=60°, C=120°, D=180°, E=240°, F=300°
 _RADAR_TOPICS = {
     "A": _os.environ.get("ISR_RADAR_TOPIC_A", "/radar_A/scan"),
     "B": _os.environ.get("ISR_RADAR_TOPIC_B", "/radar_B/scan"),
     "C": _os.environ.get("ISR_RADAR_TOPIC_C", "/radar_C/scan"),
     "D": _os.environ.get("ISR_RADAR_TOPIC_D", "/radar_D/scan"),
+    "E": _os.environ.get("ISR_RADAR_TOPIC_E", "/radar_E/scan"),
+    "F": _os.environ.get("ISR_RADAR_TOPIC_F", "/radar_F/scan"),
 }
-_PANEL_YAWS_DEG = {"A": 0.0, "B": 270.0, "C": 180.0, "D": 90.0}
+_PANEL_YAWS_DEG = {"A": 0.0, "B": 60.0, "C": 120.0, "D": 180.0, "E": 240.0, "F": 300.0}
 
 # Racing mode overrides: scale avoidance distances for 30–60 m/s operation.
 # At these speeds the drone covers 30 m in under 1 second — standard 15/25 m
@@ -363,7 +367,7 @@ def _discover_radar_topics():
             capture_output=True, text=True, timeout=5
         )
         for line in result.stdout.splitlines():
-            for pid in ("A", "B", "C", "D"):
+            for pid in ("A", "B", "C", "D", "E", "F"):
                 if f"radar_{pid}/scan" in line and pid not in found:
                     found[pid] = line.strip()
     except Exception:
