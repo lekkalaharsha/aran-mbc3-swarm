@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PX4_DIR="${PX4_DIR:-${HOME}/PX4-Autopilot}"
 MODEL_NAME="mbc3_radar_drone"
 MODEL_DEST="${PX4_DIR}/Tools/simulation/gz/models/${MODEL_NAME}"
-AIRFRAME_DEST="${PX4_DIR}/ROMFS/px4fmu-common/init.d-posix/airframes"
+AIRFRAME_DEST="${PX4_DIR}/ROMFS/px4fmu_common/init.d-posix/airframes"
 AIRFRAME_FILE="4601_gz_${MODEL_NAME}"
 XACRO_FILE="${SCRIPT_DIR}/mbc3_radar_drone.xacro"
 URDF_FILE="${SCRIPT_DIR}/mbc3_radar_drone.urdf"
@@ -79,12 +79,14 @@ ok "Airframe installed"
 # Register airframe in CMakeLists.txt if not already present
 CMAKEFILE="${AIRFRAME_DEST}/CMakeLists.txt"
 if [[ -f "${CMAKEFILE}" ]] && ! grep -q "${AIRFRAME_FILE}" "${CMAKEFILE}"; then
-    # Insert after the last px4_sitl entry in the ROMFS_FILES list
-    sed -i "/gz_x500/a \\t${AIRFRAME_FILE}" "${CMAKEFILE}" 2>/dev/null \
-        || warn "Could not auto-register in CMakeLists.txt — add ${AIRFRAME_FILE} manually"
-    ok "Registered in CMakeLists.txt"
+    # Insert after the last gz_x500_flow entry (last of the gz_x500 series)
+    sed -i "/4021_gz_x500_flow/a \\t${AIRFRAME_FILE}" "${CMAKEFILE}" \
+        && ok "Registered in CMakeLists.txt" \
+        || warn "Auto-register failed — add '\\t${AIRFRAME_FILE}' to ${CMAKEFILE} manually"
+    # Invalidate cmake cache so PX4 picks up new airframe on next build
+    rm -f "${PX4_DIR}/build/px4_sitl_default/CMakeCache.txt" && ok "CMake cache cleared"
 else
-    ok "CMakeLists.txt already up-to-date (or not found — skipping)"
+    ok "CMakeLists.txt already up-to-date"
 fi
 
 # ── Done ─────────────────────────────────────────────────────
