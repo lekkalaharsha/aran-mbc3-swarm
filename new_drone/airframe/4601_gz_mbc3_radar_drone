@@ -1,0 +1,90 @@
+#!/bin/sh
+#
+# @name MBC-3 Radar Hexacopter (Gazebo Harmonic)
+# @type Hexarotor x
+# @class Copter
+#
+# @maintainer Aran Technologies <aranrobotics@gmail.com>
+#
+# Layout (FRD body frame, arm_len=0.360 m):
+#   Motor 0  arm 0    0°   CCW   px= 0.360  py= 0.000
+#   Motor 1  arm 1   60°   CW    px= 0.180  py=-0.312
+#   Motor 2  arm 2  120°   CCW   px=-0.180  py=-0.312
+#   Motor 3  arm 3  180°   CW    px=-0.360  py= 0.000
+#   Motor 4  arm 4  240°   CCW   px=-0.180  py= 0.312
+#   Motor 5  arm 5  300°   CW    px= 0.180  py= 0.312
+#
+# AUW ~4.1 kg  |  6S 10000 mAh  |  ~32 min endurance
+
+. ${R}etc/init.d/rc.mc_defaults
+
+# ── Control Allocation ────────────────────────────────────────────
+param set-default CA_ROTOR_COUNT 6
+
+param set-default CA_ROTOR0_PX  0.360
+param set-default CA_ROTOR0_PY  0.000
+param set-default CA_ROTOR0_PZ  0.000
+param set-default CA_ROTOR0_KM -0.05
+
+param set-default CA_ROTOR1_PX  0.180
+param set-default CA_ROTOR1_PY -0.312
+param set-default CA_ROTOR1_PZ  0.000
+param set-default CA_ROTOR1_KM  0.05
+
+param set-default CA_ROTOR2_PX -0.180
+param set-default CA_ROTOR2_PY -0.312
+param set-default CA_ROTOR2_PZ  0.000
+param set-default CA_ROTOR2_KM -0.05
+
+param set-default CA_ROTOR3_PX -0.360
+param set-default CA_ROTOR3_PY  0.000
+param set-default CA_ROTOR3_PZ  0.000
+param set-default CA_ROTOR3_KM  0.05
+
+param set-default CA_ROTOR4_PX -0.180
+param set-default CA_ROTOR4_PY  0.312
+param set-default CA_ROTOR4_PZ  0.000
+param set-default CA_ROTOR4_KM -0.05
+
+param set-default CA_ROTOR5_PX  0.180
+param set-default CA_ROTOR5_PY  0.312
+param set-default CA_ROTOR5_PZ  0.000
+param set-default CA_ROTOR5_KM  0.05
+
+# ── Gazebo SITL output mappings ───────────────────────────────────
+param set-default SIM_GZ_EN 1
+
+param set-default SIM_GZ_EC_FUNC1 101
+param set-default SIM_GZ_EC_FUNC2 102
+param set-default SIM_GZ_EC_FUNC3 103
+param set-default SIM_GZ_EC_FUNC4 104
+param set-default SIM_GZ_EC_FUNC5 105
+param set-default SIM_GZ_EC_FUNC6 106
+
+param set-default SIM_GZ_EC_MIN1 0
+param set-default SIM_GZ_EC_MIN2 0
+param set-default SIM_GZ_EC_MIN3 0
+param set-default SIM_GZ_EC_MIN4 0
+param set-default SIM_GZ_EC_MIN5 0
+param set-default SIM_GZ_EC_MIN6 0
+
+param set-default SIM_GZ_EC_MAX1 1000
+param set-default SIM_GZ_EC_MAX2 1000
+param set-default SIM_GZ_EC_MAX3 1000
+param set-default SIM_GZ_EC_MAX4 1000
+param set-default SIM_GZ_EC_MAX5 1000
+param set-default SIM_GZ_EC_MAX6 1000
+
+# ── Flight tuning (4.1 kg hex) ────────────────────────────────────
+param set-default MPC_THR_HOVER 0.43
+param set-default MPC_THR_MIN   0.06
+param set-default MPC_THR_MAX   0.95
+
+param set-default MC_ROLLRATE_P  0.14
+param set-default MC_PITCHRATE_P 0.14
+param set-default MC_YAWRATE_P   0.20
+
+param set-default MPC_XY_P   0.95
+param set-default MPC_Z_P    1.00
+param set-default MPC_XY_VEL_P_ACC 1.80
+param set-default MPC_Z_VEL_P_ACC  4.00

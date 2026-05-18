@@ -1943,4 +1943,185 @@
   <gazebo reference="antenna_panel_C"><material>Gazebo/WoodPallet</material></gazebo>
   <gazebo reference="antenna_panel_D"><material>Gazebo/WoodPallet</material></gazebo>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 17 — PX4 GAZEBO HARMONIC MOTOR CONTROL
+     Active when use_ros2_control:=false (PX4 SITL mode).
+     MulticopterMotorModel replaces ros2_control — PX4 sends
+     actuator commands via gz-transport to each motor plugin.
+
+     Motor ordering matches airframe 4601_gz_mbc3_radar_drone:
+       0 → arm_0   0° CCW    4 → arm_4  240° CCW
+       1 → arm_1  60° CW     5 → arm_5  300° CW
+       2 → arm_2 120° CCW
+       3 → arm_3 180° CW
+
+     motorConstant  = rotor_Ct = 1.740e-05  N·s²/rad²
+     momentConstant = rotor_Cm / rotor_Ct   ≈ 0.01408
+═══════════════════════════════════════════════════════════════ -->
+
+  <xacro:unless value="$(arg use_ros2_control)">
+
+  <!-- Pose publisher — PX4 reads odometry from this topic -->
+  <gazebo>
+    <plugin filename="gz-sim-pose-publisher-system"
+            name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>true</publish_link_pose>
+      <publish_sensor_pose>false</publish_sensor_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_nested_model_pose>false</publish_nested_model_pose>
+      <update_frequency>50</update_frequency>
+    </plugin>
+  </gazebo>
+
+  <!-- Odometry publisher — velocity feedback to PX4 -->
+  <gazebo>
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <publish_rate>50</publish_rate>
+    </plugin>
+  </gazebo>
+
+  <!-- Motor 0 — arm_0, 0°, CCW -->
+  <gazebo>
+    <plugin filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+      <robotNamespace>model/mbc3_radar_drone</robotNamespace>
+      <jointName>motor_0_spin</jointName>
+      <linkName>motor_bell_0</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1000.0</maxRotVelocity>
+      <motorConstant>1.740e-05</motorConstant>
+      <momentConstant>0.01408</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>0</motorNumber>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/0</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+  </gazebo>
+
+  <!-- Motor 1 — arm_1, 60°, CW -->
+  <gazebo>
+    <plugin filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+      <robotNamespace>model/mbc3_radar_drone</robotNamespace>
+      <jointName>motor_1_spin</jointName>
+      <linkName>motor_bell_1</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1000.0</maxRotVelocity>
+      <motorConstant>1.740e-05</motorConstant>
+      <momentConstant>0.01408</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>1</motorNumber>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/1</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+  </gazebo>
+
+  <!-- Motor 2 — arm_2, 120°, CCW -->
+  <gazebo>
+    <plugin filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+      <robotNamespace>model/mbc3_radar_drone</robotNamespace>
+      <jointName>motor_2_spin</jointName>
+      <linkName>motor_bell_2</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1000.0</maxRotVelocity>
+      <motorConstant>1.740e-05</motorConstant>
+      <momentConstant>0.01408</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>2</motorNumber>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/2</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+  </gazebo>
+
+  <!-- Motor 3 — arm_3, 180°, CW -->
+  <gazebo>
+    <plugin filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+      <robotNamespace>model/mbc3_radar_drone</robotNamespace>
+      <jointName>motor_3_spin</jointName>
+      <linkName>motor_bell_3</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1000.0</maxRotVelocity>
+      <motorConstant>1.740e-05</motorConstant>
+      <momentConstant>0.01408</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>3</motorNumber>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/3</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+  </gazebo>
+
+  <!-- Motor 4 — arm_4, 240°, CCW -->
+  <gazebo>
+    <plugin filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+      <robotNamespace>model/mbc3_radar_drone</robotNamespace>
+      <jointName>motor_4_spin</jointName>
+      <linkName>motor_bell_4</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1000.0</maxRotVelocity>
+      <motorConstant>1.740e-05</motorConstant>
+      <momentConstant>0.01408</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>4</motorNumber>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/4</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+  </gazebo>
+
+  <!-- Motor 5 — arm_5, 300°, CW -->
+  <gazebo>
+    <plugin filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+      <robotNamespace>model/mbc3_radar_drone</robotNamespace>
+      <jointName>motor_5_spin</jointName>
+      <linkName>motor_bell_5</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1000.0</maxRotVelocity>
+      <motorConstant>1.740e-05</motorConstant>
+      <momentConstant>0.01408</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>5</motorNumber>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/5</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+  </gazebo>
+
+  </xacro:unless>
+
 </robot>

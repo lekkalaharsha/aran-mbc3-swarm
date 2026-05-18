@@ -52,17 +52,17 @@ except ImportError:
 # ══════════════════════════════════════════════════════════
 #  LIDAR CONFIG  (local to mission script only)
 # ══════════════════════════════════════════════════════════
-# LiDAR topic for gz-transport.
-# gz_x500_lidar_2d publishes on the auto-generated world/model path.
-# Pattern: /world/{world}/model/{model}_0/link/link/sensor/lidar_2d_v2/scan
-# Override via ISR_LIDAR_TOPIC env var for non-default worlds or multi-vehicle.
-# Falls back to dynamic discovery in lidar_gz_reader() if this topic yields
-# no messages within LIDAR_TOPIC_DISCOVER_S seconds.
-_DEFAULT_LIDAR_TOPIC = (
-    "/world/default/model/x500_lidar_2d_0"
-    "/link/link/sensor/lidar_2d_v2/scan"
-)
-LIDAR_TOPIC = _os.environ.get("ISR_LIDAR_TOPIC", _DEFAULT_LIDAR_TOPIC)
+# Radar panel topics for mbc3_radar_drone (gz-transport).
+# Each panel publishes on the explicit topic set in the xacro.
+# Override via ISR_RADAR_TOPIC_A/B/C/D env vars for non-default worlds.
+# Panel yaw offsets in body frame (CCW from forward): A=0°, D=90°, C=180°, B=270°
+_RADAR_TOPICS = {
+    "A": _os.environ.get("ISR_RADAR_TOPIC_A", "/radar_A/scan"),
+    "B": _os.environ.get("ISR_RADAR_TOPIC_B", "/radar_B/scan"),
+    "C": _os.environ.get("ISR_RADAR_TOPIC_C", "/radar_C/scan"),
+    "D": _os.environ.get("ISR_RADAR_TOPIC_D", "/radar_D/scan"),
+}
+_PANEL_YAWS_DEG = {"A": 0.0, "B": 270.0, "C": 180.0, "D": 90.0}
 
 # Racing mode overrides: scale avoidance distances for 30–60 m/s operation.
 # At these speeds the drone covers 30 m in under 1 second — standard 15/25 m
@@ -349,93 +349,110 @@ def _compute_eta(wp_current, wp_total, waypoints):
 LIDAR_TOPIC_DISCOVER_S = 8.0   # seconds to wait for first scan before discovery
 
 
-def _discover_lidar_topic():
+def _discover_radar_topics():
     """
-    Run 'gz topic -l' and return the first topic matching the lidar_2d_v2
-    sensor pattern.  Used as fallback when LIDAR_TOPIC yields no messages.
-    Returns None if gz CLI unavailable or no matching topic found.
+    Run 'gz topic -l' and return dict of panel_id → topic for any
+    radar_A/B/C/D scan topics found.  Fallback when default topics
+    yield no messages (e.g. non-default world name).
     """
     import subprocess
+    found = {}
     try:
         result = subprocess.run(
             ["gz", "topic", "-l"],
             capture_output=True, text=True, timeout=5
         )
         for line in result.stdout.splitlines():
-            if "lidar_2d_v2/scan" in line or "lidar_360" in line:
-                return line.strip()
+            for pid in ("A", "B", "C", "D"):
+                if f"radar_{pid}/scan" in line and pid not in found:
+                    found[pid] = line.strip()
     except Exception:
         pass
-    return None
+    return found
 
 
-async def lidar_gz_reader():
-    active_topic = LIDAR_TOPIC
-    log(f"LiDAR 360: subscribing to {active_topic} via gz-transport...")
+async def radar_gz_reader():
+    """Subscribe to 4 FMCW radar panels and fuse into 360° range array.
+
+    Panels A/B/C/D each cover ±27.5° (55° H-FOV). Combined they give
+    4×55°=220° of coverage with 35° gaps between panels. Gap slots stay
+    at float('inf') — avoidance treats them as clear, same as a 2D LiDAR
+    with no return. Fusion takes the minimum range across overlapping bins.
+    """
+    topics = dict(_RADAR_TOPICS)
     node = Node()
-    scan_queue = asyncio.Queue(maxsize=1)
     loop = asyncio.get_event_loop()
+    notify_queue = asyncio.Queue(maxsize=1)
+    panel_data = {}   # panel_id → latest LaserScan msg (asyncio-thread only)
 
-    def on_scan(msg):
-        # FIX-3: drain+put must both run in the asyncio thread.
-        # Old code drained from the gz callback thread then called put_nowait via
-        # call_soon_threadsafe — the queue could refill between drain and put,
-        # causing "Exception in callback Queue.put_nowait: QueueFull" log spam.
-        # Wrapping both in a single closure scheduled on the loop fixes the race.
-        def _drain_and_put():
-            while not scan_queue.empty():
-                try: scan_queue.get_nowait()
-                except Exception: break
-            try: scan_queue.put_nowait(msg)
-            except Exception: pass
-        loop.call_soon_threadsafe(_drain_and_put)
+    def make_callback(panel_id):
+        def on_scan(msg):
+            def _update():
+                panel_data[panel_id] = msg
+                while not notify_queue.empty():
+                    try: notify_queue.get_nowait()
+                    except Exception: break
+                try: notify_queue.put_nowait(panel_id)
+                except Exception: pass
+            loop.call_soon_threadsafe(_update)
+        return on_scan
 
-    node.subscribe(LaserScan, active_topic, on_scan)
-    log("LiDAR 360: subscriber active")
+    for pid, topic in topics.items():
+        node.subscribe(LaserScan, topic, make_callback(pid))
+        log(f"Radar: panel {pid} → {topic}")
+    log("Radar 360: all panel subscribers active")
 
-    # If no scan arrives within LIDAR_TOPIC_DISCOVER_S, try to auto-discover
-    # the correct topic (world/model name may differ from default).
-    first_scan_deadline = asyncio.get_event_loop().time() + LIDAR_TOPIC_DISCOVER_S
-    got_first_scan = False
+    got_first = False
+    discovery_done = False
 
     while True:
         try:
-            msg = await asyncio.wait_for(scan_queue.get(),
-                                         timeout=LIDAR_TOPIC_DISCOVER_S)
-            got_first_scan = True
+            await asyncio.wait_for(notify_queue.get(), timeout=LIDAR_TOPIC_DISCOVER_S)
         except asyncio.TimeoutError:
-            if not got_first_scan:
-                log_warn(f"LiDAR: no scan on '{active_topic}' after "
-                         f"{LIDAR_TOPIC_DISCOVER_S:.0f}s — running topic discovery...")
+            if not got_first and not discovery_done:
+                log_warn(f"Radar: no scan after {LIDAR_TOPIC_DISCOVER_S:.0f}s "
+                         "— running gz topic discovery...")
                 discovered = await asyncio.get_event_loop().run_in_executor(
-                    None, _discover_lidar_topic
+                    None, _discover_radar_topics
                 )
-                if discovered and discovered != active_topic:
-                    log(f"LiDAR: discovered topic '{discovered}' — resubscribing")
-                    active_topic = discovered
-                    # Resubscribe on discovered topic
-                    node.subscribe(LaserScan, active_topic, on_scan)
-                    first_scan_deadline = asyncio.get_event_loop().time() + LIDAR_TOPIC_DISCOVER_S
-                else:
-                    log_warn("LiDAR: discovery found no matching topic — "
-                             "continuing in gz mode (avoidance disabled until scan arrives)")
+                discovery_done = True
+                for pid, dtopic in discovered.items():
+                    if dtopic != topics.get(pid):
+                        log(f"Radar: panel {pid} discovered → {dtopic}")
+                        topics[pid] = dtopic
+                        node.subscribe(LaserScan, dtopic, make_callback(pid))
+                if not discovered:
+                    log_warn("Radar: discovery found no radar topics — "
+                             "avoidance disabled until scans arrive")
             continue
-        msg = msg
-        ranges = list(msg.ranges)
-        if not ranges:
-            continue
-        min_dist, bearing = _bearing_to_nearest(ranges, msg.angle_min, msg.angle_step)
-        sectors  = _compute_sectors(ranges, msg.angle_min, msg.angle_step)
+
+        got_first = True
+
+        # Fuse all available panels into a 360-element range array (1° bins)
+        fused = [float("inf")] * 360
+        for pid, msg in panel_data.items():
+            yaw_rad = math.radians(_PANEL_YAWS_DEG[pid])
+            for i, r in enumerate(msg.ranges):
+                panel_bearing = msg.angle_min + i * msg.angle_step
+                abs_deg = math.degrees(yaw_rad + panel_bearing) % 360
+                idx = int(round(abs_deg)) % 360
+                if r < fused[idx]:
+                    fused[idx] = r
+
+        angle_min  = -math.pi
+        angle_step = math.radians(1.0)
+        min_dist, bearing = _bearing_to_nearest(fused, angle_min, angle_step)
+        sectors  = _compute_sectors(fused, angle_min, angle_step)
         filtered = _median_filter(min_dist)
         lidar_state.update({
             "nearest_dist":    min_dist,
             "nearest_bearing": bearing,
             "filtered_dist":   filtered,
-            "raw_ranges":      ranges,
+            "raw_ranges":      fused,
             "sectors":         sectors,
         })
         lidar_state["scan_count"] += 1
-        map_builder.ingest(ranges, msg.angle_min, msg.angle_step, drone_state)
+        map_builder.ingest(fused, angle_min, angle_step, drone_state)
 
 
 async def lidar_sim_reader():
@@ -559,7 +576,7 @@ async def lidar_sim_reader():
 
 async def lidar_reader():
     if GZ_AVAILABLE:
-        await lidar_gz_reader()
+        await radar_gz_reader()
     else:
         await lidar_sim_reader()
 

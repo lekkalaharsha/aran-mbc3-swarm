@@ -44,7 +44,7 @@ PX4_DIR="${PX4_DIR:-${HOME}/PX4-Autopilot}"
 # gz_x500: standard quad WITHOUT LiDAR — isr_lidar_mpc falls back to SIM mode (0 real scans).
 # Override at runtime: PX4_MAKE_MODEL=gz_x500 ./launch.sh
 PX4_MAKE_DIR="px4_sitl"
-PX4_MAKE_MODEL="${PX4_MAKE_MODEL:-gz_x500_lidar_2d}"
+PX4_MAKE_MODEL="${PX4_MAKE_MODEL:-gz_mbc3_radar_drone}"
 PYTHON="${PYTHON:-python3}"
 GCS_PORT=5000
 GCS_READY_TIMEOUT=20   # seconds Flask has to bind
@@ -264,6 +264,15 @@ fi
 #  STEP 2: VERIFY MISSION FILES
 # ══════════════════════════════════════════════════════════
 banner "STEP 2 — Verify mission files"
+
+# Check MBC-3 model is installed in PX4
+MBC3_MODEL_DIR="${PX4_DIR}/Tools/simulation/gz/models/mbc3_radar_drone"
+if [[ ! -d "${MBC3_MODEL_DIR}" ]]; then
+    log_err "mbc3_radar_drone model not installed in PX4."
+    log_info "Run first:  bash ${SCRIPT_DIR}/new_drone/install_px4_model.sh"
+    exit 1
+fi
+log_ok "mbc3_radar_drone model found: ${MBC3_MODEL_DIR}"
 
 REQUIRED_FILES=(
     isr_lidar_mpc.py
