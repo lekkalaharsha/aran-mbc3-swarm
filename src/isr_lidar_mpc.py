@@ -385,7 +385,7 @@ async def radar_gz_reader():
     """
     topics = dict(_RADAR_TOPICS)
     node = Node()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     notify_queue = asyncio.Queue(maxsize=1)
     panel_data = {}   # panel_id → latest LaserScan msg (asyncio-thread only)
 
@@ -416,7 +416,7 @@ async def radar_gz_reader():
             if not got_first and not discovery_done:
                 log_warn(f"Radar: no scan after {LIDAR_TOPIC_DISCOVER_S:.0f}s "
                          "— running gz topic discovery...")
-                discovered = await asyncio.get_event_loop().run_in_executor(
+                discovered = await asyncio.get_running_loop().run_in_executor(
                     None, _discover_radar_topics
                 )
                 discovery_done = True
@@ -500,10 +500,10 @@ async def lidar_sim_reader():
         except Exception as e:
             log_warn(f"LiDAR-SIM: could not load scenarios.json — {e}")
 
-    sim_start = asyncio.get_event_loop().time()
+    sim_start = asyncio.get_running_loop().time()
 
     while True:
-        now_rel = asyncio.get_event_loop().time() - sim_start
+        now_rel = asyncio.get_running_loop().time() - sim_start
         fake_ranges = [float("inf")] * 360
         ANGLE_INC   = math.radians(1.0)
 
@@ -712,7 +712,7 @@ async def avoidance_loop(drone):
                 continue
 
             # v9: check avoidance timeout
-            now = asyncio.get_event_loop().time()
+            now = asyncio.get_running_loop().time()
             if avoidance_state["active"] and avoidance_start_time is not None:
                 elapsed = now - avoidance_start_time
                 if elapsed > AVOIDANCE_TIMEOUT_S and not avoidance_state["timeout_active"]:
@@ -776,8 +776,8 @@ async def avoidance_loop(drone):
             abs_alt = drone_state["abs_alt"]
             await drone.action.goto_location(det_lat, det_lon, abs_alt, float("nan"))
 
-            hold_start = asyncio.get_event_loop().time()
-            while asyncio.get_event_loop().time() - hold_start < AVOIDANCE_HOLD_S:
+            hold_start = asyncio.get_running_loop().time()
+            while asyncio.get_running_loop().time() - hold_start < AVOIDANCE_HOLD_S:
                 await asyncio.sleep(0.1)
                 if lidar_state["filtered_dist"] >= SAFE_RESUME_DIST:
                     log("Path clear during hold — exiting early")
@@ -811,6 +811,23 @@ async def run():
             reconnects += 1
             drone_state["reconnects"] = reconnects
             log_warn(f"Reconnect attempt #{reconnects}")
+
+    # Throttle telemetry rates — default PX4 SITL rates flood the MAVSDK
+    # callback queue ("User callback queue slow") causing arm/mission failures.
+    for _rate_call, _hz in [
+        (drone.telemetry.set_rate_position,            5.0),
+        (drone.telemetry.set_rate_velocity_ned,        5.0),
+        (drone.telemetry.set_rate_health,              2.0),
+        (drone.telemetry.set_rate_landed_state,        2.0),
+        (drone.telemetry.set_rate_in_air,              2.0),
+        (drone.telemetry.set_rate_attitude_euler,      5.0),
+        (drone.telemetry.set_rate_attitude_quaternion, 5.0),
+        (drone.telemetry.set_rate_imu,                 5.0),
+    ]:
+        try:
+            await _rate_call(_hz)
+        except Exception:
+            pass
 
     log("Waiting for GPS lock...")
     home_abs_alt = 0.0  # captured below
@@ -1037,13 +1054,13 @@ async def run():
         first_ok_time   = None
         CONFIRM_TIMEOUT = 20.0
         STABLE_WINDOW_S = 2.0
-        t_start = asyncio.get_event_loop().time()
+        t_start = asyncio.get_running_loop().time()
 
         progress_aiter = drone.mission.mission_progress().__aiter__()
         upload_ok = False
 
         while True:
-            elapsed = asyncio.get_event_loop().time() - t_start
+            elapsed = asyncio.get_running_loop().time() - t_start
             if elapsed >= CONFIRM_TIMEOUT:
                 log_warn(f"  Confirmation timeout at {confirmed_total}/{expected_total} items")
                 break
@@ -1053,7 +1070,7 @@ async def run():
                     progress_aiter.__anext__(), timeout=STABLE_WINDOW_S
                 )
                 confirmed_total = progress.total
-                now = asyncio.get_event_loop().time()
+                now = asyncio.get_running_loop().time()
 
                 if confirmed_total == expected_total:
                     if first_ok_time is None:
@@ -1125,34 +1142,43 @@ async def run():
     mission_state["mission_phase"] = "SURVEY"
 
     log("Waiting for pre-arm checks to pass...")
-    ARM_TIMEOUT = 30.0
-    t_arm = asyncio.get_event_loop().time()
+    ARM_TIMEOUT = 60.0
+    t_arm = asyncio.get_running_loop().time()
     async for health in drone.telemetry.health():
-        elapsed = asyncio.get_event_loop().time() - t_arm
+        elapsed = asyncio.get_running_loop().time() - t_arm
 
-        gps_ok  = health.is_global_position_ok
-        home_ok = health.is_home_position_ok
+        gps_ok     = health.is_global_position_ok
+        home_ok    = health.is_home_position_ok
+        armable_ok = health.is_armable
         try:
             local_ok = health.is_local_position_ok
         except AttributeError:
             local_ok = True
 
-        log(f"  Health: gps={gps_ok}  home={home_ok}  local={local_ok}  "
-            f"({elapsed:.1f}s)")
+        log(f"  Health: gps={gps_ok}  home={home_ok}  local={local_ok}"
+            f"  armable={armable_ok}  ({elapsed:.1f}s)")
 
-        if gps_ok and home_ok and local_ok:
+        if gps_ok and home_ok and local_ok and armable_ok:
             break
         if elapsed > ARM_TIMEOUT:
             raise RuntimeError(
                 f"Pre-arm health check timeout after {ARM_TIMEOUT:.0f}s — "
-                f"gps={gps_ok} home={home_ok} local={local_ok}. "
-                f"Check SITL/GPS lock."
+                f"gps={gps_ok} home={home_ok} local={local_ok} armable={armable_ok}. "
+                f"Check SITL preflight checks."
             )
         await asyncio.sleep(0.5)
     log("Pre-arm checks passed")
 
     log("Arming drone...")
-    await drone.action.arm()
+    for _arm_attempt in range(1, 4):
+        try:
+            await drone.action.arm()
+            break
+        except Exception as _arm_err:
+            if _arm_attempt == 3:
+                raise
+            log_warn(f"  Arm attempt {_arm_attempt} failed: {_arm_err} — retrying in 2s")
+            await asyncio.sleep(2.0)
 
     # ── Set takeoff altitude ──
     # NEW-2 FIX: param.Param(drone) uses an internal _channel attribute removed
@@ -1169,10 +1195,10 @@ async def run():
 
     # ── Wait for TAKING_OFF transition ────────────
     TAKEOFF_ACCEPT_TIMEOUT = 15.0
-    t_accept = asyncio.get_event_loop().time()
+    t_accept = asyncio.get_running_loop().time()
     log("Waiting for takeoff acceptance (TAKING_OFF state)...")
     async for state in drone.telemetry.landed_state():
-        elapsed = asyncio.get_event_loop().time() - t_accept
+        elapsed = asyncio.get_running_loop().time() - t_accept
         if state == LandedState.TAKING_OFF or state == LandedState.IN_AIR:
             log(f"  Takeoff accepted — state={state}  ({elapsed:.1f}s)")
             break
@@ -1189,7 +1215,7 @@ async def run():
     CLIMB_TIMEOUT   = 90.0                        # seconds to reach altitude
     CLIMB_STALL_CHECK = 15.0                      # seconds without progress = stall
     target_alt      = ALTITUDE
-    t_climb         = asyncio.get_event_loop().time()
+    t_climb         = asyncio.get_running_loop().time()
     last_print      = t_climb
     last_alt        = 0.0
     stall_warned    = False
@@ -1199,12 +1225,12 @@ async def run():
 
     while True:
         await asyncio.sleep(0.5)
-        elapsed_climb = asyncio.get_event_loop().time() - t_climb
+        elapsed_climb = asyncio.get_running_loop().time() - t_climb
         alt = drone_state["alt"]
         
         # Progress indicator every 3 seconds
-        if asyncio.get_event_loop().time() - last_print >= 3.0:
-            last_print = asyncio.get_event_loop().time()
+        if asyncio.get_running_loop().time() - last_print >= 3.0:
+            last_print = asyncio.get_running_loop().time()
             climb_rate = (alt - last_alt) / 3.0 if last_alt > 0 else 0
             log(f"  alt={alt:.1f}m / {target_alt:.0f}m  ({elapsed_climb:.1f}s)  climb_rate={climb_rate:.2f}m/s")
             last_alt = alt
@@ -1269,12 +1295,12 @@ async def run():
     from mavsdk.telemetry import FlightMode
     FMODE_TIMEOUT   = 40.0    # extended — SITL can be slow post-takeoff
     RETRY_INTERVAL  = 4.0    # re-issue start_mission() every 4s if still HOLD
-    t_fmode         = asyncio.get_event_loop().time()
+    t_fmode         = asyncio.get_running_loop().time()
     last_retry_t    = t_fmode
     mission_started = False
 
     async for fmode in drone.telemetry.flight_mode():
-        elapsed_fm = asyncio.get_event_loop().time() - t_fmode
+        elapsed_fm = asyncio.get_running_loop().time() - t_fmode
         mode_name  = str(fmode)
         log(f"  Flight mode: {mode_name}  ({elapsed_fm:.1f}s)")
 
@@ -1284,7 +1310,7 @@ async def run():
             break
 
         # Rolling retry every RETRY_INTERVAL seconds
-        now = asyncio.get_event_loop().time()
+        now = asyncio.get_running_loop().time()
         if now - last_retry_t >= RETRY_INTERVAL:
             last_retry_t = now
             log(f"  HOLD persists at {elapsed_fm:.1f}s — re-issuing start_mission()...")
@@ -1356,13 +1382,8 @@ async def run():
         log(f"Target: {t_lat:.6f}, {t_lon:.6f}")
         goto_alt = home_abs_alt + t_alt
 
-        # FIX-1: set_maximum_speed so goto_location uses cruise speed not SITL default.
-        # Without this, PX4 SITL caps goto_location at ~2 m/s causing 120s timeouts
-        # on targets 50-350m away.
-        try:
-            await drone.action.set_maximum_speed(SPEED)
-        except Exception as e:
-            log_warn(f"set_maximum_speed failed (non-critical): {e}")
+        # set_maximum_speed removed — not available in this MAVSDK version.
+        # PX4 SITL uses MPC_XY_VEL_MAX (15 m/s) set in airframe.
 
         # FIX-2: fly to orbit entry point (North of target at orbit radius) instead
         # of target centre.  When goto_location goes to the centre, do_orbit starts
@@ -1374,7 +1395,7 @@ async def run():
         await drone.action.goto_location(entry_lat, entry_lon, goto_alt, float("nan"))
         log(f"Flying to orbit entry point ({t_r:.0f}m North of target)...")
 
-        t_approach = asyncio.get_event_loop().time()
+        t_approach = asyncio.get_running_loop().time()
         APPROACH_TIMEOUT_S = 180.0   # raised: 40 m/s × 180s = 7.2 km max range
         async for pos in drone.telemetry.position():
             dist = haversine(pos.latitude_deg, pos.longitude_deg, t_lat, t_lon)
@@ -1385,7 +1406,7 @@ async def run():
                 print()
                 log(f"At orbit entry — dist={dist:.1f}m  target_r={t_r:.0f}m")
                 break
-            if asyncio.get_event_loop().time() - t_approach > APPROACH_TIMEOUT_S:
+            if asyncio.get_running_loop().time() - t_approach > APPROACH_TIMEOUT_S:
                 print()
                 log_warn(f"Approach timeout ({APPROACH_TIMEOUT_S:.0f}s) — "
                          f"still {dist:.0f}m from {t_name}, proceeding to orbit")
@@ -1410,11 +1431,12 @@ async def run():
         )
         log("Orbit started — camera locked on target")
         for i in range(t_dur, 0, -1):
-            async for pos in drone.telemetry.position():
-                radial_err, current_r = opid.compute_correction(
-                    pos.latitude_deg, pos.longitude_deg, t_lat, t_lon
-                )
-                break
+            # Use drone_state cache (populated by telemetry_tracker) — avoids
+            # opening a new position subscription every second of the countdown
+            # which leaks N gRPC streams and floods the MAVSDK callback queue.
+            radial_err, current_r = opid.compute_correction(
+                drone_state["lat"], drone_state["lon"], t_lat, t_lon
+            )
             bar = "=" * (i * 20 // t_dur) + "-" * (20 - i * 20 // t_dur)
             print(f"\r  Orbit: [{bar}] {i:3d}s  radius={current_r:.1f}m  "
                   f"radial_err={radial_err:+.2f}m", end="", flush=True)

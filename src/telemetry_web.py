@@ -45,6 +45,7 @@ import asyncio
 import math
 import threading
 import time
+from collections import deque
 from datetime import datetime
 from flask import Flask, render_template_string, request, jsonify, Response
 from flask_socketio import SocketIO
@@ -112,8 +113,8 @@ pid_gains = {
 }
 
 start_time   = datetime.now()
-trail        = []
-flight_log   = []
+trail        = deque(maxlen=300)
+flight_log   = deque(maxlen=10000)
 
 # Dynamic command queues — populated by REST endpoints, consumed once by the
 # mission script via the JSON response to POST /lidar_update.  The mission
@@ -450,6 +451,24 @@ async def telemetry_loop():
         async for state in drone.core.connection_state():
             data["connected"] = state.is_connected
             if state.is_connected:
+                # Throttle GCS telemetry rates — without this the GCS opens 9
+                # unthrottled streams on top of mission script's 8, totalling 17
+                # concurrent MAVSDK subscriptions → "User callback queue slow".
+                for _fn, _hz in [
+                    (drone.telemetry.set_rate_position,            5.0),
+                    (drone.telemetry.set_rate_velocity_ned,        5.0),
+                    (drone.telemetry.set_rate_battery,             1.0),
+                    (drone.telemetry.set_rate_health,              2.0),
+                    (drone.telemetry.set_rate_landed_state,        2.0),
+                    (drone.telemetry.set_rate_in_air,              2.0),
+                    (drone.telemetry.set_rate_attitude_euler,      5.0),
+                    (drone.telemetry.set_rate_attitude_quaternion, 5.0),
+                    (drone.telemetry.set_rate_imu,                 5.0),
+                ]:
+                    try:
+                        await _fn(_hz)
+                    except Exception:
+                        pass
                 _gcs_print("Drone connected!")
             else:
                 _gcs_print("Drone disconnected — streams will auto-retry")
@@ -461,8 +480,6 @@ async def telemetry_loop():
             data["alt"] = round(p.relative_altitude_m, 2)
             if data["armed"]:
                 trail.append((p.latitude_deg, p.longitude_deg))
-                if len(trail) > 300:
-                    trail.pop(0)
 
     async def _vel():
         async for v in drone.telemetry.velocity_ned():
@@ -509,7 +526,7 @@ async def telemetry_loop():
             data["gps_ok"] = h.is_global_position_ok
 
     await asyncio.gather(
-        _watch_connection(),
+        _stream("connection",       _watch_connection),
         _stream("position",         _pos),
         _stream("velocity",         _vel),
         _stream("battery",          _bat),
@@ -546,8 +563,6 @@ def emit_loop():
             round(min(lidar_data["nearest_bearing"], 9999.0) if math.isfinite(lidar_data["nearest_bearing"]) else 0.0, 1),
             lidar_data["avoidance_count"],
         ))
-        if len(flight_log) > 10000:
-            flight_log.pop(0)
 
         payload = dict(data)
         payload["trail"]              = list(trail[-150:])
@@ -1805,14 +1820,16 @@ def index():
 
 
 _emit_loop_started = False
+_emit_loop_lock    = threading.Lock()
 
 
 @socketio.on("connect")
 def on_connect():
     global _emit_loop_started
-    if not _emit_loop_started:
-        _emit_loop_started = True
-        socketio.start_background_task(emit_loop)
+    with _emit_loop_lock:
+        if not _emit_loop_started:
+            _emit_loop_started = True
+            socketio.start_background_task(emit_loop)
 
 
 if __name__ == "__main__":
