@@ -2117,7 +2117,7 @@ if __name__ == "__main__":
     print("  POST /pid_tune        — live gain update")
     print("  GET  /pid_gains       — current PID gains")
     print("  GET  /download_log    — CSV flight log")
-    print("  GET  /scenario_list   — all 24 scenario names + event counts")
+    print("  GET  /scenario_list   — scenario list (gz-transport active, sim mode disabled)")
     print("  GET  /nfz_status      — live NFZ proximity for current drone position")
     print("  GET  /map_slice       — live 2D voxel GeoJSON at current altitude")
     print("  GET  /map_stats       — 3D occupancy grid statistics")
