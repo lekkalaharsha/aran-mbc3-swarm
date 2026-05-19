@@ -86,11 +86,31 @@ async def run():
         print("Cannot continue — SITL not running?")
         return
 
-    # wait for health checks to clear
-    print("  Waiting for health: global position + home ...")
-    async for health in drone.telemetry.health():
-        if health.is_global_position_ok and health.is_home_position_ok:
-            break
+    # T1b — health: global position + home (with timeout + disconnect guard)
+    print("  Waiting for health: global position + home (max 30s)...")
+    health_ok = False
+    try:
+        async def _health_wait():
+            async for h in drone.telemetry.health():
+                if h.is_global_position_ok and h.is_home_position_ok:
+                    return True
+            return False
+        health_ok = await asyncio.wait_for(_health_wait(), timeout=30)
+    except asyncio.TimeoutError:
+        print("  WARN  Health timeout — GPS or home not set after 30s")
+    except Exception as e:
+        print(f"  WARN  Health stream error: {e}")
+        print("  HINT  Is ./launch.sh --sim-only still running in another terminal?")
+        print("        Check: ps aux | grep px4")
+
+    if not check("T1b Health: GPS ok + home set", health_ok,
+                 "PX4 not ready or crashed"):
+        print()
+        print("  Diagnosis steps:")
+        print("  1. ps aux | grep px4       — is PX4 running?")
+        print("  2. tail -20 logs/*/px4.log — last PX4 log lines")
+        print("  3. Rerun: ./launch.sh --sim-only  then retry test")
+        return
 
     # T2 — arm
     try:
