@@ -451,9 +451,6 @@ async def telemetry_loop():
         async for state in drone.core.connection_state():
             data["connected"] = state.is_connected
             if state.is_connected:
-                # Throttle GCS telemetry rates — without this the GCS opens 9
-                # unthrottled streams on top of mission script's 8, totalling 17
-                # concurrent MAVSDK subscriptions → "User callback queue slow".
                 for _fn, _hz in [
                     (drone.telemetry.set_rate_position,            5.0),
                     (drone.telemetry.set_rate_velocity_ned,        5.0),
@@ -526,7 +523,7 @@ async def telemetry_loop():
             data["gps_ok"] = h.is_global_position_ok
 
     await asyncio.gather(
-        _stream("connection",       _watch_connection),
+        _watch_connection(),
         _stream("position",         _pos),
         _stream("velocity",         _vel),
         _stream("battery",          _bat),
