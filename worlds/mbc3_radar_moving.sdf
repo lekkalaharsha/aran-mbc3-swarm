@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <sdf version="1.9">
-  <world name="default">
+  <world name="mbc3_radar_moving">
     <physics type="ode">
       <max_step_size>0.004</max_step_size>
       <real_time_factor>1.0</real_time_factor>
@@ -94,24 +94,14 @@
     <model name="radar_target_1">
       <pose>400 2000 500 0 0 0</pose>
       <link name="link">
-        <inertial><mass>5</mass>
-          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
-            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
-        </inertial>
+        <kinematic>true</kinematic>
+        <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
-        <visual name="vis">
-          <geometry><box><size>3 3 3</size></box></geometry>
-          <material>
-            <ambient>1 0 0 1</ambient>
-            <diffuse>1 0 0 1</diffuse>
-            <emissive>0.4 0.0 0.0 1</emissive>
-          </material>
-        </visual>
+        <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
+          <material><ambient>1 0 0 1</ambient><diffuse>1 0 0 1</diffuse></material></visual>
       </link>
-      <plugin filename="gz-sim-trajectory-follower-system"
-              name="gz::sim::systems::TrajectoryFollower">
-        <link_name>link</link_name><loop>true</loop>
-        <force>800</force><torque>800</torque>
+      <plugin filename="gz-sim-trajectory-follower-system" name="gz::sim::systems::TrajectoryFollower">
+        <link_name>link</link_name><loop>true</loop><force>800</force><torque>800</torque>
         <waypoints>
           <waypoint>400.0 2000.0</waypoint>
           <waypoint>369.6 2153.1</waypoint>
@@ -135,24 +125,14 @@
     <model name="radar_target_2">
       <pose>1700 0 500 0 0 0</pose>
       <link name="link">
-        <inertial><mass>5</mass>
-          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
-            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
-        </inertial>
+        <kinematic>true</kinematic>
+        <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
-        <visual name="vis">
-          <geometry><box><size>3 3 3</size></box></geometry>
-          <material>
-            <ambient>1 0.5 0 1</ambient>
-            <diffuse>1 0.5 0 1</diffuse>
-            <emissive>0.4 0.2 0.0 1</emissive>
-          </material>
-        </visual>
+        <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
+          <material><ambient>1 0.5 0 1</ambient><diffuse>1 0.5 0 1</diffuse></material></visual>
       </link>
-      <plugin filename="gz-sim-trajectory-follower-system"
-              name="gz::sim::systems::TrajectoryFollower">
-        <link_name>link</link_name><loop>true</loop>
-        <force>300</force><torque>300</torque>
+      <plugin filename="gz-sim-trajectory-follower-system" name="gz::sim::systems::TrajectoryFollower">
+        <link_name>link</link_name><loop>true</loop><force>300</force><torque>300</torque>
         <waypoints>
           <waypoint>1700.0 0.0</waypoint>
           <waypoint>1677.2 114.8</waypoint>
@@ -176,24 +156,14 @@
     <model name="radar_target_3">
       <pose>1400 900 500 0 0 0</pose>
       <link name="link">
-        <inertial><mass>5</mass>
-          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
-            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
-        </inertial>
+        <kinematic>true</kinematic>
+        <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
-        <visual name="vis">
-          <geometry><box><size>3 3 3</size></box></geometry>
-          <material>
-            <ambient>1 1 0 1</ambient>
-            <diffuse>1 1 0 1</diffuse>
-            <emissive>0.4 0.4 0.0 1</emissive>
-          </material>
-        </visual>
+        <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
+          <material><ambient>1 1 0 1</ambient><diffuse>1 1 0 1</diffuse></material></visual>
       </link>
-      <plugin filename="gz-sim-trajectory-follower-system"
-              name="gz::sim::systems::TrajectoryFollower">
-        <link_name>link</link_name><loop>true</loop>
-        <force>2000</force><torque>2000</torque>
+      <plugin filename="gz-sim-trajectory-follower-system" name="gz::sim::systems::TrajectoryFollower">
+        <link_name>link</link_name><loop>true</loop><force>2000</force><torque>2000</torque>
         <waypoints>
           <waypoint>1400.0 900.0</waypoint>
           <waypoint>1361.9 1091.3</waypoint>
@@ -217,24 +187,14 @@
     <model name="radar_target_4">
       <pose>600 -2400 500 0 0 0</pose>
       <link name="link">
-        <inertial><mass>5</mass>
-          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
-            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
-        </inertial>
+        <kinematic>true</kinematic>
+        <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
-        <visual name="vis">
-          <geometry><box><size>3 3 3</size></box></geometry>
-          <material>
-            <ambient>0 1 0 1</ambient>
-            <diffuse>0 1 0 1</diffuse>
-            <emissive>0.0 0.4 0.0 1</emissive>
-          </material>
-        </visual>
+        <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
+          <material><ambient>0 1 0 1</ambient><diffuse>0 1 0 1</diffuse></material></visual>
       </link>
-      <plugin filename="gz-sim-trajectory-follower-system"
-              name="gz::sim::systems::TrajectoryFollower">
-        <link_name>link</link_name><loop>true</loop>
-        <force>4000</force><torque>4000</torque>
+      <plugin filename="gz-sim-trajectory-follower-system" name="gz::sim::systems::TrajectoryFollower">
+        <link_name>link</link_name><loop>true</loop><force>4000</force><torque>4000</torque>
         <waypoints>
           <waypoint>600.0 -2400.0</waypoint>
           <waypoint>554.3 -2170.4</waypoint>
@@ -258,24 +218,14 @@
     <model name="radar_target_5">
       <pose>-1350 400 500 0 0 0</pose>
       <link name="link">
-        <inertial><mass>5</mass>
-          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
-            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
-        </inertial>
+        <kinematic>true</kinematic>
+        <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
-        <visual name="vis">
-          <geometry><box><size>3 3 3</size></box></geometry>
-          <material>
-            <ambient>0 0.5 1 1</ambient>
-            <diffuse>0 0.5 1 1</diffuse>
-            <emissive>0.0 0.2 0.4 1</emissive>
-          </material>
-        </visual>
+        <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
+          <material><ambient>0 0.5 1 1</ambient><diffuse>0 0.5 1 1</diffuse></material></visual>
       </link>
-      <plugin filename="gz-sim-trajectory-follower-system"
-              name="gz::sim::systems::TrajectoryFollower">
-        <link_name>link</link_name><loop>true</loop>
-        <force>1200</force><torque>1200</torque>
+      <plugin filename="gz-sim-trajectory-follower-system" name="gz::sim::systems::TrajectoryFollower">
+        <link_name>link</link_name><loop>true</loop><force>1200</force><torque>1200</torque>
         <waypoints>
           <waypoint>-1350.0 400.0</waypoint>
           <waypoint>-1384.3 572.2</waypoint>
