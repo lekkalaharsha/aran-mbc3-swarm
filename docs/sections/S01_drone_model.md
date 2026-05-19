@@ -2,7 +2,7 @@
 
 **Branch:** `feature/drone-visualization`  
 **Parent:** `feature/6-panel-radar-coverage`  
-**Status:** 🔄 In progress — landing gear spawn fix
+**Status:** 🔄 In progress — sensor name fixes applied, awaiting relaunch test
 
 ---
 
@@ -107,7 +107,10 @@ Type: `gpu_lidar` + `<lidar>` block (Gazebo Harmonic)
 
 ## Open Tasks
 
-- [ ] Verify full visuals via `gz sim mbc3_radar_drone.sdf` (standalone)
-- [ ] Confirm landing gear touching ground (FIX-LG)
-- [ ] Generate full-visual SDF from XACRO and compare
-- [ ] Merge → `feature/6-panel-radar-coverage` after visual confirmed
+- [x] Landing gear spawn fix (z=0.135 pose)
+- [x] Sensor topic overrides removed (baro/GPS/IMU/mag)
+- [x] Sensor names fixed to match PX4 gz_bridge (x500_base reference)
+- [x] EKF2_AID_MASK → EKF2_GPS_CTRL in airframe
+- [ ] Confirm `Ready for takeoff` after relaunch (sensor fix test)
+- [ ] Verify drone arms and motors spin
+- [ ] Merge → `feature/6-panel-radar-coverage` after confirmed
