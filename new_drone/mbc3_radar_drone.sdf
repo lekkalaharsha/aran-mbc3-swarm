@@ -6790,67 +6790,31 @@
           <ambient>0.225000009 0.6875 0.275000006 1</ambient>
         </material>
       </visual>
-      <sensor name='barometer' type='altimeter'>
+      <sensor name='air_pressure_sensor' type='air_pressure'>
+        <gz_frame_id>base_link</gz_frame_id>
         <always_on>true</always_on>
         <update_rate>50</update_rate>
-        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
-        <altimeter>
-          <vertical_position>
+        <air_pressure>
+          <pressure>
             <noise type='gaussian'>
               <mean>0</mean>
-              <stddev>0.20000000000000001</stddev>
+              <stddev>3</stddev>
             </noise>
-          </vertical_position>
-          <vertical_velocity>
-            <noise type='gaussian'>
-              <mean>0</mean>
-              <stddev>0.01</stddev>
-            </noise>
-          </vertical_velocity>
-        </altimeter>
+          </pressure>
+        </air_pressure>
         <pose>-0.0050000000000000001 -0.033000000000000002 0.19350000000000001 0 0 0</pose>
       </sensor>
-      <sensor name='gps_sensor' type='navsat'>
+      <sensor name='navsat_sensor' type='navsat'>
+        <gz_frame_id>base_link</gz_frame_id>
         <always_on>true</always_on>
-        <update_rate>10</update_rate>
-        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
-        <navsat>
-          <position_sensing>
-            <horizontal>
-              <noise type='gaussian'>
-                <mean>0</mean>
-                <stddev>0.5</stddev>
-              </noise>
-            </horizontal>
-            <vertical>
-              <noise type='gaussian'>
-                <mean>0</mean>
-                <stddev>0.80000000000000004</stddev>
-              </noise>
-            </vertical>
-          </position_sensing>
-          <velocity_sensing>
-            <horizontal>
-              <noise type='gaussian'>
-                <mean>0</mean>
-                <stddev>0.050000000000000003</stddev>
-              </noise>
-            </horizontal>
-            <vertical>
-              <noise type='gaussian'>
-                <mean>0</mean>
-                <stddev>0.050000000000000003</stddev>
-              </noise>
-            </vertical>
-          </velocity_sensing>
-        </navsat>
+        <update_rate>30</update_rate>
         <pose>0 0 0.31900000000000001 0 0 0</pose>
       </sensor>
       <sensor name='imu_sensor' type='imu'>
+        <gz_frame_id>base_link</gz_frame_id>
         <always_on>true</always_on>
-        <update_rate>400</update_rate>
+        <update_rate>250</update_rate>
         <visualize>false</visualize>
-        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
         <imu>
           <angular_velocity>
             <x>
@@ -6926,10 +6890,10 @@
         </imu>
         <pose>0.028000000000000001 0.028000000000000001 0.18149999999999999 0 0 0</pose>
       </sensor>
-      <sensor name='magnetometer' type='magnetometer'>
+      <sensor name='magnetometer_sensor' type='magnetometer'>
+        <gz_frame_id>base_link</gz_frame_id>
         <always_on>true</always_on>
-        <update_rate>50</update_rate>
-        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
+        <update_rate>100</update_rate>
         <magnetometer>
           <x>
             <noise type='gaussian'>
