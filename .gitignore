@@ -40,3 +40,10 @@ map_output/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated URDF/SDF (xacro pipeline output — not source of truth)
+new_drone/*.urdf
+new_drone/*_full.urdf
+
+# Untracked working dirs
+drone_groudPlae/
