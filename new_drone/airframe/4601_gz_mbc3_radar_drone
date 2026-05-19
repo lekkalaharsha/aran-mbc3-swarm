@@ -103,6 +103,13 @@ param set-default MPC_Z_VEL_MAX_DN  2.0
 param set-default EKF2_GPS_CTRL  1     # GPS fusion enabled (EKF2_AID_MASK removed in PX4 v1.14)
 param set-default EKF2_HGT_REF   0     # barometer as height reference
 param set-default EKF2_BARO_CTRL 1
+param set-default EKF2_OF_CTRL   1     # optical flow fusion enabled
+param set-default EKF2_RNG_CTRL  1     # rangefinder for low-altitude height
+
+# GPS-denial demo: set these params at runtime to simulate jamming:
+#   param set EKF2_GPS_CTRL 0   — disable GPS fusion (EKF2 falls back to OF+baro)
+#   param set SYS_HAS_GPS 0     — tell PX4 no GPS hardware present
+# To restore: param set EKF2_GPS_CTRL 1 && param set SYS_HAS_GPS 1
 
 # ── Battery model (6S 10000 mAh) ─────────────────────────────────
 param set-default BAT1_N_CELLS   6
