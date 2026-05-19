@@ -96,8 +96,9 @@ param set-default MPC_Z_VEL_P_ACC  4.00
 
 # ── Velocity limits ───────────────────────────────────────────────
 param set-default MPC_XY_VEL_MAX   15.0
-param set-default MPC_Z_VEL_MAX_UP  3.0
+param set-default MPC_Z_VEL_MAX_UP  5.0   # raised: 3→5 m/s for faster 500m climb
 param set-default MPC_Z_VEL_MAX_DN  2.0
+param set-default MPC_TKO_SPEED     5.0   # takeoff climb speed (default ~1.5 m/s was limiting 500m climb to 333s)
 
 # ── EKF2 sensor fusion ────────────────────────────────────────────
 param set-default EKF2_GPS_CTRL  1     # GPS fusion enabled (EKF2_AID_MASK removed in PX4 v1.14)
