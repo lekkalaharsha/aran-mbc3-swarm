@@ -14,7 +14,7 @@
 #   Motor 4  arm 4  240°   CCW   px=-0.180  py= 0.312
 #   Motor 5  arm 5  300°   CW    px= 0.180  py= 0.312
 #
-# AUW ~4.1 kg  |  6S 10000 mAh  |  ~32 min endurance
+# AUW ~3.834 kg (SDF)  |  6S 10000 mAh  |  ~32 min endurance
 
 . ${R}etc/init.d/rc.mc_defaults
 
@@ -75,8 +75,12 @@ param set-default SIM_GZ_EC_MAX4 1000
 param set-default SIM_GZ_EC_MAX5 1000
 param set-default SIM_GZ_EC_MAX6 1000
 
-# ── Flight tuning (4.1 kg hex) ────────────────────────────────────
-param set-default MPC_THR_HOVER 0.43
+# ── Flight tuning ─────────────────────────────────────────────────
+# Hover calc: SDF mass 3.834 kg → 3.834×9.81/6 = 6.26 N/motor
+#   ω_hover = sqrt(6.26 / 1.74e-5) = 600 rad/s
+#   throttle = 600 / 838 (maxRotVelocity) = 0.716 → set 0.72
+# Previous value 0.43 was wrong: only 13.5 N total at 43% < 37.6 N needed.
+param set-default MPC_THR_HOVER 0.72
 param set-default MPC_THR_MIN   0.06
 param set-default MPC_THR_MAX   0.95
 
@@ -88,3 +92,19 @@ param set-default MPC_XY_P   0.95
 param set-default MPC_Z_P    1.00
 param set-default MPC_XY_VEL_P_ACC 1.80
 param set-default MPC_Z_VEL_P_ACC  4.00
+
+# ── Velocity limits ───────────────────────────────────────────────
+param set-default MPC_XY_VEL_MAX   15.0
+param set-default MPC_Z_VEL_MAX_UP  3.0
+param set-default MPC_Z_VEL_MAX_DN  2.0
+
+# ── EKF2 sensor fusion ────────────────────────────────────────────
+param set-default EKF2_AID_MASK  1     # GPS (switch to 24 for optical-flow-only GNSS-denied)
+param set-default EKF2_HGT_REF   0     # barometer as height reference
+param set-default EKF2_BARO_CTRL 1
+
+# ── Battery model (6S 10000 mAh) ─────────────────────────────────
+param set-default BAT1_N_CELLS   6
+param set-default BAT1_CAPACITY  10000
+param set-default BAT1_V_CHARGED 4.20
+param set-default BAT1_V_EMPTY   3.50
