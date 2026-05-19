@@ -562,7 +562,7 @@ def emit_loop():
         ))
 
         payload = dict(data)
-        payload["trail"]              = list(trail[-150:])
+        payload["trail"]              = list(trail)[-150:]
         payload["lidar"]              = dict(lidar_data)
         payload["survey_waypoints"]   = SURVEY_WAYPOINTS
         payload["home_lat"]           = HOME_LAT
