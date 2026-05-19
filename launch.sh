@@ -412,14 +412,14 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
     [[ "${OPT_HEADLESS}" == true ]] && export HEADLESS=1 && log_info "Headless mode enabled (no Gazebo GUI)"
 
     # Auto-select Gazebo world based on mode unless overridden.
-    # mbc3_radar_targets: 5 targets at 500m alt, 1.5-3km (MBC-3 competition demo)
-    # mbc3_isr_targets:   5 targets at 30m alt,  300-800m (ISR radar demo)
-    # default:            empty world (no radar targets)
+    # *_moving:  5 moving targets (TrajectoryFollower, 10-40 m/s) — proves req 2.5
+    # *_targets: 5 static targets — simpler, for avoidance/detection baseline
+    # default:   empty world
     if [[ -z "${PX4_GZ_WORLD}" ]]; then
         if [[ "${MBC3_MODE}" == "1" ]]; then
-            export PX4_GZ_WORLD="mbc3_radar_targets"
+            export PX4_GZ_WORLD="mbc3_radar_moving"
         else
-            export PX4_GZ_WORLD="mbc3_isr_targets"
+            export PX4_GZ_WORLD="mbc3_isr_moving"
         fi
     else
         export PX4_GZ_WORLD="${PX4_GZ_WORLD}"

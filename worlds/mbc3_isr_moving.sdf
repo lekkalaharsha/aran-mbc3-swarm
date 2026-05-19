@@ -1,0 +1,280 @@
+<?xml version=1.0 encoding=UTF-8?>
+<sdf version=1.9>
+  <world name=mbc3_isr_moving>
+    <physics type=ode>
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
+    </physics>
+    <plugin filename=gz-sim-physics-system
+            name=gz::sim::systems::Physics/>
+    <plugin filename=gz-sim-user-commands-system
+            name=gz::sim::systems::UserCommands/>
+    <plugin filename=gz-sim-scene-broadcaster-system
+            name=gz::sim::systems::SceneBroadcaster/>
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type=adiabatic/>
+    <scene>
+      <grid>false</grid>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.7 0.7 0.7 1</background>
+      <shadows>true</shadows>
+    </scene>
+    <model name=ground_plane>
+      <static>true</static>
+      <link name=link>
+        <collision name=collision>
+          <geometry><plane><normal>0 0 1</normal><size>1 1</size></plane></geometry>
+        </collision>
+        <visual name=visual>
+          <geometry><plane><normal>0 0 1</normal><size>5000 5000</size></plane></geometry>
+          <material><ambient>0.4 0.4 0.4 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <light name=sunUTC type=directional>
+      <pose>0 0 500 0 0 0</pose><cast_shadows>true</cast_shadows>
+      <intensity>1</intensity><direction>0.001 0.625 -0.78</direction>
+      <diffuse>0.9 0.9 0.9 1</diffuse><specular>0.27 0.27 0.27 1</specular>
+      <attenuation><range>5000</range><linear>0</linear><constant>1</constant><quadratic>0</quadratic></attenuation>
+    </light>
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <world_frame_orientation>ENU</world_frame_orientation>
+      <latitude_deg>47.397971057728974</latitude_deg>
+      <longitude_deg>8.546163739800146</longitude_deg>
+      <elevation>0</elevation>
+    </spherical_coordinates>
+    <model name='radar_target_1'>
+      <pose>150 300 30 0 0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>5</mass>
+          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+            <emissive>0.4 0.0 0.0 1</emissive>
+          </material>
+        </visual>
+      </link>
+      <plugin filename='gz-sim-trajectory-follower-system'
+              name='gz::sim::systems::TrajectoryFollower'>
+        <link_name>link</link_name>
+        <loop>true</loop>
+        <force>800</force>
+        <torque>800</torque>
+        <waypoints>
+          <waypoint>150.0 300.0</waypoint>
+          <waypoint>138.6 357.4</waypoint>
+          <waypoint>106.1 406.1</waypoint>
+          <waypoint>57.4 438.6</waypoint>
+          <waypoint>0.0 450.0</waypoint>
+          <waypoint>-57.4 438.6</waypoint>
+          <waypoint>-106.1 406.1</waypoint>
+          <waypoint>-138.6 357.4</waypoint>
+          <waypoint>-150.0 300.0</waypoint>
+          <waypoint>-138.6 242.6</waypoint>
+          <waypoint>-106.1 193.9</waypoint>
+          <waypoint>-57.4 161.4</waypoint>
+          <waypoint>-0.0 150.0</waypoint>
+          <waypoint>57.4 161.4</waypoint>
+          <waypoint>106.1 193.9</waypoint>
+          <waypoint>138.6 242.6</waypoint>
+        </waypoints>
+      </plugin>
+    </model>
+    <model name='radar_target_2'>
+      <pose>570 0 30 0 0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>5</mass>
+          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+          <material>
+            <ambient>1 0.5 0 1</ambient>
+            <diffuse>1 0.5 0 1</diffuse>
+            <emissive>0.4 0.2 0.0 1</emissive>
+          </material>
+        </visual>
+      </link>
+      <plugin filename='gz-sim-trajectory-follower-system'
+              name='gz::sim::systems::TrajectoryFollower'>
+        <link_name>link</link_name>
+        <loop>true</loop>
+        <force>300</force>
+        <torque>300</torque>
+        <waypoints>
+          <waypoint>570.0 0.0</waypoint>
+          <waypoint>560.9 45.9</waypoint>
+          <waypoint>534.9 84.9</waypoint>
+          <waypoint>495.9 110.9</waypoint>
+          <waypoint>450.0 120.0</waypoint>
+          <waypoint>404.1 110.9</waypoint>
+          <waypoint>365.1 84.9</waypoint>
+          <waypoint>339.1 45.9</waypoint>
+          <waypoint>330.0 0.0</waypoint>
+          <waypoint>339.1 -45.9</waypoint>
+          <waypoint>365.1 -84.9</waypoint>
+          <waypoint>404.1 -110.9</waypoint>
+          <waypoint>450.0 -120.0</waypoint>
+          <waypoint>495.9 -110.9</waypoint>
+          <waypoint>534.9 -84.9</waypoint>
+          <waypoint>560.9 -45.9</waypoint>
+        </waypoints>
+      </plugin>
+    </model>
+    <model name='radar_target_3'>
+      <pose>430 250 30 0 0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>5</mass>
+          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+            <emissive>0.4 0.4 0.0 1</emissive>
+          </material>
+        </visual>
+      </link>
+      <plugin filename='gz-sim-trajectory-follower-system'
+              name='gz::sim::systems::TrajectoryFollower'>
+        <link_name>link</link_name>
+        <loop>true</loop>
+        <force>2000</force>
+        <torque>2000</torque>
+        <waypoints>
+          <waypoint>430.0 250.0</waypoint>
+          <waypoint>416.3 318.9</waypoint>
+          <waypoint>377.3 377.3</waypoint>
+          <waypoint>318.9 416.3</waypoint>
+          <waypoint>250.0 430.0</waypoint>
+          <waypoint>181.1 416.3</waypoint>
+          <waypoint>122.7 377.3</waypoint>
+          <waypoint>83.7 318.9</waypoint>
+          <waypoint>70.0 250.0</waypoint>
+          <waypoint>83.7 181.1</waypoint>
+          <waypoint>122.7 122.7</waypoint>
+          <waypoint>181.1 83.7</waypoint>
+          <waypoint>250.0 70.0</waypoint>
+          <waypoint>318.9 83.7</waypoint>
+          <waypoint>377.3 122.7</waypoint>
+          <waypoint>416.3 181.1</waypoint>
+        </waypoints>
+      </plugin>
+    </model>
+    <model name='radar_target_4'>
+      <pose>200 -380 30 0 0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>5</mass>
+          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+          <material>
+            <ambient>0 1 0 1</ambient>
+            <diffuse>0 1 0 1</diffuse>
+            <emissive>0.0 0.4 0.0 1</emissive>
+          </material>
+        </visual>
+      </link>
+      <plugin filename='gz-sim-trajectory-follower-system'
+              name='gz::sim::systems::TrajectoryFollower'>
+        <link_name>link</link_name>
+        <loop>true</loop>
+        <force>4000</force>
+        <torque>4000</torque>
+        <waypoints>
+          <waypoint>200.0 -380.0</waypoint>
+          <waypoint>184.8 -303.5</waypoint>
+          <waypoint>141.4 -238.6</waypoint>
+          <waypoint>76.5 -195.2</waypoint>
+          <waypoint>0.0 -180.0</waypoint>
+          <waypoint>-76.5 -195.2</waypoint>
+          <waypoint>-141.4 -238.6</waypoint>
+          <waypoint>-184.8 -303.5</waypoint>
+          <waypoint>-200.0 -380.0</waypoint>
+          <waypoint>-184.8 -456.5</waypoint>
+          <waypoint>-141.4 -521.4</waypoint>
+          <waypoint>-76.5 -564.8</waypoint>
+          <waypoint>-0.0 -580.0</waypoint>
+          <waypoint>76.5 -564.8</waypoint>
+          <waypoint>141.4 -521.4</waypoint>
+          <waypoint>184.8 -456.5</waypoint>
+        </waypoints>
+      </plugin>
+    </model>
+    <model name='radar_target_5'>
+      <pose>-390 150 30 0 0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>5</mass>
+          <inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>3 3 3</size></box></geometry>
+          <material>
+            <ambient>0 0.5 1 1</ambient>
+            <diffuse>0 0.5 1 1</diffuse>
+            <emissive>0.0 0.2 0.4 1</emissive>
+          </material>
+        </visual>
+      </link>
+      <plugin filename='gz-sim-trajectory-follower-system'
+              name='gz::sim::systems::TrajectoryFollower'>
+        <link_name>link</link_name>
+        <loop>true</loop>
+        <force>1200</force>
+        <torque>1200</torque>
+        <waypoints>
+          <waypoint>-390.0 150.0</waypoint>
+          <waypoint>-402.2 211.2</waypoint>
+          <waypoint>-436.9 263.1</waypoint>
+          <waypoint>-488.8 297.8</waypoint>
+          <waypoint>-550.0 310.0</waypoint>
+          <waypoint>-611.2 297.8</waypoint>
+          <waypoint>-663.1 263.1</waypoint>
+          <waypoint>-697.8 211.2</waypoint>
+          <waypoint>-710.0 150.0</waypoint>
+          <waypoint>-697.8 88.8</waypoint>
+          <waypoint>-663.1 36.9</waypoint>
+          <waypoint>-611.2 2.2</waypoint>
+          <waypoint>-550.0 -10.0</waypoint>
+          <waypoint>-488.8 2.2</waypoint>
+          <waypoint>-436.9 36.9</waypoint>
+          <waypoint>-402.2 88.8</waypoint>
+        </waypoints>
+      </plugin>
+    </model>
+  </world>
+</sdf>
