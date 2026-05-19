@@ -99,7 +99,7 @@ param set-default MPC_Z_VEL_MAX_UP  3.0
 param set-default MPC_Z_VEL_MAX_DN  2.0
 
 # ── EKF2 sensor fusion ────────────────────────────────────────────
-param set-default EKF2_AID_MASK  1     # GPS (switch to 24 for optical-flow-only GNSS-denied)
+param set-default EKF2_GPS_CTRL  1     # GPS fusion enabled (EKF2_AID_MASK removed in PX4 v1.14)
 param set-default EKF2_HGT_REF   0     # barometer as height reference
 param set-default EKF2_BARO_CTRL 1
 

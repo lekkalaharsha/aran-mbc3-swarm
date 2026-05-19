@@ -1,9 +1,5 @@
 <sdf version='1.11'>
   <model name='mbc3_radar_drone'>
-    <!-- Spawn offset: base_link is not at skid bottom.
-         Skid collision z = -0.1175, radius = 0.014 → bottom = -0.1315 m.
-         Raise base_link by 0.135 m so skids rest on z=0 ground plane. -->
-    <pose>0 0 0.135 0 0 0</pose>
     <link name='base_link'>
       <inertial>
         <pose>0.0001455361101692728 -0.00044782347878249648 0.1120409613729428 0 0 0</pose>
@@ -6797,7 +6793,7 @@
       <sensor name='barometer' type='altimeter'>
         <always_on>true</always_on>
         <update_rate>50</update_rate>
-        <topic>/baro/data</topic>
+        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
         <altimeter>
           <vertical_position>
             <noise type='gaussian'>
@@ -6817,7 +6813,7 @@
       <sensor name='gps_sensor' type='navsat'>
         <always_on>true</always_on>
         <update_rate>10</update_rate>
-        <topic>/gps/fix</topic>
+        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
         <navsat>
           <position_sensing>
             <horizontal>
@@ -6854,7 +6850,7 @@
         <always_on>true</always_on>
         <update_rate>400</update_rate>
         <visualize>false</visualize>
-        <topic>/imu/data_raw</topic>
+        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
         <imu>
           <angular_velocity>
             <x>
@@ -6933,7 +6929,7 @@
       <sensor name='magnetometer' type='magnetometer'>
         <always_on>true</always_on>
         <update_rate>50</update_rate>
-        <topic>/mag/data</topic>
+        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
         <magnetometer>
           <x>
             <noise type='gaussian'>
@@ -6966,7 +6962,7 @@
         <always_on>true</always_on>
         <update_rate>60</update_rate>
         <visualize>false</visualize>
-        <topic>/rangefinder/range</topic>
+        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
         <lidar>
           <scan>
             <horizontal>
@@ -6993,7 +6989,7 @@
         <always_on>true</always_on>
         <update_rate>60</update_rate>
         <visualize>false</visualize>
-        <topic>/optical_flow/image_raw</topic>
+        <!-- topic removed: PX4 gz_bridge uses default world/model/link/sensor path -->
         <camera>
           <horizontal_fov>1.0469999999999999</horizontal_fov>
           <image>
