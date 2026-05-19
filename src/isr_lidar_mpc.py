@@ -408,7 +408,8 @@ def _compute_eta(wp_current, wp_total, waypoints):
     )
     # Uses live telemetry groundspeed; falls back to config SPEED only before
     # first telemetry frame arrives.
-    spd = drone_state.get("groundspeed") or SPEED
+    # Clamp min speed to SPEED to avoid huge ETA during loiter (groundspeed ≈ 0)
+    spd = max(drone_state.get("groundspeed") or SPEED, SPEED)
     return int(total_dist / spd) if spd > 0 else None
 
 
