@@ -415,7 +415,7 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
     # *_moving:  5 moving targets (TrajectoryFollower, 10-40 m/s) — proves req 2.5
     # *_targets: 5 static targets — simpler, for avoidance/detection baseline
     # default:   empty world
-    if [[ -z "${PX4_GZ_WORLD}" ]]; then
+    if [[ -z "${PX4_GZ_WORLD:-}" ]]; then
         if [[ "${MBC3_MODE}" == "1" ]]; then
             export PX4_GZ_WORLD="mbc3_radar_moving"
         else
