@@ -432,6 +432,16 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
         exit 0
     fi
 
+    # Kill any stale PX4/Gazebo from a previous session before launching.
+    # "PX4 server already running for instance 0" aborts the make target in <1s.
+    log "Clearing stale PX4 / Gazebo processes…"
+    pkill -f "bin/px4"    2>/dev/null && sleep 1 || true
+    pkill -f "gz sim"     2>/dev/null || true
+    pkill -f "gzserver"   2>/dev/null || true
+    pkill -f "ruby.*gz"   2>/dev/null || true
+    sleep 1
+    log_ok "Pre-launch cleanup done"
+
     log "Launching: make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}"
     (
         cd "${PX4_DIR}"
