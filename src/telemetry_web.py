@@ -135,11 +135,12 @@ _phase_state = {"push_time": 0.0}
 
 # ── ASP (Air Situation Picture) state ─────────────────────────────
 asp_data = {
-    "tracks":      [],      # list of track dicts from radar detection
-    "scan_count":  0,
-    "last_update": 0.0,
-    "drone_ids":   [],      # list of active swarm drone IDs
-    "track_log":   deque(maxlen=50000),  # full track history for CSV download
+    "tracks":        [],      # radar detection tracks
+    "swarm_drones":  [],      # all 5 drone positions from swarm_monitor
+    "scan_count":    0,
+    "last_update":   0.0,
+    "drone_ids":     [],
+    "track_log":     deque(maxlen=50000),
 }
 
 
@@ -256,13 +257,17 @@ def asp_update():
     drone_id = payload.get("asp_drone_id")
     if drone_id and drone_id not in asp_data["drone_ids"]:
         asp_data["drone_ids"].append(drone_id)
+    # Swarm drone positions from swarm_monitor.py
+    if "swarm_drones" in payload:
+        asp_data["swarm_drones"] = payload["swarm_drones"]
     socketio.emit("asp", {
-        "tracks":      asp_data["tracks"],
-        "scan_count":  asp_data["scan_count"],
-        "last_update": asp_data["last_update"],
-        "drone":       {"lat": data["lat"], "lon": data["lon"],
-                        "alt": data["alt"], "heading": data["heading"]},
-        "drone_ids":   asp_data["drone_ids"],
+        "tracks":        asp_data["tracks"],
+        "swarm_drones":  asp_data["swarm_drones"],
+        "scan_count":    asp_data["scan_count"],
+        "last_update":   asp_data["last_update"],
+        "drone":         {"lat": data["lat"], "lon": data["lon"],
+                          "alt": data["alt"], "heading": data["heading"]},
+        "drone_ids":     asp_data["drone_ids"],
     })
     return jsonify({"ok": True})
 
@@ -1982,10 +1987,43 @@ const map = L.map('map', {zoomControl:true}).setView([HOME_LAT, HOME_LON], 14);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
   {attribution:'&copy; CartoDB', maxZoom:19}).addTo(map);
 
-// Drone marker
+// Single drone marker (ISR mode / primary)
 const droneIcon = L.divIcon({html:'<div style="font-size:22px;filter:drop-shadow(0 0 6px #00c8ff)">✈</div>',
   className:'',iconAnchor:[11,11]});
 let droneMarker = L.marker([HOME_LAT, HOME_LON], {icon:droneIcon}).addTo(map);
+
+// Swarm drone markers (5-drone mode)
+const SWARM_COLORS = ['#00c8ff','#00ff9d','#ffb300','#ff3d3d','#cc44ff'];
+let swarmMarkers = {};
+
+function updateSwarmDrones(drones){
+  if(!drones || !drones.length) return;
+  const activeIds = new Set(drones.map(d=>d.id));
+  // Remove departed
+  for(const id in swarmMarkers){
+    if(!activeIds.has(id)){ map.removeLayer(swarmMarkers[id]); delete swarmMarkers[id]; }
+  }
+  drones.forEach((d, i) => {
+    if(!d.connected || !d.lat) return;
+    const color = SWARM_COLORS[i % SWARM_COLORS.length];
+    const icon  = L.divIcon({
+      html:`<div style="font-size:18px;color:${color};filter:drop-shadow(0 0 4px #000);text-shadow:0 0 6px ${color}">✈</div>`,
+      className:'', iconAnchor:[9,9]});
+    if(swarmMarkers[d.id]){
+      swarmMarkers[d.id].setLatLng([d.lat,d.lon]);
+      swarmMarkers[d.id].setIcon(icon);
+    } else {
+      swarmMarkers[d.id] = L.marker([d.lat,d.lon],{icon}).addTo(map);
+    }
+    swarmMarkers[d.id].bindTooltip(
+      `<b>${d.id}</b><br>Alt: ${d.alt}m<br>Speed: ${d.groundspeed}m/s<br>Mode: ${d.flight_mode}`,
+      {permanent:false});
+  });
+  // Update status bar
+  const conn = drones.filter(d=>d.connected).length;
+  document.getElementById('s-status').textContent = `${conn}/5 DRONES`;
+  document.getElementById('s-status').style.color = conn===5 ? '#00ff9d' : '#ffb300';
+}
 
 // Track markers pool
 let trackMarkers = {};
@@ -1998,7 +2036,7 @@ function confClass(c){
 }
 
 function updateTracks(tracks, drone){
-  // Update drone marker
+  // Update single drone marker (ISR mode)
   if(drone && drone.lat){
     droneMarker.setLatLng([drone.lat, drone.lon]);
     document.getElementById('s-alt').textContent = drone.alt.toFixed(0)+'m';
@@ -2071,6 +2109,7 @@ socket.on('disconnect', () => {
 });
 socket.on('asp', d => {
   updateTracks(d.tracks || [], d.drone || {});
+  updateSwarmDrones(d.swarm_drones || []);
   document.getElementById('s-scans').textContent = d.scan_count || 0;
 });
 // Also update drone position from main telemetry
