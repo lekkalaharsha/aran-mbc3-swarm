@@ -133,6 +133,15 @@ dynamic_commands = {
 # from reverting SEC-1/2/3 phases written by the mission script.
 _phase_state = {"push_time": 0.0}
 
+# ── ASP (Air Situation Picture) state ─────────────────────────────
+asp_data = {
+    "tracks":      [],      # list of track dicts from radar detection
+    "scan_count":  0,
+    "last_update": 0.0,
+    "drone_ids":   [],      # list of active swarm drone IDs
+    "track_log":   deque(maxlen=50000),  # full track history for CSV download
+}
+
 
 # ── LiDAR update endpoint ──────────────────────────────────────────
 @app.route("/lidar_update", methods=["POST"])
@@ -168,6 +177,33 @@ def lidar_update():
     # stream which stops during orbit/RTL phases. Now kept in sync from push.
     if "wp_current"  in payload: data["wp_current"]  = payload["wp_current"]
     if "wp_total"    in payload: data["wp_total"]     = payload["wp_total"]
+    # ASP tracks piggybacked on lidar_update — forward to /asp_update handler
+    if "asp_tracks" in payload:
+        tracks = payload["asp_tracks"]
+        asp_data["tracks"]      = tracks
+        asp_data["scan_count"] += 1
+        asp_data["last_update"] = time.time()
+        for t in tracks:
+            asp_data["track_log"].append({
+                "time":        datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                "id":          t.get("id","?"),
+                "lat":         t.get("lat",0),
+                "lon":         t.get("lon",0),
+                "range_m":     t.get("range_m",0),
+                "bearing_deg": t.get("bearing_deg",0),
+                "alt_m":       t.get("alt_m",0),
+                "velocity_ms": t.get("velocity_ms",0),
+                "confidence":  t.get("confidence",0),
+                "drone_id":    payload.get("asp_drone_id","DRONE-L"),
+            })
+        socketio.emit("asp", {
+            "tracks":      asp_data["tracks"],
+            "scan_count":  asp_data["scan_count"],
+            "last_update": asp_data["last_update"],
+            "drone":       {"lat": data["lat"], "lon": data["lon"],
+                            "alt": data["alt"], "heading": data["heading"]},
+        })
+
     # 3D map stats piggybacked on the lidar_update payload
     if "map_stats" in payload:
         ms = payload["map_stats"]
@@ -192,6 +228,59 @@ def lidar_update():
         dynamic_commands["config_updates"].clear()
         dynamic_commands["event_queue"].clear()
     return jsonify({"ok": True, "commands": cmds})
+
+
+# ── ASP update endpoint ────────────────────────────────────────────
+@app.route("/asp_update", methods=["POST"])
+def asp_update():
+    payload = request.get_json(silent=True) or {}
+    tracks = payload.get("asp_tracks") or payload.get("tracks", [])
+    if tracks is not None:
+        asp_data["tracks"] = tracks
+        asp_data["scan_count"] += 1
+        asp_data["last_update"] = time.time()
+        # Log each track to history for CSV download
+        for t in tracks:
+            asp_data["track_log"].append({
+                "time":        datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                "id":          t.get("id", "?"),
+                "lat":         t.get("lat", 0),
+                "lon":         t.get("lon", 0),
+                "range_m":     t.get("range_m", 0),
+                "bearing_deg": t.get("bearing_deg", 0),
+                "alt_m":       t.get("alt_m", 0),
+                "velocity_ms": t.get("velocity_ms", 0),
+                "confidence":  t.get("confidence", 0),
+                "drone_id":    payload.get("asp_drone_id", "DRONE-L"),
+            })
+    drone_id = payload.get("asp_drone_id")
+    if drone_id and drone_id not in asp_data["drone_ids"]:
+        asp_data["drone_ids"].append(drone_id)
+    socketio.emit("asp", {
+        "tracks":      asp_data["tracks"],
+        "scan_count":  asp_data["scan_count"],
+        "last_update": asp_data["last_update"],
+        "drone":       {"lat": data["lat"], "lon": data["lon"],
+                        "alt": data["alt"], "heading": data["heading"]},
+        "drone_ids":   asp_data["drone_ids"],
+    })
+    return jsonify({"ok": True})
+
+
+@app.route("/asp_download")
+def asp_download():
+    """Download full ASP track log as CSV."""
+    import csv, io
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=[
+        "time","id","lat","lon","range_m","bearing_deg",
+        "alt_m","velocity_ms","confidence","drone_id"])
+    w.writeheader()
+    for row in asp_data["track_log"]:
+        w.writerow(row)
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition":
+                             "attachment; filename=asp_track_log.csv"})
 
 
 # ── 3D map endpoints ───────────────────────────────────────────────
@@ -827,7 +916,7 @@ body::after {
   <div class="hdr-left">
     <div class="hdr-logo">&#11041; Aran Technologies</div>
     <span style="color:var(--dim)">|</span>
-    <div class="hdr-mission">ISR GCS v13 — 50m/s &#9889; 100m AGL — 360&#176; LiDAR | 4 TARGETS | 3 NFZ | 24 SCENARIOS</div>
+    <div class="hdr-mission">ISR GCS v13 — 50m/s &#9889; 100m AGL — 360&#176; LiDAR | 4 TARGETS | 3 NFZ | 24 SCENARIOS &nbsp;|&nbsp; <a href="/asp" style="color:#ff3d3d;font-weight:bold;text-decoration:none">◈ OPEN ASP SCREEN</a></div>
   </div>
   <div class="hdr-right">
     <span><div class="dot" id="conn-dot"></div><span id="conn-txt">OFFLINE</span></span>
@@ -1814,6 +1903,196 @@ def index():
         nfz_zones_json=json.dumps(NO_FLY_ZONES),
         loiter_waypoints_json=json.dumps(LOITER_WAYPOINTS),
     )
+
+
+ASP_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aran Technologies — ASP v1 | MBC-3</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060b14;color:#c8dff0;font-family:'Courier New',monospace;height:100vh;display:flex;flex-direction:column}
+#topbar{background:#080f1c;border-bottom:1px solid #0e2340;padding:8px 16px;display:flex;align-items:center;gap:24px;flex-shrink:0}
+#topbar .logo{color:#00c8ff;font-size:14px;font-weight:bold;letter-spacing:2px}
+.stat{display:flex;flex-direction:column;align-items:center}
+.stat-label{font-size:9px;color:#4a7a9b;letter-spacing:1px}
+.stat-val{font-size:16px;font-weight:bold;color:#00ff9d}
+.stat-val.warn{color:#ffb300}
+.stat-val.alert{color:#ff3d3d}
+#main{display:flex;flex:1;overflow:hidden}
+#map{flex:1;background:#060b14}
+#sidebar{width:340px;background:#080f1c;border-left:1px solid #0e2340;display:flex;flex-direction:column;overflow:hidden}
+#sidebar-header{padding:10px 14px;background:#0b1525;border-bottom:1px solid #0e2340;font-size:11px;color:#00c8ff;letter-spacing:1px}
+#track-table-wrap{flex:1;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{background:#0b1525;color:#4a7a9b;padding:6px 8px;text-align:left;border-bottom:1px solid #0e2340;position:sticky;top:0;letter-spacing:1px;font-size:10px}
+td{padding:5px 8px;border-bottom:1px solid #0e2340;color:#c8dff0}
+tr:hover td{background:#0b1525}
+.trk-id{color:#00c8ff;font-weight:bold}
+.conf-high{color:#00ff9d}
+.conf-mid{color:#ffb300}
+.conf-low{color:#ff3d3d}
+#bottombar{background:#080f1c;border-top:1px solid #0e2340;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.btn{background:#0e2340;border:1px solid #00c8ff;color:#00c8ff;padding:5px 14px;font-size:11px;cursor:pointer;letter-spacing:1px}
+.btn:hover{background:#00c8ff;color:#060b14}
+.btn-isr{border-color:#4a7a9b;color:#4a7a9b;margin-left:auto}
+.btn-isr:hover{background:#4a7a9b;color:#060b14}
+#update-time{font-size:10px;color:#4a7a9b;margin-left:auto}
+.track-marker-label{background:transparent;border:none;color:#ff3d3d;font-weight:bold;font-size:12px;font-family:'Courier New',monospace;text-shadow:0 0 4px #000}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="logo">◈ ARAN TECHNOLOGIES — AIR SITUATION PICTURE v1</div>
+  <div class="stat"><div class="stat-label">ACTIVE TRACKS</div><div class="stat-val" id="s-tracks">0</div></div>
+  <div class="stat"><div class="stat-label">SCAN COUNT</div><div class="stat-val" id="s-scans">0</div></div>
+  <div class="stat"><div class="stat-label">DRONE ALT</div><div class="stat-val" id="s-alt">---</div></div>
+  <div class="stat"><div class="stat-label">DRONE SPEED</div><div class="stat-val" id="s-spd">---</div></div>
+  <div class="stat"><div class="stat-label">STATUS</div><div class="stat-val" id="s-status" style="color:#ffb300">CONNECTING</div></div>
+</div>
+<div id="main">
+  <div id="map"></div>
+  <div id="sidebar">
+    <div id="sidebar-header">◈ TRACK LIST — REAL-TIME RADAR DETECTIONS</div>
+    <div id="track-table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>RNG (m)</th><th>BRG (°)</th><th>ALT (m)</th><th>VEL</th><th>CONF</th>
+        </tr></thead>
+        <tbody id="track-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div id="bottombar">
+  <button class="btn" onclick="downloadCSV()">⬇ DOWNLOAD TRACK LOG</button>
+  <a href="/" class="btn btn-isr">◀ ISR GCS</a>
+  <div id="update-time">Last update: ---</div>
+</div>
+
+<script>
+const HOME_LAT = """ + str(HOME_LAT) + r""";
+const HOME_LON = """ + str(HOME_LON) + r""";
+
+const map = L.map('map', {zoomControl:true}).setView([HOME_LAT, HOME_LON], 14);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  {attribution:'&copy; CartoDB', maxZoom:19}).addTo(map);
+
+// Drone marker
+const droneIcon = L.divIcon({html:'<div style="font-size:22px;filter:drop-shadow(0 0 6px #00c8ff)">✈</div>',
+  className:'',iconAnchor:[11,11]});
+let droneMarker = L.marker([HOME_LAT, HOME_LON], {icon:droneIcon}).addTo(map);
+
+// Track markers pool
+let trackMarkers = {};
+let trackCircles = {};
+
+function confClass(c){
+  if(c>=0.7) return 'conf-high';
+  if(c>=0.4) return 'conf-mid';
+  return 'conf-low';
+}
+
+function updateTracks(tracks, drone){
+  // Update drone marker
+  if(drone && drone.lat){
+    droneMarker.setLatLng([drone.lat, drone.lon]);
+    document.getElementById('s-alt').textContent = drone.alt.toFixed(0)+'m';
+  }
+
+  // Remove stale markers
+  const newIds = new Set(tracks.map(t=>t.id));
+  for(const id in trackMarkers){
+    if(!newIds.has(id)){
+      map.removeLayer(trackMarkers[id]);
+      map.removeLayer(trackCircles[id]);
+      delete trackMarkers[id];
+      delete trackCircles[id];
+    }
+  }
+
+  // Update/add markers
+  tracks.forEach(t => {
+    const latlng = [t.lat, t.lon];
+    const confColor = t.confidence >= 0.7 ? '#ff3d3d' : t.confidence >= 0.4 ? '#ffb300' : '#ff8800';
+
+    if(trackMarkers[t.id]){
+      trackMarkers[t.id].setLatLng(latlng);
+      trackCircles[t.id].setLatLng(latlng);
+    } else {
+      const icon = L.divIcon({
+        html:`<div class="track-marker-label" style="color:${confColor}">⬟${t.id}</div>`,
+        className:'', iconAnchor:[0,0]});
+      trackMarkers[t.id] = L.marker(latlng, {icon}).addTo(map);
+      trackCircles[t.id] = L.circle(latlng, {
+        radius: Math.max(50, t.range_m * 0.02),
+        color: confColor, fillColor: confColor,
+        fillOpacity: 0.15, weight: 1.5
+      }).addTo(map);
+    }
+    trackMarkers[t.id].bindTooltip(
+      `<b>${t.id}</b><br>Range: ${t.range_m.toFixed(0)}m<br>`+
+      `Bearing: ${t.bearing_deg.toFixed(1)}°<br>Alt: ${t.alt_m.toFixed(0)}m<br>`+
+      `Conf: ${(t.confidence*100).toFixed(0)}%`, {permanent:false});
+  });
+
+  // Update table
+  const tbody = document.getElementById('track-tbody');
+  tbody.innerHTML = tracks.map(t => {
+    const cc = confClass(t.confidence);
+    return `<tr>
+      <td class="trk-id">${t.id}</td>
+      <td>${t.range_m.toFixed(0)}</td>
+      <td>${t.bearing_deg.toFixed(1)}</td>
+      <td>${t.alt_m.toFixed(0)}</td>
+      <td>${t.velocity_ms.toFixed(1)} m/s</td>
+      <td class="${cc}">${(t.confidence*100).toFixed(0)}%</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('s-tracks').textContent = tracks.length;
+  document.getElementById('update-time').textContent =
+    'Last update: ' + new Date().toLocaleTimeString();
+}
+
+// SocketIO
+const socket = io();
+socket.on('connect', () => {
+  document.getElementById('s-status').textContent = 'CONNECTED';
+  document.getElementById('s-status').style.color = '#00ff9d';
+});
+socket.on('disconnect', () => {
+  document.getElementById('s-status').textContent = 'OFFLINE';
+  document.getElementById('s-status').style.color = '#ff3d3d';
+});
+socket.on('asp', d => {
+  updateTracks(d.tracks || [], d.drone || {});
+  document.getElementById('s-scans').textContent = d.scan_count || 0;
+});
+// Also update drone position from main telemetry
+socket.on('telemetry', d => {
+  if(d.lat && d.lon){
+    droneMarker.setLatLng([d.lat, d.lon]);
+    document.getElementById('s-alt').textContent = (d.alt||0).toFixed(0)+'m';
+    document.getElementById('s-spd').textContent = (d.groundspeed||0).toFixed(1)+'m/s';
+  }
+});
+
+function downloadCSV(){
+  window.location.href = '/asp_download';
+}
+</script>
+</body>
+</html>"""
+
+
+@app.route("/asp")
+def asp_page():
+    return ASP_HTML
 
 
 _emit_loop_started = False

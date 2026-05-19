@@ -209,6 +209,14 @@ def push_to_gcs():
             # phase list and target queue correctly advance through SEC-1/2/3.
             "mission_phase":    mission_state["mission_phase"],
             "map_stats":        map_builder.stats(),
+            # ASP tracks — extracted from fused radar scan
+            "asp_tracks":       _extract_asp_tracks(
+                                    lidar_state["raw_ranges"],
+                                    drone_state["lat"],
+                                    drone_state["lon"],
+                                    drone_state["alt"],
+                                ) if lidar_state["raw_ranges"] else [],
+            "asp_drone_id":     "DRONE-L",
         }
         resp = requests.post(GCS_URL, json=payload, timeout=0.2)
         if resp.ok:
@@ -281,6 +289,63 @@ def banner(msg):
 def log(msg):       print(f"  > {msg}")
 def log_warn(msg):  print(f"  WARNING  {msg}")
 def log_alert(msg): print(f"  ALERT    {msg}")
+
+
+def _extract_asp_tracks(raw_ranges, drone_lat, drone_lon, drone_alt,
+                        min_range=5.0, max_range=4900.0, gap_deg=5):
+    """Cluster 360° fused scan into ASP tracks.
+
+    Groups consecutive valid returns into clusters, computes centroid
+    bearing + mean range per cluster, converts to lat/lon using haversine.
+    Returns list of track dicts for /asp_update payload.
+    """
+    tracks = []
+    in_cluster = False
+    cluster_bearings = []
+    cluster_ranges   = []
+    track_id = 1
+
+    for deg in range(361):  # +1 to close wrap-around
+        idx = deg % 360
+        r   = raw_ranges[idx] if raw_ranges else float('inf')
+        valid = (min_range < r < max_range
+                 and not math.isinf(r) and not math.isnan(r))
+
+        if valid:
+            if not in_cluster:
+                in_cluster = True
+                cluster_bearings = []
+                cluster_ranges   = []
+            cluster_bearings.append(deg)
+            cluster_ranges.append(r)
+        else:
+            if in_cluster and len(cluster_ranges) >= 2:
+                bearing = sum(cluster_bearings) / len(cluster_bearings)
+                rng     = sum(cluster_ranges)   / len(cluster_ranges)
+                # Convert bearing + range to lat/lon
+                brng_rad = math.radians(bearing)
+                R_EARTH  = 6371000.0
+                d_lat = (rng * math.cos(brng_rad)) / R_EARTH
+                d_lon = (rng * math.sin(brng_rad)) / (
+                    R_EARTH * math.cos(math.radians(drone_lat)))
+                t_lat = drone_lat + math.degrees(d_lat)
+                t_lon = drone_lon + math.degrees(d_lon)
+                tracks.append({
+                    "id":           f"TRK-{track_id:03d}",
+                    "lat":          round(t_lat, 6),
+                    "lon":          round(t_lon, 6),
+                    "range_m":      round(rng, 1),
+                    "bearing_deg":  round(bearing % 360, 1),
+                    "alt_m":        round(drone_alt, 1),
+                    "velocity_ms":  0.0,
+                    "confidence":   min(1.0, len(cluster_ranges) / 10.0),
+                    "width_deg":    len(cluster_bearings),
+                    "timestamp":    time.time(),
+                })
+                track_id += 1
+            in_cluster = False
+
+    return tracks
 
 
 def _bearing_to_nearest(ranges, angle_min, angle_increment):
