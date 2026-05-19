@@ -1276,9 +1276,10 @@ async def run():
         await asyncio.sleep(0.1)
 
     # ── Climb to cruise altitude with adaptive logic ─────────────────
-    ALT_THRESHOLD   = 5.0                         # metres below target
-    CLIMB_TIMEOUT   = 90.0                        # seconds to reach altitude
-    CLIMB_STALL_CHECK = 15.0                      # seconds without progress = stall
+    ALT_THRESHOLD   = 5.0
+    # Scale climb timeout with altitude: 90s for 30m, ~360s for 500m at 1.6 m/s
+    CLIMB_TIMEOUT   = max(90.0, ALTITUDE / 1.5)
+    CLIMB_STALL_CHECK = 15.0
     target_alt      = ALTITUDE
     t_climb         = asyncio.get_running_loop().time()
     last_print      = t_climb
