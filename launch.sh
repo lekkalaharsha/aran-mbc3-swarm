@@ -54,6 +54,10 @@ PX4_READY_TIMEOUT=600  # seconds SITL+Gazebo has to boot (first build: cmake ~73
 # Racing mode: inject env var so mission script loads RACING_* params
 RACING_MODE="${RACING_MODE:-1}"
 
+# MBC-3 mode: 500m AGL cruise altitude (IAF requirement 2.10)
+# Default 0 = ISR demo (30m). Set MBC3_MODE=1 for competition demo.
+MBC3_MODE="${MBC3_MODE:-0}"
+
 # Strings that confirm PX4 SITL is fully up and accepting connections
 PX4_READY_PATTERNS=(
     "Ready for takeoff"
@@ -206,6 +210,7 @@ log_info "Python            : ${PYTHON}"
 log_info "PX4 directory     : ${PX4_DIR}"
 log_info "PX4 make target   : make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}"
 log_info "Racing mode       : RACING_MODE=${RACING_MODE}"
+log_info "MBC-3 mode        : MBC3_MODE=${MBC3_MODE}  (altitude: $([ "${MBC3_MODE}" = "1" ] && echo "500m AGL" || echo "30m AGL"))"
 [[ -n "${OPT_SCENARIO}" ]] && log_info "Scenario          : ${OPT_SCENARIO}"
 echo ""
 
@@ -801,6 +806,7 @@ log "Launching isr_lidar_mpc.py…"
     # env prefix only added when SCENARIO_ENV is non-empty
     ${SCENARIO_ENV:+env "${SCENARIO_ENV}"} \
         env "RACING_MODE=${RACING_MODE}" \
+        env "MBC3_MODE=${MBC3_MODE}" \
         "${PYTHON}" isr_lidar_mpc.py 2>&1 \
         | tee -a "${MISSION_LOG}"
 ) &

@@ -41,7 +41,11 @@ HOME_LON    = 8.5456
 # ══════════════════════════════════════════════════════════
 #  CRUISE PARAMETERS
 # ══════════════════════════════════════════════════════════
-ALTITUDE = 30.0          # cruise altitude (m AGL) — lower for racing
+import os as _os_alt
+# MBC3_MODE=1 → 500m AGL (MBC-3 requirement 2.10: ≥500m AGL)
+# Default (0) → 30m for ISR/racing demo
+_MBC3_MODE = _os_alt.environ.get("MBC3_MODE", "0") not in ("0", "false", "False")
+ALTITUDE = 500.0 if _MBC3_MODE else 30.0   # cruise altitude (m AGL)
 SPEED    = 40.0          # mission speed (m/s) — racing cruise (30–60 m/s range)
 
 # ══════════════════════════════════════════════════════════
@@ -67,7 +71,7 @@ ORBIT_RADIUS   = 50.0    # metres — increased from 30m: at 35m/s, 30m radius n
 ORBIT_SPEED    = 12.0    # m/s — reduced from 35m/s: safe centripetal at 50m
                          # radius is sqrt(5 × 50) ≈ 15.8 m/s.  12 m/s gives
                          # 2.9 m/s² — well within PX4's horizontal accel limit.
-ORBIT_ALTITUDE = 30.0    # m AGL — match cruise altitude
+ORBIT_ALTITUDE = ALTITUDE  # m AGL — matches cruise altitude (500m MBC3, 30m ISR)
 ORBIT_DURATION = 15      # seconds
 
 
