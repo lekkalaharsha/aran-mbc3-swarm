@@ -411,10 +411,19 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
 
     [[ "${OPT_HEADLESS}" == true ]] && export HEADLESS=1 && log_info "Headless mode enabled (no Gazebo GUI)"
 
-    # PX4's px4-rc.gzsim only starts Gazebo when PX4_GZ_WORLD is set.
-    # The default CMake target (gz_<model>) omits PX4_GZ_WORLD so Gazebo
-    # never launches and PX4 hangs forever "Waiting for Gazebo world".
-    export PX4_GZ_WORLD="${PX4_GZ_WORLD:-default}"
+    # Auto-select Gazebo world based on mode unless overridden.
+    # mbc3_radar_targets: 5 targets at 500m alt, 1.5-3km (MBC-3 competition demo)
+    # mbc3_isr_targets:   5 targets at 30m alt,  300-800m (ISR radar demo)
+    # default:            empty world (no radar targets)
+    if [[ -z "${PX4_GZ_WORLD}" ]]; then
+        if [[ "${MBC3_MODE}" == "1" ]]; then
+            export PX4_GZ_WORLD="mbc3_radar_targets"
+        else
+            export PX4_GZ_WORLD="mbc3_isr_targets"
+        fi
+    else
+        export PX4_GZ_WORLD="${PX4_GZ_WORLD}"
+    fi
     log_info "Gazebo world: ${PX4_GZ_WORLD}"
 
     # ── Build-only mode: compile in foreground, exit when make finishes ──
