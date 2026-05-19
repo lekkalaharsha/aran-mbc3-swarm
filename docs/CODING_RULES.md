@@ -16,6 +16,14 @@
 
 **Never commit directly to `main`.** All changes go through a branch → test → merge flow.
 
+**Merge target rule: merge to PARENT branch, not main.**
+```
+fix/landing-gear → feature/drone-visualization    (not main)
+feature/drone-visualization → feature/6-panel     (not main)
+test/phase1-px4-flight → feature/6-panel          (not main)
+feature/6-panel-radar-coverage → main             (after full checklist)
+```
+
 ```
 main  ←  merge only after verified pass
  └── fix/bug-name
