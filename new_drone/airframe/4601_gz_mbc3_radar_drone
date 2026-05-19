@@ -24,32 +24,32 @@ param set-default CA_ROTOR_COUNT 6
 param set-default CA_ROTOR0_PX  0.360
 param set-default CA_ROTOR0_PY  0.000
 param set-default CA_ROTOR0_PZ  0.000
-param set-default CA_ROTOR0_KM -0.05
+param set-default CA_ROTOR0_KM  0.05
 
 param set-default CA_ROTOR1_PX  0.180
 param set-default CA_ROTOR1_PY -0.312
 param set-default CA_ROTOR1_PZ  0.000
-param set-default CA_ROTOR1_KM  0.05
+param set-default CA_ROTOR1_KM -0.05
 
 param set-default CA_ROTOR2_PX -0.180
 param set-default CA_ROTOR2_PY -0.312
 param set-default CA_ROTOR2_PZ  0.000
-param set-default CA_ROTOR2_KM -0.05
+param set-default CA_ROTOR2_KM  0.05
 
 param set-default CA_ROTOR3_PX -0.360
 param set-default CA_ROTOR3_PY  0.000
 param set-default CA_ROTOR3_PZ  0.000
-param set-default CA_ROTOR3_KM  0.05
+param set-default CA_ROTOR3_KM -0.05
 
 param set-default CA_ROTOR4_PX -0.180
 param set-default CA_ROTOR4_PY  0.312
 param set-default CA_ROTOR4_PZ  0.000
-param set-default CA_ROTOR4_KM -0.05
+param set-default CA_ROTOR4_KM  0.05
 
 param set-default CA_ROTOR5_PX  0.180
 param set-default CA_ROTOR5_PY  0.312
 param set-default CA_ROTOR5_PZ  0.000
-param set-default CA_ROTOR5_KM  0.05
+param set-default CA_ROTOR5_KM -0.05
 
 # ── Gazebo SITL output mappings ───────────────────────────────────
 param set-default SIM_GZ_EN 1
@@ -78,9 +78,10 @@ param set-default SIM_GZ_EC_MAX6 1000
 # ── Flight tuning ─────────────────────────────────────────────────
 # Hover calc: SDF mass 3.834 kg → 3.834×9.81/6 = 6.26 N/motor
 #   ω_hover = sqrt(6.26 / 1.74e-5) = 600 rad/s
-#   throttle = 600 / 838 (maxRotVelocity) = 0.716 → set 0.72
-# Previous value 0.43 was wrong: only 13.5 N total at 43% < 37.6 N needed.
-param set-default MPC_THR_HOVER 0.72
+#   throttle = 600 / 838 (maxRotVelocity) = 0.716 → theoretical 0.72
+# Actual: hover_thrust_estimate converged to 0.631 in flight (log 13_58_15.ulg)
+# Use empirical value — theoretical ignored LiftDrag removal effect.
+param set-default MPC_THR_HOVER 0.63
 param set-default MPC_THR_MIN   0.06
 param set-default MPC_THR_MAX   0.95
 

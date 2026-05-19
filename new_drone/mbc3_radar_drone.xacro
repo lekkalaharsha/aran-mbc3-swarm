@@ -140,7 +140,7 @@
        6 panels at 60° spacing × 60° FOV = seamless 360° coverage, zero gaps. -->
   <xacro:property name="radar_h_fov"    value="${60.0*D2R}"/>
   <xacro:property name="radar_v_fov"    value="${45.0*D2R}"/>
-  <xacro:property name="radar_range_min" value="2.0"/>
+  <xacro:property name="radar_range_min" value="0.5"/>
   <xacro:property name="radar_range_max" value="5000.0"/>
   <xacro:property name="radar_res"      value="0.120"/>
 
@@ -1718,7 +1718,7 @@
         <vertical_position>
           <noise type="gaussian">
             <mean>0.0</mean>
-            <stddev>0.1</stddev>   <!-- ±0.1 m typical MEMS baro -->
+            <stddev>0.2</stddev>   <!-- ±0.2 m outdoor MEMS baro without wind model -->
           </noise>
         </vertical_position>
         <vertical_velocity>
@@ -1779,7 +1779,8 @@
         <update_rate>10</update_rate>
         <visualize>false</visualize>
         <topic>${tp}/radar_${id}/scan</topic>
-        <ray>
+        <!-- gpu_lidar requires <lidar> block, not <ray> (Gazebo Harmonic) -->
+        <lidar>
           <scan>
             <horizontal>
               <samples>220</samples>
@@ -1802,9 +1803,9 @@
           <noise>
             <type>gaussian</type>
             <mean>0.0</mean>
-            <stddev>0.8</stddev>
+            <stddev>0.10</stddev>  <!-- reduced from 0.8: σ≈0.83× resolution (0.12m) -->
           </noise>
-        </ray>
+        </lidar>
       </sensor>
     </gazebo>
   </xacro:macro>
@@ -1819,11 +1820,13 @@
   <!-- ── Optical flow: downward-facing rangefinder + camera ── -->
   <gazebo reference="optical_flow_link">
     <!-- Rangefinder (TFmini-equivalent) for altitude hold -->
-    <sensor name="rangefinder" type="ray">
+    <!-- type=gpu_lidar + <lidar> block required for Gazebo Harmonic; type=ray is deprecated -->
+    <sensor name="rangefinder" type="gpu_lidar">
       <always_on>true</always_on>
       <update_rate>60</update_rate>
+      <visualize>false</visualize>
       <topic>${tp}/rangefinder/range</topic>
-      <ray>
+      <lidar>
         <scan>
           <horizontal>
             <samples>1</samples>
@@ -1842,12 +1845,13 @@
           <mean>0.0</mean>
           <stddev>0.005</stddev>
         </noise>
-      </ray>
+      </lidar>
     </sensor>
     <!-- Optical flow camera -->
     <sensor name="optical_flow_cam" type="camera">
       <always_on>true</always_on>
       <update_rate>60</update_rate>
+      <visualize>false</visualize>
       <topic>${tp}/optical_flow/image_raw</topic>
       <camera>
         <horizontal_fov>1.047</horizontal_fov>
@@ -1865,8 +1869,13 @@
   <!-- ── Rotor LiftDrag hints (Gazebo Harmonic) ──────────────
        Model-level plugin block avoids urdf2sdf placing plugin
        inside <link> element (which triggers SDF warning).    -->
-  <xacro:macro name="rotor_aero" params="num link_name spin_dir">
-    <gazebo reference="${link_name}">
+  <!-- LiftDrag must reference the actual spinning link (motor_bell_N), not prop_N.
+       prop_N is a fixed-joint child and may be merged in SDF; motor_bell_N is the
+       continuous joint child and is guaranteed to survive as a physics link.
+       <forward> is always 1 0 0: yaw torque direction is set by momentConstant sign
+       in the motor model — reversing <forward> per CW/CCW doubles torque error. -->
+  <xacro:macro name="rotor_aero" params="num">
+    <gazebo reference="motor_bell_${num}">
       <plugin filename="gz-sim-lift-drag-system"
               name="gz::sim::systems::LiftDrag">
         <a0>0.30</a0>
@@ -1880,20 +1889,19 @@
         <cp>0 0 0</cp>
         <area>${PI*prop_r*prop_r}</area>
         <air_density>1.2041</air_density>
-        <forward>${spin_dir} 0 0</forward>
+        <forward>1 0 0</forward>
         <upward>0 0 1</upward>
-        <link_name>${link_name}</link_name>
+        <link_name>motor_bell_${num}</link_name>
       </plugin>
     </gazebo>
   </xacro:macro>
 
-  <!-- Forward vectors alternate with spin direction -->
-  <xacro:rotor_aero num="0" link_name="prop_0" spin_dir=" 1"/>
-  <xacro:rotor_aero num="1" link_name="prop_1" spin_dir="-1"/>
-  <xacro:rotor_aero num="2" link_name="prop_2" spin_dir=" 1"/>
-  <xacro:rotor_aero num="3" link_name="prop_3" spin_dir="-1"/>
-  <xacro:rotor_aero num="4" link_name="prop_4" spin_dir=" 1"/>
-  <xacro:rotor_aero num="5" link_name="prop_5" spin_dir="-1"/>
+  <xacro:rotor_aero num="0"/>
+  <xacro:rotor_aero num="1"/>
+  <xacro:rotor_aero num="2"/>
+  <xacro:rotor_aero num="3"/>
+  <xacro:rotor_aero num="4"/>
+  <xacro:rotor_aero num="5"/>
 
   <!-- ── Landing skid contact surface tuning ─────────────── -->
   <gazebo reference="lg_skid_L">
@@ -1979,7 +1987,7 @@
       <publish_collision_pose>false</publish_collision_pose>
       <publish_visual_pose>false</publish_visual_pose>
       <publish_nested_model_pose>false</publish_nested_model_pose>
-      <update_frequency>50</update_frequency>
+      <update_frequency>100</update_frequency>  <!-- raised from 50: better MPC state feedback -->
     </plugin>
   </gazebo>
 
@@ -1987,8 +1995,8 @@
   <gazebo>
     <plugin filename="gz-sim-odometry-publisher-system"
             name="gz::sim::systems::OdometryPublisher">
-      <odom_frame>odom</odom_frame>
-      <robot_base_frame>base_link</robot_base_frame>
+      <odom_frame>${(ns + '/odom') if ns else 'odom'}</odom_frame>
+      <robot_base_frame>${(ns + '/base_link') if ns else 'base_link'}</robot_base_frame>
       <publish_rate>50</publish_rate>
     </plugin>
   </gazebo>
@@ -2003,7 +2011,7 @@
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>838.0</maxRotVelocity>  <!-- 838 rad/s → hover at ~75% throttle, max 1.75× hover thrust -->
       <motorConstant>1.740e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
@@ -2026,7 +2034,7 @@
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>838.0</maxRotVelocity>  <!-- 838 rad/s → hover at ~75% throttle, max 1.75× hover thrust -->
       <motorConstant>1.740e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
@@ -2049,7 +2057,7 @@
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>838.0</maxRotVelocity>  <!-- 838 rad/s → hover at ~75% throttle, max 1.75× hover thrust -->
       <motorConstant>1.740e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
@@ -2072,7 +2080,7 @@
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>838.0</maxRotVelocity>  <!-- 838 rad/s → hover at ~75% throttle, max 1.75× hover thrust -->
       <motorConstant>1.740e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
@@ -2095,7 +2103,7 @@
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>838.0</maxRotVelocity>  <!-- 838 rad/s → hover at ~75% throttle, max 1.75× hover thrust -->
       <motorConstant>1.740e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
@@ -2118,7 +2126,7 @@
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>838.0</maxRotVelocity>  <!-- 838 rad/s → hover at ~75% throttle, max 1.75× hover thrust -->
       <motorConstant>1.740e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
