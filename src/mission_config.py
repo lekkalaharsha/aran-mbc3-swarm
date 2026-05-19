@@ -46,7 +46,7 @@ import os as _os_alt
 # Default (0) → 30m for ISR/racing demo
 _MBC3_MODE = _os_alt.environ.get("MBC3_MODE", "0") not in ("0", "false", "False")
 ALTITUDE = 500.0 if _MBC3_MODE else 30.0   # cruise altitude (m AGL)
-SPEED    = 40.0          # mission speed (m/s) — racing cruise (30–60 m/s range)
+SPEED    = 6.0   if _MBC3_MODE else 40.0   # m/s — 6 m/s MBC3 (slow scan at 500m), 40 m/s ISR racing
 
 # ══════════════════════════════════════════════════════════
 #  SURVEY GRID
