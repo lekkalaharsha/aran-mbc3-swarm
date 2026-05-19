@@ -70,10 +70,20 @@ OPT_CLEAN_LOGS=false
 OPT_SIM_ONLY=false
 OPT_GCS_ONLY=false
 OPT_BUILD_ONLY=false
+OPT_NO_RADAR=false
+
+# Radar fusion settings
+ROS2_WS="${ROS2_WS:-${HOME}/ros2_ws}"
+RADAR_MODE="${RADAR_MODE:-single}"   # single | swarm
+RADAR_NS="${RADAR_NS:-drone_L}"      # namespace for single-drone detection node
+ROS2_DISTRO="${ROS2_DISTRO:-}"       # auto-detected below if empty
 
 PID_PX4=""
 PID_GCS=""
 PID_MISSION=""
+PID_ROS_BRIDGE=""
+PID_RADAR_DET=""
+PID_RADAR_FUSION=""
 
 # ══════════════════════════════════════════════════════════
 #  USAGE
@@ -91,11 +101,16 @@ ${WHT}Options:${RST}
   ${CYN}--clean-logs${RST}       Delete previous log files before starting
   ${CYN}--px4-dir PATH${RST}     Override PX4-Autopilot path (default: ~/PX4-Autopilot)
   ${CYN}--build-only${RST}       Build PX4 + model only — do not launch GCS or mission
+  ${CYN}--no-radar${RST}         Skip radar fusion nodes even if ROS2 is available
+  ${CYN}--radar-mode MODE${RST}  single (one detection node) or swarm (5 nodes + fusion)  [default: single]
   ${CYN}--help${RST}             Show this help and exit
 
 ${WHT}Environment overrides:${RST}
-  PX4_DIR    Path to PX4-Autopilot  (default: ~/PX4-Autopilot)
-  PYTHON     Python interpreter     (default: python3)
+  PX4_DIR      Path to PX4-Autopilot  (default: ~/PX4-Autopilot)
+  PYTHON       Python interpreter     (default: python3)
+  ROS2_WS      ROS2 workspace root    (default: ~/ros2_ws)
+  RADAR_MODE   single | swarm         (default: single)
+  ROS2_DISTRO  ROS2 distro name       (default: auto-detect from /opt/ros/)
 
 ${WHT}Launch sequence:${RST}
   1. Dependency + file checks
@@ -124,8 +139,10 @@ while [[ $# -gt 0 ]]; do
         --no-deps)    OPT_NO_DEPS=true;   shift   ;;
         --clean-logs)  OPT_CLEAN_LOGS=true;  shift  ;;
         --px4-dir)     PX4_DIR="$2";        shift 2 ;;
-        --build-only)  OPT_BUILD_ONLY=true; shift   ;;
-        --help|-h)     usage; exit 0 ;;
+        --build-only)   OPT_BUILD_ONLY=true;    shift   ;;
+        --no-radar)     OPT_NO_RADAR=true;      shift   ;;
+        --radar-mode)   RADAR_MODE="$2";        shift 2 ;;
+        --help|-h)      usage; exit 0 ;;
         *) log_err "Unknown option: $1"; usage; exit 1 ;;
     esac
 done
@@ -136,8 +153,8 @@ done
 cleanup() {
     echo ""
     banner "SHUTDOWN — stopping all processes"
-    local -a pids=("${PID_MISSION}" "${PID_GCS}" "${PID_PX4}")
-    local -a names=("Mission" "GCS" "PX4 SITL")
+    local -a pids=("${PID_MISSION}" "${PID_RADAR_FUSION}" "${PID_RADAR_DET}" "${PID_ROS_BRIDGE}" "${PID_GCS}" "${PID_PX4}")
+    local -a names=("Mission" "Radar Fusion" "Radar Detection" "ros_gz_bridge" "GCS" "PX4 SITL")
     for i in "${!pids[@]}"; do
         local pid="${pids[$i]}"
         local name="${names[$i]}"
@@ -493,6 +510,170 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
 fi
 
 # ══════════════════════════════════════════════════════════
+#  STEP 3.5: RADAR FUSION (ROS2 — optional)
+# ══════════════════════════════════════════════════════════
+banner "STEP 3.5 — Radar Fusion  (ros2 + radar_fusion package)"
+
+_radar_started=false
+
+if [[ "${OPT_NO_RADAR}" == true ]]; then
+    log_info "Radar fusion skipped (--no-radar)"
+
+elif [[ "${OPT_GCS_ONLY}" == true ]]; then
+    log_info "Radar fusion skipped (--gcs-only mode)"
+
+else
+    # ── Locate ROS2 distro ───────────────────────────────────────────────
+    if [[ -z "${ROS2_DISTRO}" ]]; then
+        if [[ -d /opt/ros ]]; then
+            ROS2_DISTRO="$(ls /opt/ros 2>/dev/null | sort | tail -1 || true)"
+        fi
+    fi
+    ROS2_SETUP="/opt/ros/${ROS2_DISTRO}/setup.bash"
+
+    if [[ -z "${ROS2_DISTRO}" ]] || [[ ! -f "${ROS2_SETUP}" ]]; then
+        log_warn "ROS2 not found — radar fusion disabled"
+        log_info "  Install ROS2: https://docs.ros.org/en/rolling/Installation.html"
+        log_info "  Or set: export ROS2_DISTRO=jazzy  (or humble/iron)"
+        log_info "  Skip this message with: --no-radar"
+
+    else
+        log_ok "ROS2 distro: ${ROS2_DISTRO}  (${ROS2_SETUP})"
+
+        # ── Build radar_fusion if workspace exists but not yet built ─────
+        RADAR_PKG_DIR="${SCRIPT_DIR}/radar_fusion"
+        RADAR_INSTALL="${ROS2_WS}/install/radar_fusion"
+        RADAR_BUILT=false
+
+        if [[ ! -d "${RADAR_PKG_DIR}" ]]; then
+            log_warn "radar_fusion package not found at ${RADAR_PKG_DIR} — skipping"
+
+        else
+            if [[ ! -d "${RADAR_INSTALL}" ]]; then
+                log "Building radar_fusion in ${ROS2_WS}…"
+                mkdir -p "${ROS2_WS}/src"
+
+                # Symlink or copy package into workspace src if not already there
+                if [[ ! -e "${ROS2_WS}/src/radar_fusion" ]]; then
+                    ln -sf "${RADAR_PKG_DIR}" "${ROS2_WS}/src/radar_fusion"
+                    log_info "Linked ${RADAR_PKG_DIR} → ${ROS2_WS}/src/radar_fusion"
+                fi
+
+                RADAR_BUILD_LOG="${SESSION_DIR}/radar_build.log"
+                if (
+                    # shellcheck disable=SC1090
+                    source "${ROS2_SETUP}"
+                    cd "${ROS2_WS}"
+                    colcon build --packages-select radar_fusion \
+                        --event-handlers console_cohesion+
+                ) >> "${RADAR_BUILD_LOG}" 2>&1; then
+                    log_ok "radar_fusion built successfully"
+                    RADAR_BUILT=true
+                else
+                    log_warn "radar_fusion build FAILED — radar disabled"
+                    log_info "  Build log: ${RADAR_BUILD_LOG}"
+                fi
+            else
+                log_ok "radar_fusion already built: ${RADAR_INSTALL}"
+                RADAR_BUILT=true
+            fi
+
+            if [[ "${RADAR_BUILT}" == true ]]; then
+                RADAR_WS_SETUP="${ROS2_WS}/install/setup.bash"
+                RADAR_LOG="${SESSION_DIR}/radar.log"
+                BRIDGE_LOG="${SESSION_DIR}/ros_bridge.log"
+                RADAR_PARAMS="${RADAR_PKG_DIR}/config/radar_fusion.yaml"
+
+                # ── ros_gz_bridge: map 6 radar panel gz topics → ROS2 ───────
+                # Each panel publishes PointCloud2 on /radar_X/scan/points.
+                # Bridge direction: GZ_TO_ROS  (Gazebo → ROS2)
+                BRIDGE_CFG="${SESSION_DIR}/radar_bridge.yaml"
+                cat > "${BRIDGE_CFG}" <<'BRIDGEYAML'
+---
+- ros_topic_name: /radar_A/scan/points
+  gz_topic_name:  /radar_A/scan/points
+  ros_type_name:  sensor_msgs/msg/PointCloud2
+  gz_type_name:   gz.msgs.PointCloudPacked
+  direction:      GZ_TO_ROS
+- ros_topic_name: /radar_B/scan/points
+  gz_topic_name:  /radar_B/scan/points
+  ros_type_name:  sensor_msgs/msg/PointCloud2
+  gz_type_name:   gz.msgs.PointCloudPacked
+  direction:      GZ_TO_ROS
+- ros_topic_name: /radar_C/scan/points
+  gz_topic_name:  /radar_C/scan/points
+  ros_type_name:  sensor_msgs/msg/PointCloud2
+  gz_type_name:   gz.msgs.PointCloudPacked
+  direction:      GZ_TO_ROS
+- ros_topic_name: /radar_D/scan/points
+  gz_topic_name:  /radar_D/scan/points
+  ros_type_name:  sensor_msgs/msg/PointCloud2
+  gz_type_name:   gz.msgs.PointCloudPacked
+  direction:      GZ_TO_ROS
+- ros_topic_name: /radar_E/scan/points
+  gz_topic_name:  /radar_E/scan/points
+  ros_type_name:  sensor_msgs/msg/PointCloud2
+  gz_type_name:   gz.msgs.PointCloudPacked
+  direction:      GZ_TO_ROS
+- ros_topic_name: /radar_F/scan/points
+  gz_topic_name:  /radar_F/scan/points
+  ros_type_name:  sensor_msgs/msg/PointCloud2
+  gz_type_name:   gz.msgs.PointCloudPacked
+  direction:      GZ_TO_ROS
+BRIDGEYAML
+
+                log "Starting ros_gz_bridge for 6 radar panels…"
+                (
+                    # shellcheck disable=SC1090
+                    source "${ROS2_SETUP}"
+                    source "${RADAR_WS_SETUP}"
+                    ros2 run ros_gz_bridge parameter_bridge \
+                        --ros-args -p config_file:="${BRIDGE_CFG}"
+                ) >> "${BRIDGE_LOG}" 2>&1 &
+                PID_ROS_BRIDGE=$!
+                log_info "ros_gz_bridge PID: ${PID_ROS_BRIDGE}  |  log: ${BRIDGE_LOG}"
+
+                # Give bridge 3 s to connect before starting detection nodes
+                sleep 3
+                if ! kill -0 "${PID_ROS_BRIDGE}" 2>/dev/null; then
+                    log_warn "ros_gz_bridge exited immediately — radar detection may not work"
+                    log_info "  Bridge log: ${BRIDGE_LOG}"
+                    log_info "  Is ros_gz_bridge installed?  sudo apt install ros-${ROS2_DISTRO}-ros-gz-bridge"
+                else
+                    log_ok "ros_gz_bridge running"
+
+                    # ── Launch detection + fusion nodes ──────────────────────
+                    log "Starting radar_fusion nodes (mode: ${RADAR_MODE})…"
+                    (
+                        # shellcheck disable=SC1090
+                        source "${ROS2_SETUP}"
+                        source "${RADAR_WS_SETUP}"
+                        ros2 launch radar_fusion radar_fusion.launch.py \
+                            mode:="${RADAR_MODE}" \
+                            use_sim_time:=true \
+                            params_file:="${RADAR_PARAMS}"
+                    ) >> "${RADAR_LOG}" 2>&1 &
+                    PID_RADAR_DET=$!
+                    log_info "Radar nodes PID: ${PID_RADAR_DET}  |  log: ${RADAR_LOG}"
+
+                    sleep 2
+                    if kill -0 "${PID_RADAR_DET}" 2>/dev/null; then
+                        log_ok "Radar fusion nodes running  (mode=${RADAR_MODE})"
+                        _radar_started=true
+                    else
+                        log_warn "Radar fusion nodes exited — check ${RADAR_LOG}"
+                    fi
+                fi
+            fi
+        fi
+    fi
+fi
+
+[[ "${_radar_started}" == true ]] \
+    && log_ok  "Radar pipeline: ACTIVE  →  /swarm/tracks  /swarm/asp" \
+    || log_info "Radar pipeline: INACTIVE (obstacle avoidance uses LiDAR only)"
+
+# ══════════════════════════════════════════════════════════
 #  STEP 4: GCS DASHBOARD
 # ══════════════════════════════════════════════════════════
 banner "STEP 4 — GCS Dashboard  (telemetry_web.py)"
@@ -641,7 +822,13 @@ echo ""
         kill -0 "${PID_MISSION}" 2>/dev/null \
             && mis_s="${GRN}RUNNING${RST}" || mis_s="${YLW}DONE${RST}"
 
-        echo -e "${DIM}[$(date +%H:%M:%S)]${RST}  PX4=${px4_s}  GCS=${gcs_s}  Mission=${mis_s}" \
+        radar_s="${DIM}OFF${RST}"
+        if [[ -n "${PID_RADAR_DET}" ]]; then
+            kill -0 "${PID_RADAR_DET}" 2>/dev/null \
+                && radar_s="${GRN}UP${RST}" || radar_s="${RED}DOWN${RST}"
+        fi
+
+        echo -e "${DIM}[$(date +%H:%M:%S)]${RST}  PX4=${px4_s}  GCS=${gcs_s}  Mission=${mis_s}  Radar=${radar_s}" \
             | tee -a "${LOG_FILE}"
     done
 ) &
@@ -676,3 +863,6 @@ log_info "  GCS     → ${SESSION_DIR}/gcs.log"
 log_info "  Mission → ${SESSION_DIR}/mission.log"
 log_info "  Launch  → ${SESSION_DIR}/launch.log"
 log_info "  3D Map  → ${MAP_OUT_DIR}/"
+[[ -f "${SESSION_DIR}/radar.log" ]]       && log_info "  Radar   → ${SESSION_DIR}/radar.log"
+[[ -f "${SESSION_DIR}/ros_bridge.log" ]]  && log_info "  Bridge  → ${SESSION_DIR}/ros_bridge.log"
+[[ -f "${SESSION_DIR}/radar_build.log" ]] && log_info "  R-Build → ${SESSION_DIR}/radar_build.log"

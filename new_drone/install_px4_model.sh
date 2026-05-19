@@ -20,6 +20,7 @@ AIRFRAME_DEST="${PX4_DIR}/ROMFS/px4fmu_common/init.d-posix/airframes"
 AIRFRAME_FILE="4601_gz_${MODEL_NAME}"
 XACRO_FILE="${SCRIPT_DIR}/mbc3_radar_drone.xacro"
 URDF_FILE="${SCRIPT_DIR}/mbc3_radar_drone.urdf"
+PREBUILT_SDF="${SCRIPT_DIR}/mbc3_radar_drone.sdf"   # pre-fixed SDF (preferred)
 SDF_FILE="${SCRIPT_DIR}/model.sdf"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[0;33m'; RST='\033[0m'
@@ -37,29 +38,38 @@ echo ""
 # ── Check PX4 dir ────────────────────────────────────────────
 [[ -d "${PX4_DIR}" ]] || err "PX4 directory not found: ${PX4_DIR}. Set PX4_DIR env var."
 
-# ── Check dependencies ───────────────────────────────────────
-for cmd in xacro gz; do
-    command -v "${cmd}" &>/dev/null \
-        || err "${cmd} not found. Source: source /opt/ros/jazzy/setup.bash"
-done
-ok "xacro and gz available"
-
-# ── Step 1: xacro → URDF ─────────────────────────────────────
+# ── Step 1+2: SDF generation (skip if pre-built SDF exists) ──
 echo ""
-echo "==> Step 1: xacro → URDF (use_ros2_control:=false for PX4 mode)"
-xacro "${XACRO_FILE}" \
-    use_ros2_control:=false \
-    drone_ns:="" \
-    > "${URDF_FILE}" \
-    && ok "URDF written: ${URDF_FILE}" \
-    || err "xacro failed — check xacro syntax"
+if [[ -f "${PREBUILT_SDF}" ]]; then
+    echo "==> Step 1+2: Using pre-built fixed SDF (skipping xacro → gz sdf pipeline)"
+    echo "    Source: ${PREBUILT_SDF}"
+    cp "${PREBUILT_SDF}" "${SDF_FILE}" \
+        && ok "SDF ready: ${SDF_FILE}" \
+        || err "Failed to copy pre-built SDF"
+else
+    # Fall back to xacro → URDF → SDF pipeline when pre-built SDF is absent.
+    echo "==> Step 1+2: Pre-built SDF not found — running xacro → URDF → SDF"
+    for cmd in xacro gz; do
+        command -v "${cmd}" &>/dev/null \
+            || err "${cmd} not found. Source: source /opt/ros/jazzy/setup.bash"
+    done
+    ok "xacro and gz available"
 
-# ── Step 2: URDF → SDF ───────────────────────────────────────
-echo ""
-echo "==> Step 2: URDF → SDF (gz sdf -p)"
-gz sdf -p "${URDF_FILE}" > "${SDF_FILE}" \
-    && ok "SDF written: ${SDF_FILE}" \
-    || err "gz sdf conversion failed"
+    echo ""
+    echo "==> Step 1: xacro → URDF (use_ros2_control:=false for PX4 mode)"
+    xacro "${XACRO_FILE}" \
+        use_ros2_control:=false \
+        drone_ns:="" \
+        > "${URDF_FILE}" \
+        && ok "URDF written: ${URDF_FILE}" \
+        || err "xacro failed — check xacro syntax"
+
+    echo ""
+    echo "==> Step 2: URDF → SDF (gz sdf -p)"
+    gz sdf -p "${URDF_FILE}" > "${SDF_FILE}" \
+        && ok "SDF written: ${SDF_FILE}" \
+        || err "gz sdf conversion failed"
+fi
 
 # ── Step 3: Install model ────────────────────────────────────
 echo ""
