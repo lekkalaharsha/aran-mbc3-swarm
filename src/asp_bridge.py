@@ -147,15 +147,14 @@ class AspBridge(Node):
         n_obs = t.get('n_obs', t.get('hits', 1))
 
         return {
-            'id':        t.get('id', '?'),
-            'lat':       round(lat, 7),
-            'lon':       round(lon, 7),
-            'alt':       round(alt, 1),
-            'range_m':   round(range_m, 1),
-            'az_deg':    round(az_deg, 1),
-            'speed_ms':  round(speed, 1),
-            'conf':      round(min(1.0, n_obs / 8.0), 2),
-            'tf_ok':     tf_ok,
+            'id':          t.get('id', '?'),
+            'lat':         round(lat, 7),
+            'lon':         round(lon, 7),
+            'range_m':     round(range_m, 1),
+            'bearing_deg': round(az_deg, 1),
+            'alt_m':       round(alt, 1),
+            'velocity_ms': round(speed, 1),
+            'confidence':  round(min(1.0, n_obs / 8.0), 2),
         }
 
     # ── Push cycle ────────────────────────────────────────────────────────────

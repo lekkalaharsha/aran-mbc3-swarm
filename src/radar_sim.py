@@ -178,15 +178,14 @@ def push_asp(detections: list, scan_count: int) -> None:
     for d in detections:
         lat, lon = _world_to_latlon(d['pos'][0], d['pos'][1])
         asp_tracks.append({
-            'id':       d['id'],
-            'lat':      lat,
-            'lon':      lon,
-            'alt':      round(d['pos'][2], 1),
-            'range_m':  d['range_m'],
-            'az_deg':   d['az_deg'],
-            'speed_ms': 0.0,
-            'conf':     0.85,
-            'tf_ok':    True,
+            'id':          d['id'],
+            'lat':         lat,
+            'lon':         lon,
+            'range_m':     d['range_m'],
+            'bearing_deg': d['az_deg'],
+            'alt_m':       round(d['pos'][2], 1),
+            'velocity_ms': 0.0,
+            'confidence':  0.85,
         })
     try:
         requests.post(GCS_URL, json={
