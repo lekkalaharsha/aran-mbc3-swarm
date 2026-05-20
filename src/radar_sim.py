@@ -25,11 +25,14 @@ import requests
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mission_config import HOME_LAT, HOME_LON
 
-GCS_URL   = "http://localhost:5000/asp_update"
-STATE_URL = "http://localhost:5000/api/drone_state"
-WORLD     = os.environ.get("PX4_GZ_WORLD", "mbc3_radar_moving")
-DRONE     = "mbc3_radar_drone_0"
-EARTH_R   = 111111.0   # m per degree lat
+GCS_URL      = "http://localhost:5000/asp_update"
+STATE_URL    = "http://localhost:5000/api/drone_state"
+LEADER_URL   = "http://localhost:5000/api/leader"
+WORLD        = os.environ.get("PX4_GZ_WORLD", "mbc3_radar_moving")
+EARTH_R      = 111111.0   # m per degree lat
+
+# Active radar leader — updated by _refresh_leader() from leader_election.py
+_leader_model = "mbc3_radar_drone_0"   # default: instance 0
 
 # Radar parameters matching mbc3_radar_drone SDF
 PANEL_HALF_FOV = math.radians(30.0)   # ±30° per panel
@@ -119,11 +122,24 @@ def _in_fov(az_body_rad: float) -> bool:
 
 # ── Detection engine ──────────────────────────────────────────────────────────
 
+def _refresh_leader() -> None:
+    """Update _leader_model from leader_election.py via GCS API."""
+    global _leader_model
+    try:
+        r = requests.get(LEADER_URL, timeout=0.3)
+        model = r.json().get("leader_model", _leader_model)
+        if model != _leader_model:
+            print(f"[SIM] Leader switched: {_leader_model} → {model}", flush=True)
+            _leader_model = model
+    except Exception:
+        pass   # keep using cached value
+
+
 def compute_detections(poses: dict) -> list:
-    if DRONE not in poses:
+    if _leader_model not in poses:
         return []
 
-    dx, dy, dz, qx, qy, qz, qw = poses[DRONE]
+    dx, dy, dz, qx, qy, qz, qw = poses[_leader_model]
     detections = []
 
     for name, (tx, ty, tz, *_) in poses.items():
@@ -207,6 +223,7 @@ def main() -> None:
     while True:
         t0 = time.time()
 
+        _refresh_leader()
         poses      = get_poses()
         detections = compute_detections(poses) if poses else []
         push_asp(detections, scan)
@@ -214,12 +231,14 @@ def main() -> None:
 
         if scan % 10 == 0:
             n_tgts = sum(1 for k in poses if k.startswith('radar_target_'))
-            if DRONE in poses:
-                dx, dy, dz = poses[DRONE][:3]
+            if _leader_model in poses:
+                dx, dy, dz = poses[_leader_model][:3]
                 print(f"[SIM] #{scan}: {len(detections)}/{n_tgts} detected  "
-                      f"drone=({dx:.0f},{dy:.0f},{dz:.0f})m", flush=True)
+                      f"leader={_leader_model}  pos=({dx:.0f},{dy:.0f},{dz:.0f})m",
+                      flush=True)
             else:
-                print(f"[SIM] #{scan}: drone not found — is Gazebo running?", flush=True)
+                print(f"[SIM] #{scan}: leader {_leader_model} not in Gazebo — "
+                      f"election pending?", flush=True)
 
         # 5 Hz — subtract processing time
         elapsed = time.time() - t0

@@ -9,10 +9,23 @@
 #    bash kill_drone.sh 3
 #    bash kill_drone.sh 4
 #
-#  Effect on ASP:
+#  Effect on ASP (Phase 2 — req 2.14):
 #    swarm_monitor detects disconnect → connected=False
 #    ASP marker disappears within 1-2s
 #    Status bar shows 4/5 DRONES (amber) instead of 5/5 (green)
+#
+#  Effect on leader election (Phase 6):
+#    Kill the current radar leader (default DRONE-4) to trigger election.
+#    leader_election.py detects failure within 2s → Bully algorithm →
+#    next highest-index drone becomes radar leader → RADAR LEADER badge
+#    on ASP updates → radar_sim.py switches to new leader's position.
+#
+#  Phase 6 demo sequence:
+#    bash kill_drone.sh 4   # kills current leader DRONE-4
+#    # ASP: RADAR LEADER changes DRONE-4 → DRONE-3 (amber badge)
+#    bash kill_drone.sh 3   # kills DRONE-3
+#    # ASP: RADAR LEADER → DRONE-2  (election #2)
+#    # Radar tracks continue — proves MBC-3 graceful degradation
 #
 #  WARNING: Do NOT kill instance 0 — it owns the Gazebo world.
 #           Killing instance 0 also kills the world and all other drones.

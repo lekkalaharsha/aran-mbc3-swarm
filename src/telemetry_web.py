@@ -397,6 +397,37 @@ def api_drone_state():
     })
 
 
+# ── Swarm state API — used by leader_election.py ──────────────────
+@app.route("/api/swarm_state", methods=["GET"])
+def api_swarm_state():
+    """Return all 5 drone connected/position states from swarm_monitor pushes."""
+    return jsonify({
+        "swarm_drones": asp_data.get("swarm_drones", []),
+        "timestamp":    asp_data.get("last_update", 0.0),
+    })
+
+
+# ── Leader election API — written by leader_election.py ───────────
+_leader_state = {
+    "leader_id":    "DRONE-0",
+    "leader_model": "mbc3_radar_drone_0",
+    "since":        0.0,
+    "election_count": 0,
+}
+
+@app.route("/api/leader", methods=["GET"])
+def api_leader_get():
+    return jsonify(_leader_state)
+
+@app.route("/api/leader", methods=["POST"])
+def api_leader_post():
+    payload = request.get_json(silent=True) or {}
+    if "leader_id" in payload:
+        _leader_state.update(payload)
+        socketio.emit("leader", _leader_state)   # live update to ASP page
+    return jsonify({"ok": True})
+
+
 # ── CSV flight log download ────────────────────────────────────────
 @app.route("/download_log")
 def download_log():
@@ -1970,6 +2001,7 @@ tr:hover td{background:#0b1525}
   <div class="stat"><div class="stat-label">DRONE ALT</div><div class="stat-val" id="s-alt">---</div></div>
   <div class="stat"><div class="stat-label">DRONE SPEED</div><div class="stat-val" id="s-spd">---</div></div>
   <div class="stat"><div class="stat-label">STATUS</div><div class="stat-val" id="s-status" style="color:#ffb300">CONNECTING</div></div>
+  <div class="stat"><div class="stat-label">RADAR LEADER</div><div class="stat-val" id="s-leader" style="color:#00ff9d">DRONE-0</div></div>
 </div>
 <div id="main">
   <div id="map"></div>
@@ -2123,6 +2155,14 @@ socket.on('asp', d => {
   updateTracks(d.tracks || [], d.drone || {});
   updateSwarmDrones(d.swarm_drones || []);
   document.getElementById('s-scans').textContent = d.scan_count || 0;
+});
+socket.on('leader', d => {
+  const el = document.getElementById('s-leader');
+  if(el){
+    el.textContent = d.leader_id || '---';
+    el.style.color = d.election_count > 0 ? '#ffb300' : '#00ff9d';
+    el.title = `Election #${d.election_count || 0}  since ${new Date(d.since*1000).toLocaleTimeString()}`;
+  }
 });
 // Also update drone position from main telemetry
 socket.on('telemetry', d => {

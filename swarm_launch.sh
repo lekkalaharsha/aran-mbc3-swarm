@@ -167,6 +167,14 @@ SWARM_LOG="${SESSION_DIR}/swarm.log"
 (cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 -u swarm_monitor.py) >> "${SWARM_LOG}" 2>&1 &
 PIDS+=($!)
 
+# ── Leader Election — Bully algorithm, highest-index connected drone wins ─
+log "Starting leader election daemon..."
+ELECT_LOG="${SESSION_DIR}/election.log"
+(cd "${SCRIPT_DIR}/src" && python3 -u leader_election.py) >> "${ELECT_LOG}" 2>&1 &
+PIDS+=($!)
+sleep 1
+ok "Leader election daemon running  →  initial leader: DRONE-4"
+
 # ── Radar Sim — pose-based target detection (no rendering required) ──
 # Reads target positions from Gazebo physics topics, computes 6-panel FOV,
 # pushes tracks to ASP. Works in headless mode where lidar sensors don't pub.
