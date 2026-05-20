@@ -49,23 +49,31 @@ async def monitor_drone(idx: int):
     print(f"  [SWARM] Drone {idx}: connecting on port {port}...")
 
     async def _conn():
+        import time as _t
+        connected_since = 0.0
         async for state in drone.core.connection_state():
             was = drone_states[idx]["connected"]
-            drone_states[idx]["connected"] = state.is_connected
-            if state.is_connected and not was:
-                print(f"  [SWARM] Drone {idx}: connected ✓", flush=True)
-                # Reduced rates vs single-drone: 5 drones × streams saturates
-                # the MAVSDK callback queue. 2 Hz position is plenty for ASP display.
-                for fn, hz in [
-                    (drone.telemetry.set_rate_position,     2.0),
-                    (drone.telemetry.set_rate_velocity_ned, 2.0),
-                ]:
-                    try:
-                        await fn(hz)
-                    except Exception:
-                        pass
-            elif not state.is_connected and was:
-                print(f"  [SWARM] Drone {idx}: DISCONNECTED — ASP will hide marker", flush=True)
+            if state.is_connected:
+                drone_states[idx]["connected"] = True
+                if not was:
+                    connected_since = _t.time()
+                    print(f"  [SWARM] Drone {idx}: connected ✓", flush=True)
+                    # Reduced rates: 5 drones saturates MAVSDK callback queue at 5 Hz
+                    for fn, hz in [
+                        (drone.telemetry.set_rate_position,     2.0),
+                        (drone.telemetry.set_rate_velocity_ned, 2.0),
+                    ]:
+                        try:
+                            await fn(hz)
+                        except Exception:
+                            pass
+            else:
+                # Grace period: ignore brief blips (<3s) from callback queue pressure.
+                # Real kills (kill_drone.sh) drop connection for >3s reliably.
+                import time as _t2
+                if was and (_t2.time() - connected_since) > 3.0:
+                    drone_states[idx]["connected"] = False
+                    print(f"  [SWARM] Drone {idx}: DISCONNECTED — ASP will hide marker", flush=True)
 
     async def _pos():
         async for p in drone.telemetry.position():
@@ -73,26 +81,12 @@ async def monitor_drone(idx: int):
             drone_states[idx]["lon"] = p.longitude_deg
             drone_states[idx]["alt"] = round(p.relative_altitude_m, 1)
 
-    async def _vel():
-        async for v in drone.telemetry.velocity_ned():
-            vn = v.north_m_s
-            ve = v.east_m_s
-            drone_states[idx]["groundspeed"] = round(math.sqrt(vn**2 + ve**2), 1)
-
-    async def _heading():
-        async for h in drone.telemetry.heading():
-            drone_states[idx]["heading"] = round(h.heading_deg, 1)
-
-    async def _armed():
-        async for a in drone.telemetry.armed():
-            drone_states[idx]["armed"] = a
-
-    async def _mode():
-        async for m in drone.telemetry.flight_mode():
-            drone_states[idx]["flight_mode"] = str(m).replace("FlightMode.", "")
+    # vel/heading/armed/mode streams removed — 5 drones × 6 streams = 30 concurrent
+    # streams saturated MAVSDK callback queue → real disconnects after ~10s.
+    # ASP only needs lat/lon/alt for drone markers. conn+pos = 10 streams total.
 
     await asyncio.gather(
-        _conn(), _pos(), _vel(), _heading(), _armed(), _mode(),
+        _conn(), _pos(),
         return_exceptions=True
     )
 
