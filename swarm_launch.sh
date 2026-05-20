@@ -73,10 +73,11 @@ log "World: ${PX4_GZ_WORLD}  |  Altitude: ${ALTITUDE}m  |  Session: ${SESSION_DI
 
 # ── Kill stale ───────────────────────────────────────────────
 log "Killing stale processes..."
-pkill -9 -f "bin/px4"   2>/dev/null || true
-pkill -9 -f "gz sim"    2>/dev/null || true
-pkill -9 -f "swarm_mon" 2>/dev/null || true
+pkill -9 -f "bin/px4"      2>/dev/null || true
+pkill -9 -f "gz sim"       2>/dev/null || true
+pkill -9 -f "swarm_mon"    2>/dev/null || true
 pkill -9 -f "telemetry_web" 2>/dev/null || true
+pkill -9 -f "mavsdk_server" 2>/dev/null || true  # stale server holds UDP 14540-14544
 sleep 2
 ok "Clean"
 
@@ -163,7 +164,7 @@ ok "GCS live → http://localhost:5000  |  ASP → http://localhost:5000/asp"
 # ── Swarm Monitor ────────────────────────────────────────────
 log "Starting swarm monitor (connects to all 5 drones)..."
 SWARM_LOG="${SESSION_DIR}/swarm.log"
-(cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 swarm_monitor.py) >> "${SWARM_LOG}" 2>&1 &
+(cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 -u swarm_monitor.py) >> "${SWARM_LOG}" 2>&1 &
 PIDS+=($!)
 
 echo ""

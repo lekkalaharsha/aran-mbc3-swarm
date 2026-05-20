@@ -53,19 +53,19 @@ async def monitor_drone(idx: int):
             was = drone_states[idx]["connected"]
             drone_states[idx]["connected"] = state.is_connected
             if state.is_connected and not was:
-                print(f"  [SWARM] Drone {idx}: connected ✓")
-                # Set telemetry rates once connected
+                print(f"  [SWARM] Drone {idx}: connected ✓", flush=True)
+                # Reduced rates vs single-drone: 5 drones × streams saturates
+                # the MAVSDK callback queue. 2 Hz position is plenty for ASP display.
                 for fn, hz in [
-                    (drone.telemetry.set_rate_position,     5.0),
-                    (drone.telemetry.set_rate_velocity_ned, 5.0),
-                    (drone.telemetry.set_rate_health,       2.0),
+                    (drone.telemetry.set_rate_position,     2.0),
+                    (drone.telemetry.set_rate_velocity_ned, 2.0),
                 ]:
                     try:
                         await fn(hz)
                     except Exception:
                         pass
             elif not state.is_connected and was:
-                print(f"  [SWARM] Drone {idx}: DISCONNECTED — ASP will hide marker")
+                print(f"  [SWARM] Drone {idx}: DISCONNECTED — ASP will hide marker", flush=True)
 
     async def _pos():
         async for p in drone.telemetry.position():
@@ -131,7 +131,7 @@ async def push_loop():
         connected = sum(1 for s in drone_states.values() if s["connected"])
         if scan_count % 10 == 0:
             print(f"  [SWARM] Push #{scan_count}: {connected}/5 connected  "
-                  f"alts={[s['alt'] for s in drone_states.values()]}")
+                  f"alts={[s['alt'] for s in drone_states.values()]}", flush=True)
 
         try:
             requests.post(GCS_ASP_URL, json=payload, timeout=0.3)
@@ -140,8 +140,8 @@ async def push_loop():
 
 
 async def run():
-    print("  [SWARM] Monitor starting — connecting to 5 drones on ports 14540-14544")
-    print("  [SWARM] ASP GCS: http://localhost:5000/asp")
+    print("  [SWARM] Monitor starting — connecting to 5 drones on ports 14540-14544", flush=True)
+    print("  [SWARM] ASP GCS: http://localhost:5000/asp", flush=True)
 
     tasks = [asyncio.create_task(monitor_drone(i)) for i in range(NUM_DRONES)]
     tasks.append(asyncio.create_task(push_loop()))
