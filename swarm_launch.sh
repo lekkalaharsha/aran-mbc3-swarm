@@ -167,6 +167,16 @@ SWARM_LOG="${SESSION_DIR}/swarm.log"
 (cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 -u swarm_monitor.py) >> "${SWARM_LOG}" 2>&1 &
 PIDS+=($!)
 
+# ── Radar Sim — pose-based target detection (no rendering required) ──
+# Reads target positions from Gazebo physics topics, computes 6-panel FOV,
+# pushes tracks to ASP. Works in headless mode where lidar sensors don't pub.
+log "Starting radar_sim (headless radar detection)..."
+RADAR_SIM_LOG="${SESSION_DIR}/radar_sim.log"
+(cd "${SCRIPT_DIR}/src" && env PX4_GZ_WORLD="${PX4_GZ_WORLD}" python3 -u radar_sim.py) >> "${RADAR_SIM_LOG}" 2>&1 &
+PIDS+=($!)
+sleep 1
+ok "Radar sim → ASP tracks at http://localhost:5000/asp"
+
 echo ""
 echo -e "${GRN}╔══════════════════════════════════════════════════╗${RST}"
 echo -e "${GRN}║   SWARM RUNNING — 5 drones active                ║${RST}"
