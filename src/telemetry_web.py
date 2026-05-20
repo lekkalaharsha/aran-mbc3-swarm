@@ -385,6 +385,18 @@ def nfz_status():
                     "distance_m": round(dist, 1)})
 
 
+# ── Drone state API — used by asp_bridge.py for radar→lat/lon conversion ──
+@app.route("/api/drone_state", methods=["GET"])
+def api_drone_state():
+    return jsonify({
+        "lat":     data["lat"],
+        "lon":     data["lon"],
+        "alt":     data["alt"],
+        "heading": data["heading"],
+        "connected": data.get("connected", False),
+    })
+
+
 # ── CSV flight log download ────────────────────────────────────────
 @app.route("/download_log")
 def download_log():

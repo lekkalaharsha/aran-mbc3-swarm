@@ -612,7 +612,9 @@ else
                 # Each panel publishes PointCloud2 on /radar_X/scan/points.
                 # Bridge direction: GZ_TO_ROS  (Gazebo → ROS2)
                 BRIDGE_CFG="${SESSION_DIR}/radar_bridge.yaml"
-                cat > "${BRIDGE_CFG}" <<'BRIDGEYAML'
+                # Bridge world is dynamic — use the actual Gazebo world name detected earlier
+                GZ_WORLD_NAME="${PX4_GZ_WORLD:-default}"
+                cat > "${BRIDGE_CFG}" <<BRIDGEYAML
 ---
 - ros_topic_name: /radar_A/scan/points
   gz_topic_name:  /radar_A/scan/points
@@ -643,6 +645,11 @@ else
   gz_topic_name:  /radar_F/scan/points
   ros_type_name:  sensor_msgs/msg/PointCloud2
   gz_type_name:   gz.msgs.PointCloudPacked
+  direction:      GZ_TO_ROS
+- ros_topic_name: /tf
+  gz_topic_name:  /world/${GZ_WORLD_NAME}/pose/info
+  ros_type_name:  tf2_msgs/msg/TFMessage
+  gz_type_name:   gz.msgs.Pose_V
   direction:      GZ_TO_ROS
 BRIDGEYAML
 
@@ -684,6 +691,25 @@ BRIDGEYAML
                     if kill -0 "${PID_RADAR_DET}" 2>/dev/null; then
                         log_ok "Radar fusion nodes running  (mode=${RADAR_MODE})"
                         _radar_started=true
+
+                        # ── ASP bridge: /radar/targets → HTTP /asp_update ────
+                        # Converts ROS2 radar detections to lat/lon and pushes
+                        # to the GCS ASP page for browser display.
+                        ASP_BRIDGE_LOG="${SESSION_DIR}/asp_bridge.log"
+                        (
+                            # shellcheck disable=SC1090
+                            source "${ROS2_SETUP}"
+                            source "${RADAR_WS_SETUP}"
+                            "${PYTHON}" -u "${SRC_DIR}/asp_bridge.py"
+                        ) >> "${ASP_BRIDGE_LOG}" 2>&1 &
+                        PID_RADAR_FUSION=$!   # reuse slot for bridge PID
+                        log_info "ASP bridge PID: ${PID_RADAR_FUSION}  |  log: ${ASP_BRIDGE_LOG}"
+                        sleep 1
+                        if kill -0 "${PID_RADAR_FUSION}" 2>/dev/null; then
+                            log_ok "ASP bridge running  →  radar tracks visible at /asp"
+                        else
+                            log_warn "ASP bridge exited — check ${ASP_BRIDGE_LOG}"
+                        fi
                     else
                         log_warn "Radar fusion nodes exited — check ${RADAR_LOG}"
                     fi
@@ -694,7 +720,7 @@ BRIDGEYAML
 fi
 
 [[ "${_radar_started}" == true ]] \
-    && log_ok  "Radar pipeline: ACTIVE  →  /swarm/tracks  /swarm/asp" \
+    && log_ok  "Radar pipeline: ACTIVE  →  /radar/targets  →  ASP http://localhost:5000/asp" \
     || log_info "Radar pipeline: INACTIVE (obstacle avoidance uses LiDAR only)"
 
 # ══════════════════════════════════════════════════════════
