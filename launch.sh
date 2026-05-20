@@ -88,6 +88,7 @@ PID_MISSION=""
 PID_ROS_BRIDGE=""
 PID_RADAR_DET=""
 PID_RADAR_FUSION=""
+PID_RADAR_SIM=""
 
 # ══════════════════════════════════════════════════════════
 #  USAGE
@@ -157,8 +158,8 @@ done
 cleanup() {
     echo ""
     banner "SHUTDOWN — stopping all processes"
-    local -a pids=("${PID_MISSION}" "${PID_RADAR_FUSION}" "${PID_RADAR_DET}" "${PID_ROS_BRIDGE}" "${PID_GCS}" "${PID_PX4}")
-    local -a names=("Mission" "Radar Fusion" "Radar Detection" "ros_gz_bridge" "GCS" "PX4 SITL")
+    local -a pids=("${PID_MISSION}" "${PID_RADAR_SIM:-}" "${PID_RADAR_FUSION}" "${PID_RADAR_DET}" "${PID_ROS_BRIDGE}" "${PID_GCS}" "${PID_PX4}")
+    local -a names=("Mission" "Radar Sim" "Radar Fusion" "Radar Detection" "ros_gz_bridge" "GCS" "PX4 SITL")
     for i in "${!pids[@]}"; do
         local pid="${pids[$i]}"
         local name="${names[$i]}"
@@ -786,6 +787,26 @@ fi
 
 log_ok "GCS dashboard is live → http://localhost:${GCS_PORT}"
 log_info "Open in browser to monitor the ISR mission"
+
+# ── radar_sim: pose-based target detection (always, no rendering needed) ──
+# Reads Gazebo target positions via gz topic, computes 6-panel FOV geometry,
+# pushes moving target tracks to ASP. Works even with --no-radar (no ROS2).
+if [[ "${OPT_GCS_ONLY}" == false ]] && [[ "${OPT_SIM_ONLY}" == false ]]; then
+    RADAR_SIM_LOG="${SESSION_DIR}/radar_sim.log"
+    (
+        cd "${SRC_DIR}"
+        env PX4_GZ_WORLD="${PX4_GZ_WORLD:-mbc3_radar_moving}" \
+            "${PYTHON}" -u radar_sim.py
+    ) >> "${RADAR_SIM_LOG}" 2>&1 &
+    PID_RADAR_SIM=$!
+    log_info "Radar sim PID: ${PID_RADAR_SIM}  |  log: ${RADAR_SIM_LOG}"
+    sleep 1
+    if kill -0 "${PID_RADAR_SIM}" 2>/dev/null; then
+        log_ok "Radar sim running  →  target tracks at http://localhost:${GCS_PORT}/asp"
+    else
+        log_warn "Radar sim exited — check ${RADAR_SIM_LOG}"
+    fi
+fi
 
 if [[ "${OPT_GCS_ONLY}" == true ]]; then
     log_ok "GCS-ONLY mode — press Ctrl-C to stop"
