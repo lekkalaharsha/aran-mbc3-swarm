@@ -156,7 +156,7 @@ ok "${READY_COUNT}/5 drones ready"
 # ── GCS Dashboard ────────────────────────────────────────────
 log "Starting GCS dashboard..."
 GCS_LOG="${SESSION_DIR}/gcs.log"
-(cd "${SCRIPT_DIR}/src" && python3 telemetry_web.py) >> "${GCS_LOG}" 2>&1 &
+(cd "${SCRIPT_DIR}/src" && env SWARM_MODE=1 python3 telemetry_web.py) >> "${GCS_LOG}" 2>&1 &
 PIDS+=($!)
 sleep 2
 ok "GCS live → http://localhost:5000  |  ASP → http://localhost:5000/asp"

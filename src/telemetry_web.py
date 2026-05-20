@@ -2160,8 +2160,14 @@ def on_connect():
 
 
 if __name__ == "__main__":
-    t = threading.Thread(target=start_telemetry, daemon=True)
-    t.start()
+    # SWARM_MODE=1: skip MAVSDK connection — swarm_monitor.py owns all drone ports.
+    # Avoids two mavsdk_server processes competing on port 14540 → connection oscillation.
+    import os as _os_gcs
+    if _os_gcs.environ.get("SWARM_MODE", "0") != "1":
+        t = threading.Thread(target=start_telemetry, daemon=True)
+        t.start()
+    else:
+        _gcs_print("SWARM_MODE: MAVSDK telemetry disabled — swarm_monitor owns drone ports")
     print("Aran GCS v13.0 running at http://localhost:5000")
     print("  Coordinates served from mission_config.py — single source of truth")
     print("  POST /lidar_update    — push LiDAR + mission state")
