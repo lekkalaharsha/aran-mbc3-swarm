@@ -1,0 +1,30 @@
+# radar_fusion — parameter defaults
+# Usage:
+#   ros2 launch radar_fusion radar_fusion.launch.py \
+#       params_file:=$(ros2 pkg prefix radar_fusion)/share/radar_fusion/config/radar_fusion.yaml
+
+# ── Detection node (all drone instances) ────────────────────────────────────
+/**:
+  ros__parameters:
+    cluster_radius:    2.5      # m  — merge hits within this distance
+    min_cluster_hits:  3        # pts — minimum points to form a valid target cluster
+    max_range:         5000.0   # m  — discard points beyond (AWR1843 max ~5 km)
+    min_range:         20.0     # m  — B2 FIX: raised from 2m to avoid self-detection
+    el_gate_deg:       25.0     # deg — B3: max elevation, filters zenith returns
+    el_min_deg:        -5.0     # deg — B3: min elevation, filters ground returns
+    # NOTE: at low altitude (<10m AGL) set el_min_deg closer to 0 (e.g. -1.0)
+    marker_scale:      2.0      # m  — RViz sphere diameter
+    publish_hz:        5.0      # Hz — detection publish rate
+
+# ── Fusion node (leader) ─────────────────────────────────────────────────────
+/radar_fusion:
+  ros__parameters:
+    merge_dist_m:       5.0     # m   — spatial collapse gate: multi-drone same target
+    gate_m:             10.0    # m   — Kalman NN association gate
+    track_ttl_s:        3.0     # s   — prune track if not updated within this window
+    publish_hz:         2.0     # Hz  — fusion + ASP publish rate
+    q_pos:              1.0     # Kalman process noise — position (m²/s)
+    q_vel:              0.5     # Kalman process noise — velocity (m²/s³)
+    r_pos:              5.0     # Kalman measurement noise — position (m²)
+    intercept_range_m:  500.0   # m   — B6 FIX: INTERCEPT decision threshold
+    drone_ids:          "drone_L,drone_S1,drone_S2,drone_S3,drone_S4"  # B7 FIX
