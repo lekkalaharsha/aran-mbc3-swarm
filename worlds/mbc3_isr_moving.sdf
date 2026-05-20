@@ -95,6 +95,7 @@
       <pose>150 300 30 0 0 0</pose>
       <link name="link">
         <kinematic>true</kinematic>
+        <gravity>false</gravity>
         <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
@@ -126,6 +127,7 @@
       <pose>570 0 30 0 0 0</pose>
       <link name="link">
         <kinematic>true</kinematic>
+        <gravity>false</gravity>
         <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
@@ -157,6 +159,7 @@
       <pose>430 250 30 0 0 0</pose>
       <link name="link">
         <kinematic>true</kinematic>
+        <gravity>false</gravity>
         <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
@@ -188,6 +191,7 @@
       <pose>200 -380 30 0 0 0</pose>
       <link name="link">
         <kinematic>true</kinematic>
+        <gravity>false</gravity>
         <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>
@@ -219,6 +223,7 @@
       <pose>-390 150 30 0 0 0</pose>
       <link name="link">
         <kinematic>true</kinematic>
+        <gravity>false</gravity>
         <inertial><mass>5</mass><inertia><ixx>0.167</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.167</iyy><iyz>0</iyz><izz>0.167</izz></inertia></inertial>
         <collision name="col"><geometry><box><size>3 3 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>3 3 3</size></box></geometry>

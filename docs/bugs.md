@@ -410,6 +410,33 @@ altitude. Works for both modes: ISR (max(100, 30)=100 ✓), MBC3 (max(100, 500)=
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 20 | Total: 24
+## Batch 12 — Moving target altitude + radar pipeline (2026-05-20, test/phase2-radar-web)
+
+### B12-1 | CRITICAL | Moving targets free-fall despite kinematic=true
+**Files:** `worlds/mbc3_radar_moving.sdf`, `worlds/mbc3_isr_moving.sdf`
+**Status:** ✅ FIXED
+
+**Problem:** Targets spawned at z=500m (500m AGL) fall to z=-17249m in 62s of simulation.
+`<kinematic>true</kinematic>` is insufficient in Gazebo Harmonic DART physics — gravity still
+applies to kinematic links unless explicitly disabled. Targets free-fall at ~9.8 m/s².
+Even with `kinematic=true`, elevation angle from drone (-90° after falling) puts all targets
+outside the radar elevation gate (-5° to +25°) → zero detections.
+
+**Fix:** Added `<gravity>false</gravity>` to every target link in both world SDF files
+(5 targets × 2 worlds = 10 link definitions). Verified targets hold at z=500m.
+
+### B12-2 | HIGH | Radar lidar sensors need rendering context (OGRE2)
+**Finding:** `lidar` sensor type in Gazebo Harmonic uses OGRE2 rendering engine for ray
+casting even for CPU lidar. Without DISPLAY set (headless, WSL launched from PowerShell),
+render thread hangs at `Waiting for init` → radar panel topics never publish.
+Sensors DO work when Gazebo is launched from user's WSL terminal (WSLg provides display).
+
+**Workaround:** `src/radar_sim.py` — pose-based radar simulator that reads model positions
+from `gz topic -e` (physics topics, no rendering), computes 6-panel FOV geometry,
+pushes detections to ASP. Works in any environment. Verified: 5/5 targets detected.
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 22 | Total: 26
 
 **Next action:** Test 5-drone swarm: `MBC3_MODE=1 HEADLESS=1 bash swarm_launch.sh`
