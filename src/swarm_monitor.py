@@ -37,29 +37,35 @@ drone_states = {
 
 
 async def monitor_drone(idx: int):
-    """Connect to drone idx and stream telemetry into drone_states."""
+    """Connect to drone idx and stream telemetry into drone_states.
+
+    Runs _conn() continuously so connected status updates on both
+    connect and disconnect — required for graceful degradation display.
+    """
     port  = BASE_PORT + idx
     drone = System()
     await drone.connect(system_address=f"udpin://0.0.0.0:{port}")
 
     print(f"  [SWARM] Drone {idx}: connecting on port {port}...")
 
-    async for state in drone.core.connection_state():
-        drone_states[idx]["connected"] = state.is_connected
-        if state.is_connected:
-            print(f"  [SWARM] Drone {idx}: connected ✓")
-        break
-
-    # Set telemetry rates
-    for fn, hz in [
-        (drone.telemetry.set_rate_position,       5.0),
-        (drone.telemetry.set_rate_velocity_ned,   5.0),
-        (drone.telemetry.set_rate_health,         2.0),
-    ]:
-        try:
-            await fn(hz)
-        except Exception:
-            pass
+    async def _conn():
+        async for state in drone.core.connection_state():
+            was = drone_states[idx]["connected"]
+            drone_states[idx]["connected"] = state.is_connected
+            if state.is_connected and not was:
+                print(f"  [SWARM] Drone {idx}: connected ✓")
+                # Set telemetry rates once connected
+                for fn, hz in [
+                    (drone.telemetry.set_rate_position,     5.0),
+                    (drone.telemetry.set_rate_velocity_ned, 5.0),
+                    (drone.telemetry.set_rate_health,       2.0),
+                ]:
+                    try:
+                        await fn(hz)
+                    except Exception:
+                        pass
+            elif not state.is_connected and was:
+                print(f"  [SWARM] Drone {idx}: DISCONNECTED — ASP will hide marker")
 
     async def _pos():
         async for p in drone.telemetry.position():
@@ -86,7 +92,7 @@ async def monitor_drone(idx: int):
             drone_states[idx]["flight_mode"] = str(m).replace("FlightMode.", "")
 
     await asyncio.gather(
-        _pos(), _vel(), _heading(), _armed(), _mode(),
+        _conn(), _pos(), _vel(), _heading(), _armed(), _mode(),
         return_exceptions=True
     )
 
@@ -115,8 +121,6 @@ async def push_loop():
             for s in drone_states.values()
         ]
 
-        # Build fake tracks from drone positions (for ASP map demo)
-        # Each drone is treated as a "track" in the swarm picture
         payload = {
             "asp_tracks":   [],        # radar tracks (from radar_fusion, empty for now)
             "swarm_drones": drones,    # all 5 drone positions

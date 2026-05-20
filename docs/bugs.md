@@ -358,6 +358,32 @@ Topic pattern confirmed from `GZBridge.cpp` source.
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 16 | Total: 20
+## Batch 10 — Swarm monitor bugs (2026-05-20, test/phase2-radar-web)
 
-**Next action:** Run `fix/approach-orbit-queue` to verified exit 0, then merge to main.
+### B10-1 | HIGH | `connection_state()` breaks before connected — drone never shows on ASP
+**File:** `src/swarm_monitor.py` — `monitor_drone()`
+**Status:** ✅ FIXED
+
+**Problem:** `break` was outside the `if state.is_connected` block — it always broke after
+the first event regardless of connection status. If the first event had `is_connected=False`,
+`drone_states[idx]["connected"]` stayed False forever. `updateSwarmDrones` filters `!d.connected`
+so the drone marker never appeared on the ASP map.
+
+**Fix:** Moved `break` inside `if state.is_connected`. Also redesigned to run `_conn()` as a
+continuous task in the gather so disconnects also update the connected flag (required for req 2.14).
+
+### B10-2 | MEDIUM | `VAR=val (compound_cmd)` invalid bash syntax in swarm_launch.sh
+**File:** `swarm_launch.sh` line 166
+**Status:** ✅ FIXED
+
+**Problem:** `MBC3_MODE="${MBC3_MODE}" (cd ... && python3 swarm_monitor.py)` — variable
+assignments before compound commands are not valid bash syntax. With `set -euo pipefail`
+this causes undefined behaviour (either syntax error or swarm_monitor not inheriting the var).
+
+**Fix:** `(cd ... && env MBC3_MODE="${MBC3_MODE}" python3 swarm_monitor.py)`
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 18 | Total: 22
+
+**Next action:** Test 5-drone swarm: `MBC3_MODE=1 HEADLESS=1 bash swarm_launch.sh`

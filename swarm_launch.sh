@@ -163,7 +163,7 @@ ok "GCS live → http://localhost:5000  |  ASP → http://localhost:5000/asp"
 # ── Swarm Monitor ────────────────────────────────────────────
 log "Starting swarm monitor (connects to all 5 drones)..."
 SWARM_LOG="${SESSION_DIR}/swarm.log"
-MBC3_MODE="${MBC3_MODE}" (cd "${SCRIPT_DIR}/src" && python3 swarm_monitor.py) >> "${SWARM_LOG}" 2>&1 &
+(cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 swarm_monitor.py) >> "${SWARM_LOG}" 2>&1 &
 PIDS+=($!)
 
 echo ""
