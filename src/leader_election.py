@@ -38,7 +38,10 @@ LEADER_PUT_URL = f"{GCS_URL}/api/leader"
 
 NUM_DRONES     = 5
 POLL_HZ        = 2.0
-DEATH_TIMEOUT  = 3.0   # seconds without heartbeat = drone dead
+# SITL MAVSDK oscillations drop all 5 drones for ~10s then recover.
+# Real drone deaths (kill_drone.sh) are permanent.
+# 15s timeout ignores oscillation blips; detects real kills reliably.
+DEATH_TIMEOUT  = 15.0
 
 
 def _drone_model(idx: int) -> str:
@@ -58,23 +61,41 @@ def get_swarm_state() -> list[dict]:
         return []
 
 
-def elect(drones: list[dict]) -> int | None:
-    """
-    Bully election: return highest index (0-4) where connected=True.
-    Returns None if no drones connected.
-    """
-    winner = None
+# Per-drone last-seen timestamps — updated whenever connected=True is observed.
+# Election uses these rather than the instantaneous connected flag so that
+# SITL MAVSDK oscillation blips (~10s all-offline) don't trigger false elections.
+_drone_last_online: dict[int, float] = {}
+
+
+def update_liveness(drones: list[dict], now: float) -> None:
+    """Record timestamp whenever a drone reports connected=True."""
     for d in drones:
-        drone_id = d.get("id", "")          # e.g. "DRONE-3"
+        drone_id  = d.get("id", "")
         connected = d.get("connected", False)
         if not connected:
             continue
         try:
             idx = int(drone_id.split("-")[1])
+            _drone_last_online[idx] = now
         except (IndexError, ValueError):
-            continue
-        if winner is None or idx > winner:
-            winner = idx
+            pass
+
+
+def is_alive(idx: int, now: float) -> bool:
+    """Drone alive if seen connected within DEATH_TIMEOUT seconds."""
+    return (now - _drone_last_online.get(idx, 0.0)) < DEATH_TIMEOUT
+
+
+def elect(now: float) -> int | None:
+    """
+    Bully election using liveness timestamps (not instantaneous connected flag).
+    Returns highest-index alive drone, or None if all timed out.
+    """
+    winner = None
+    for idx in range(NUM_DRONES):
+        if is_alive(idx, now):
+            if winner is None or idx > winner:
+                winner = idx
     return winner
 
 
@@ -100,16 +121,22 @@ def main() -> None:
     current_leader: int | None = None
     election_count = 0
     interval = 1.0 / POLL_HZ
+    cycle = 0
+
+    print(f"[ELECT] DEATH_TIMEOUT={DEATH_TIMEOUT}s (ignores SITL blips <{DEATH_TIMEOUT}s)", flush=True)
 
     while True:
-        t0 = time.time()
+        t0   = time.time()
+        now  = t0
+        cycle += 1
 
         drones = get_swarm_state()
-        winner = elect(drones)
+        update_liveness(drones, now)      # stamp drones seen connected this cycle
+        winner = elect(now)               # liveness-based election
 
         if winner != current_leader:
             if winner is None:
-                print(f"[ELECT] All drones offline — no leader", flush=True)
+                print(f"[ELECT] All drones timed out — no leader", flush=True)
             else:
                 election_count += 1
                 if current_leader is None:
@@ -117,8 +144,8 @@ def main() -> None:
                 else:
                     print(
                         f"[ELECT] *** ELECTION #{election_count} ***  "
-                        f"{_drone_id(current_leader)} FAILED → "
-                        f"{_drone_id(winner)} elected as new leader",
+                        f"{_drone_id(current_leader)} DEAD (>{DEATH_TIMEOUT}s) → "
+                        f"{_drone_id(winner)} is new leader",
                         flush=True,
                     )
 
@@ -126,13 +153,12 @@ def main() -> None:
             if winner is not None:
                 post_leader(winner, election_count)
 
-        # Periodic status log every 10 cycles
-        if int(t0 * POLL_HZ) % 20 == 0:
-            connected = [d.get("id") for d in drones if d.get("connected")]
-            ldr = _drone_id(current_leader) if current_leader is not None else "NONE"
+        # Periodic status every 10 cycles
+        if cycle % 20 == 0:
+            alive = [_drone_id(i) for i in range(NUM_DRONES) if is_alive(i, now)]
+            ldr   = _drone_id(current_leader) if current_leader is not None else "NONE"
             print(
-                f"[ELECT] leader={ldr}  connected={connected}  "
-                f"elections={election_count}",
+                f"[ELECT] leader={ldr}  alive={alive}  elections={election_count}",
                 flush=True,
             )
 
