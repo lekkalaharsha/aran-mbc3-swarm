@@ -384,6 +384,32 @@ this causes undefined behaviour (either syntax error or swarm_monitor not inheri
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 18 | Total: 22
+## Batch 11 — MBC3_MODE mission time bugs (2026-05-20, test/phase2-radar-web)
+
+### B11 | CRITICAL | Loiter WPs at 40-50m descend drone 450-460m from 500m cruise
+**File:** `src/isr_lidar_mpc.py` — loiter_map build (line ~1002)
+**Status:** ✅ FIXED
+
+**Problem:** `LOITER_WAYPOINTS` have `altitude_m: 50.0` (LOITER-A) and `40.0` (LOITER-B).
+In MBC3_MODE (ALTITUDE=500m), PX4 executes these mission items literally — descend to 50m,
+loiter 8s, then next WP at 500m → climb back. Two loiter points × 2 × (450m / 1.4 m/s) ≈ 22 min
+wasted. These WPs are ISR (camera surveillance) features, not valid at 500m radar altitude.
+
+**Fix:** When ALTITUDE >= 200.0, set loiter_map = {} to skip injection entirely.
+
+### B12 | HIGH | Secondary orbit altitudes (70-100m) force 400-430m descent from 500m cruise
+**File:** `src/isr_lidar_mpc.py` — `_do_orbit_phase()` line ~1450
+**Status:** ✅ FIXED
+
+**Problem:** `SECONDARY_TARGETS` orbit altitudes are ISR-specific (70m, 100m, 80m).
+`goto_alt = home_abs_alt + t_alt` → in MBC3_MODE, each secondary orbit approach descends
+400-430m. With ~3.0 m/s descent and 180s approach timeout, each orbit adds 3-5 min.
+
+**Fix:** `goto_alt = home_abs_alt + max(t_alt, ALTITUDE)` — orbit altitude floored at cruise
+altitude. Works for both modes: ISR (max(100, 30)=100 ✓), MBC3 (max(100, 500)=500 ✓).
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 20 | Total: 24
 
 **Next action:** Test 5-drone swarm: `MBC3_MODE=1 HEADLESS=1 bash swarm_launch.sh`

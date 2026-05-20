@@ -999,9 +999,16 @@ async def run():
     log(f"Generated {len(waypoints)} survey waypoints across {ROWS} rows")
 
     # Build loiter WP lookup: {after_wp_index: loiter_dict}
-    loiter_map = {lw["after_wp_index"]: lw for lw in LOITER_WAYPOINTS}
-    if loiter_map:
-        log(f"Loiter waypoints: {len(loiter_map)} surveillance hold points injected")
+    # B11 FIX: loiter WPs are calibrated for ISR (30m AGL) with fixed altitudes of
+    # 40-50m. At MBC3_MODE cruise (500m), those altitudes would force a 450-460m
+    # descent + climb per loiter point (~22 min extra). Skip them in MBC3_MODE.
+    if ALTITUDE >= 200.0:
+        loiter_map = {}
+        log("MBC3_MODE: loiter WPs skipped — ISR altitudes (40-50m) incompatible with 500m cruise")
+    else:
+        loiter_map = {lw["after_wp_index"]: lw for lw in LOITER_WAYPOINTS}
+        if loiter_map:
+            log(f"Loiter waypoints: {len(loiter_map)} surveillance hold points injected")
 
     mission_items = []
     mission_items.append(MissionItem(
@@ -1447,7 +1454,10 @@ async def run():
 
         banner(f"{phase_label} — {t_name}")
         log(f"Target: {t_lat:.6f}, {t_lon:.6f}")
-        goto_alt = home_abs_alt + t_alt
+        # B12 FIX: secondary orbit configs have ISR-specific altitudes (70-100m AGL).
+        # In MBC3_MODE (ALTITUDE=500m), using those raw values forces a 400-430m
+        # descent per orbit. Cap to cruise altitude so we never descend below survey alt.
+        goto_alt = home_abs_alt + max(t_alt, ALTITUDE)
 
         # set_maximum_speed removed — not available in this MAVSDK version.
         # PX4 SITL uses MPC_XY_VEL_MAX (15 m/s) set in airframe.
