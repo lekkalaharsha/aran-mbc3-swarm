@@ -437,6 +437,23 @@ pushes detections to ASP. Works in any environment. Verified: 5/5 targets detect
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 22 | Total: 26
+## Batch 13 — GCS telemetry silent failure (2026-05-20, test/phase2-radar-web)
+
+### B13-1 | CRITICAL | float("inf") in payload → json.dumps fails → all GCS pushes silently dropped
+**File:** `src/isr_lidar_mpc.py` — `push_to_gcs()`
+**Status:** ✅ FIXED
+
+**Problem:** `lidar_state["nearest_dist"]` and `lidar_state["sectors"]` initialise to
+`float("inf")`. When radar sensors don't publish (no rendering/headless), these stay inf.
+`json.dumps(float("inf"))` raises `ValueError: Out of range float values are not JSON
+compliant`. The entire `push_to_gcs()` is wrapped in `except Exception: pass` → exception
+silently swallowed → zero `/lidar_update` POSTs → drone never shows in GCS telemetry.
+
+**Fix:** `_safe_float()` helper replaces inf/nan with a finite sentinel (9999.9 for
+distances, 0.0 for bearings) before payload assembly.
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 23 | Total: 27
 
 **Next action:** Test 5-drone swarm: `MBC3_MODE=1 HEADLESS=1 bash swarm_launch.sh`

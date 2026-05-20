@@ -169,6 +169,14 @@ dynamic_state = {
 # ══════════════════════════════════════════════════════════
 #  GCS PUSH
 # ══════════════════════════════════════════════════════════
+def _safe_float(v, fallback=0.0):
+    """Replace inf/nan with fallback — json.dumps rejects non-finite floats."""
+    try:
+        return fallback if (math.isinf(v) or math.isnan(v)) else float(v)
+    except Exception:
+        return fallback
+
+
 def push_to_gcs():
     try:
         wp_cur = mission_state["wp_current"]
@@ -181,8 +189,8 @@ def push_to_gcs():
         last_wp_snap = avoidance_state["last_wp"]
 
         payload = {
-            "nearest_dist":     lidar_state["nearest_dist"],
-            "nearest_bearing":  lidar_state["nearest_bearing"],
+            "nearest_dist":     _safe_float(lidar_state["nearest_dist"], 9999.9),
+            "nearest_bearing":  _safe_float(lidar_state["nearest_bearing"], 0.0),
             "scan_count":       lidar_state["scan_count"],
             "avoidance_active": avoidance_state["active"],
             "avoidance_count":  avoidance_state["count"],
@@ -192,7 +200,7 @@ def push_to_gcs():
             "detour_lon":       last_wp_snap[1] if last_wp_snap else None,
             # BUG FIX: sectors were missing from the payload — the GCS
             # sector-clearance overlay was permanently frozen at init values.
-            "sectors":          list(lidar_state["sectors"]),
+            "sectors":          [_safe_float(s, 9999.9) for s in lidar_state["sectors"]],
             "alert_msg":        (f"OBSTACLE {lidar_state['nearest_dist']:.1f}m "
                                  f"@ {lidar_state['nearest_bearing']:.0f}deg "
                                  f"ESCAPE:{avoidance_state['escape_side']}")
