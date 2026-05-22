@@ -17,6 +17,7 @@ from mavsdk import System
 GCS_ASP_URL = "http://localhost:5000/asp_update"
 NUM_DRONES  = 5
 BASE_PORT   = 14540
+BASE_GRPC   = 50050   # mavsdk_server gRPC ports started by swarm_fly.py
 PUSH_HZ     = 2.0  # ASP update rate
 
 # Shared state — one entry per drone
@@ -37,16 +38,17 @@ drone_states = {
 
 
 async def monitor_drone(idx: int):
-    """Connect to drone idx and stream telemetry into drone_states.
+    """Connect to drone idx via the dedicated mavsdk_server started by swarm_fly.py.
 
-    Runs _conn() continuously so connected status updates on both
-    connect and disconnect — required for graceful degradation display.
+    Uses gRPC port 50050+idx so each drone has isolated telemetry —
+    avoids the udpin port-sharing problem where all drones report the
+    same lat/lon from whichever PX4 instance owned the shared socket.
     """
-    port  = BASE_PORT + idx
-    drone = System()
-    await drone.connect(system_address=f"udpin://0.0.0.0:{port}")
+    grpc_port = BASE_GRPC + idx
+    drone = System(mavsdk_server_address="localhost", port=grpc_port)
+    await drone.connect()
 
-    print(f"  [SWARM] Drone {idx}: connecting on port {port}...")
+    print(f"  [SWARM] Drone {idx}: connecting via mavsdk_server grpc={grpc_port}...")
 
     async def _conn():
         import time as _t
@@ -68,10 +70,12 @@ async def monitor_drone(idx: int):
                         except Exception:
                             pass
             else:
-                # Grace period: ignore brief blips (<3s) from callback queue pressure.
-                # Real kills (kill_drone.sh) drop connection for >3s reliably.
+                # Grace period: MAVSDK SITL oscillates all drones offline for up to
+                # 15s under CPU load then recovers. Real kills (kill_drone.sh) are
+                # permanent. 20s grace ignores oscillation blips; real deaths show
+                # disconnected after 20s of silence.
                 import time as _t2
-                if was and (_t2.time() - connected_since) > 3.0:
+                if was and (_t2.time() - connected_since) > 20.0:
                     drone_states[idx]["connected"] = False
                     print(f"  [SWARM] Drone {idx}: DISCONNECTED — ASP will hide marker", flush=True)
 
@@ -116,7 +120,6 @@ async def push_loop():
         ]
 
         payload = {
-            "asp_tracks":   [],        # radar tracks (from radar_fusion, empty for now)
             "swarm_drones": drones,    # all 5 drone positions
             "scan_count":   scan_count,
             "asp_drone_id": "SWARM",

@@ -26,6 +26,7 @@ Demo:
 
 import json
 import os
+import subprocess
 import sys
 import time
 
@@ -42,6 +43,27 @@ POLL_HZ        = 2.0
 # Real drone deaths (kill_drone.sh) are permanent.
 # 15s timeout ignores oscillation blips; detects real kills reliably.
 DEATH_TIMEOUT  = 15.0
+
+
+def _px4_process_alive(idx: int) -> bool:
+    """Check if PX4 SITL instance idx is actually running (SITL-only guard).
+
+    MAVSDK oscillation can briefly report connected=True even for a killed
+    instance, refreshing its liveness timestamp before DEATH_TIMEOUT expires.
+    Checking the actual process prevents false stamps.
+    Instance 0 uses the make target (no -i flag) — always considered alive
+    since kill_drone.sh guards against killing it.
+    """
+    if idx == 0:
+        return True   # instance 0 owns Gazebo world, never killed
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", f"bin/px4.*-i {idx}"],
+            capture_output=True, timeout=0.5,
+        )
+        return result.returncode == 0
+    except Exception:
+        return True   # if check fails, assume alive (fail-safe)
 
 
 def _drone_model(idx: int) -> str:
@@ -68,7 +90,12 @@ _drone_last_online: dict[int, float] = {}
 
 
 def update_liveness(drones: list[dict], now: float) -> None:
-    """Record timestamp whenever a drone reports connected=True."""
+    """Record timestamp whenever a drone reports connected=True AND its PX4 process is alive.
+
+    The process check prevents MAVSDK oscillation from refreshing a killed
+    drone's timestamp — without it, a killed drone briefly re-appears as
+    connected during oscillation cycles, resetting its DEATH_TIMEOUT.
+    """
     for d in drones:
         drone_id  = d.get("id", "")
         connected = d.get("connected", False)
@@ -76,7 +103,8 @@ def update_liveness(drones: list[dict], now: float) -> None:
             continue
         try:
             idx = int(drone_id.split("-")[1])
-            _drone_last_online[idx] = now
+            if _px4_process_alive(idx):
+                _drone_last_online[idx] = now
         except (IndexError, ValueError):
             pass
 

@@ -235,8 +235,10 @@ def lidar_update():
 @app.route("/asp_update", methods=["POST"])
 def asp_update():
     payload = request.get_json(silent=True) or {}
-    tracks = payload.get("asp_tracks") or payload.get("tracks", [])
-    if tracks is not None:
+    # Only update tracks if caller explicitly sent the key — guards against
+    # swarm_monitor and other payloads that omit radar data clearing real tracks.
+    if "asp_tracks" in payload or "tracks" in payload:
+        tracks = payload["asp_tracks"] if "asp_tracks" in payload else payload.get("tracks", [])
         asp_data["tracks"] = tracks
         asp_data["scan_count"] += 1
         asp_data["last_update"] = time.time()
@@ -281,7 +283,7 @@ def asp_download():
         "time","id","lat","lon","range_m","bearing_deg",
         "alt_m","velocity_ms","confidence","drone_id"])
     w.writeheader()
-    for row in asp_data["track_log"]:
+    for row in list(asp_data["track_log"]):   # snapshot — deque mutates concurrently at 5 Hz
         w.writerow(row)
     return Response(buf.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition":
@@ -1064,6 +1066,19 @@ body::after {
 
 <!-- RIGHT PANEL -->
 <div class="rpanel">
+
+  <!-- SWARM STATUS PANEL -->
+  <div class="card" id="swarm-panel">
+    <div class="ctitle">&#9656; Swarm Drones <span id="swarm-conn-badge" style="float:right;font-size:0.65rem;color:#ffb300">0/5</span></div>
+    <div id="swarm-drone-list" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
+      <!-- populated by updateSwarmPanel() -->
+      <div style="color:var(--textdim);font-size:0.7rem;text-align:center;">Waiting for drones...</div>
+    </div>
+    <div style="margin-top:6px;font-size:0.65rem;color:var(--textdim)">
+      RADAR LEADER: <span id="swarm-leader" style="color:#00ff9d;font-weight:bold">---</span>
+    </div>
+  </div>
+
   <div class="card">
     <div class="ctitle">&#9656; Mission Phase</div>
     <div class="phases">
@@ -2040,33 +2055,81 @@ let droneMarker = L.marker([HOME_LAT, HOME_LON], {icon:droneIcon}).addTo(map);
 const SWARM_COLORS = ['#00c8ff','#00ff9d','#ffb300','#ff3d3d','#cc44ff'];
 let swarmMarkers = {};
 
+function updateSwarmPanel(drones, leader){
+  if(!drones || !drones.length) return;
+  const list = document.getElementById('swarm-drone-list');
+  if(!list) return;
+  const colors = ['#00c8ff','#00ff9d','#ffb300','#ff3d3d','#cc44ff'];
+  list.innerHTML = drones.map((d,i) => {
+    const conn  = d.connected !== false;
+    const armed = d.armed === true;
+    const color = conn ? colors[i % colors.length] : '#555';
+    const phase = (d.phase || d.flight_mode || (armed ? 'ARMED' : (conn ? 'CONN' : 'OFFLINE'))).toUpperCase();
+    const alt   = (d.alt   || 0).toFixed(0);
+    const spd   = (d.groundspeed || 0).toFixed(1);
+    const armColor  = armed ? '#00ff9d' : '#555';
+    const armLabel  = armed ? 'ARMED' : 'DISARM';
+    return `<div style="padding:5px 6px;background:rgba(255,255,255,0.04);
+                        border-radius:4px;border-left:3px solid ${color};margin-bottom:2px">
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+        <span style="color:${color};font-size:14px">&#9992;</span>
+        <span style="color:${color};font-size:0.72rem;font-weight:bold;flex:1">${d.id}</span>
+        <span style="color:${armColor};font-size:0.6rem;border:1px solid ${armColor};
+                     padding:1px 4px;border-radius:2px">${armLabel}</span>
+      </div>
+      <div style="display:flex;gap:8px;font-size:0.65rem">
+        <span style="color:var(--textdim)">ALT</span>
+        <span style="color:#fff;font-weight:bold">${alt}m</span>
+        <span style="color:var(--textdim)">SPD</span>
+        <span style="color:#fff;font-weight:bold">${spd}m/s</span>
+        <span style="color:${color};flex:1;text-align:right;font-weight:bold">${phase}</span>
+      </div>
+    </div>`;
+  }).join('');
+  const conn = drones.filter(d => d.connected).length;
+  const badge = document.getElementById('swarm-conn-badge');
+  if(badge){
+    badge.textContent = conn + '/' + drones.length;
+    badge.style.color = conn === drones.length ? '#00ff9d' : conn > 0 ? '#ffb300' : '#ff3d3d';
+  }
+  if(leader){
+    const el = document.getElementById('swarm-leader');
+    if(el) el.textContent = leader;
+  }
+}
+
 function updateSwarmDrones(drones){
   if(!drones || !drones.length) return;
   const activeIds = new Set(drones.map(d=>d.id));
-  // Remove departed
   for(const id in swarmMarkers){
-    if(!activeIds.has(id)){ map.removeLayer(swarmMarkers[id]); delete swarmMarkers[id]; }
+    if(!activeIds.has(id)){ map.removeLayer(swarmMarkers[id].marker); delete swarmMarkers[id]; }
   }
   drones.forEach((d, i) => {
-    if(!d.connected || !d.lat) return;
+    // Show marker if lat/lon are valid (non-zero) — don't gate on connected
+    // because slave SITL instances may not send connected=True via MAVSDK
+    if(!d.lat && !d.lon) return;
+    const conn  = d.connected !== false;
     const color = SWARM_COLORS[i % SWARM_COLORS.length];
+    const opacity = conn ? 1.0 : 0.4;
+    const phase = d.phase || d.flight_mode || (conn ? 'FLY' : 'OFFLINE');
     const icon  = L.divIcon({
-      html:`<div style="font-size:18px;color:${color};filter:drop-shadow(0 0 4px #000);text-shadow:0 0 6px ${color}">✈</div>`,
+      html:`<div style="font-size:18px;color:${color};opacity:${opacity};filter:drop-shadow(0 0 4px #000);text-shadow:0 0 6px ${color}">✈</div>
+            <div style="color:${color};font-size:9px;font-weight:bold;text-align:center;margin-top:-2px;opacity:${opacity}">${d.id.replace('DRONE-','D')}</div>`,
       className:'', iconAnchor:[9,9]});
     if(swarmMarkers[d.id]){
-      swarmMarkers[d.id].setLatLng([d.lat,d.lon]);
-      swarmMarkers[d.id].setIcon(icon);
+      swarmMarkers[d.id].marker.setLatLng([d.lat,d.lon]);
+      swarmMarkers[d.id].marker.setIcon(icon);
     } else {
-      swarmMarkers[d.id] = L.marker([d.lat,d.lon],{icon}).addTo(map);
+      swarmMarkers[d.id] = { marker: L.marker([d.lat,d.lon],{icon}).addTo(map) };
     }
-    swarmMarkers[d.id].bindTooltip(
-      `<b>${d.id}</b><br>Alt: ${d.alt}m<br>Speed: ${d.groundspeed}m/s<br>Mode: ${d.flight_mode}`,
-      {permanent:false});
+    swarmMarkers[d.id].marker.bindTooltip(
+      `<b>${d.id}</b><br>Alt: ${(d.alt||0).toFixed(0)}m<br>Phase: ${phase}<br>Spd: ${(d.groundspeed||0).toFixed(1)}m/s`,
+      {permanent:false, className:'drone-tip'});
   });
-  // Update status bar
   const conn = drones.filter(d=>d.connected).length;
-  document.getElementById('s-status').textContent = `${conn}/5 DRONES`;
-  document.getElementById('s-status').style.color = conn===5 ? '#00ff9d' : '#ffb300';
+  const total = drones.length;
+  document.getElementById('s-status').textContent = `${conn}/${total} DRONES`;
+  document.getElementById('s-status').style.color = conn===total ? '#00ff9d' : conn>0 ? '#ffb300' : '#ff3d3d';
 }
 
 // Track markers pool
@@ -2154,9 +2217,12 @@ socket.on('disconnect', () => {
 socket.on('asp', d => {
   updateTracks(d.tracks || [], d.drone || {});
   updateSwarmDrones(d.swarm_drones || []);
+  updateSwarmPanel(d.swarm_drones || []);
   document.getElementById('s-scans').textContent = d.scan_count || 0;
 });
 socket.on('leader', d => {
+  const swl = document.getElementById('swarm-leader');
+  if(swl) swl.textContent = d.leader_id || '---';
   const el = document.getElementById('s-leader');
   if(el){
     el.textContent = d.leader_id || '---';

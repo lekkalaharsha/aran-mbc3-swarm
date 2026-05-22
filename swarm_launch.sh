@@ -36,14 +36,14 @@ else
     ALTITUDE=30
 fi
 
-# ── Spawn positions: 5m grid ─────────────────────────────────
+# ── Spawn positions: 30m grid (clearly separated in Gazebo GUI) ──────
 # x,y,z,roll,pitch,yaw
 POSES=(
     "0,0,0.135,0,0,0"
-    "5,0,0.135,0,0,0"
-    "10,0,0.135,0,0,0"
-    "0,5,0.135,0,0,0"
-    "0,10,0.135,0,0,0"
+    "30,0,0.135,0,0,0"
+    "60,0,0.135,0,0,0"
+    "0,30,0.135,0,0,0"
+    "0,60,0.135,0,0,0"
 )
 
 PIDS=()
@@ -131,7 +131,7 @@ for i in 1 2 3 4; do
     ) >> "${LOG}" 2>&1 &
     PIDS+=($!)
     log "Instance ${i} PID: ${PIDS[-1]}  |  log: ${LOG}"
-    sleep 3  # stagger spawns to avoid gz service race
+    sleep 8  # stagger spawns — enough for gz service + model load to complete
 done
 
 ok "All 5 instances launched"
@@ -161,11 +161,17 @@ PIDS+=($!)
 sleep 2
 ok "GCS live → http://localhost:5000  |  ASP → http://localhost:5000/asp"
 
-# ── Swarm Monitor ────────────────────────────────────────────
-log "Starting swarm monitor (connects to all 5 drones)..."
-SWARM_LOG="${SESSION_DIR}/swarm.log"
-(cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 -u swarm_monitor.py) >> "${SWARM_LOG}" 2>&1 &
+# ── Swarm Mission — arm + climb all 5, then sequential mission one by one ──
+# Starts mavsdk_server per drone (grpc 50050-50054) for isolated control.
+# Pushes positions to GCS /asp_update directly — no separate swarm_monitor needed.
+log "Starting swarm_mission (5 drones: arm→climb→survey→orbit→land sequentially)..."
+MISSION_LOG="${SESSION_DIR}/swarm_mission.log"
+(cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 -u swarm_mission.py) >> "${MISSION_LOG}" 2>&1 &
 PIDS+=($!)
+sleep 3
+ok "Swarm mission started  |  log: ${MISSION_LOG}"
+
+# ── Swarm Monitor — telemetry only (no MAVSDK commands) ─────────────
 
 # ── Leader Election — Bully algorithm, highest-index connected drone wins ─
 log "Starting leader election daemon..."
@@ -176,8 +182,6 @@ sleep 1
 ok "Leader election daemon running  →  initial leader: DRONE-4"
 
 # ── Radar Sim — pose-based target detection (no rendering required) ──
-# Reads target positions from Gazebo physics topics, computes 6-panel FOV,
-# pushes tracks to ASP. Works in headless mode where lidar sensors don't pub.
 log "Starting radar_sim (headless radar detection)..."
 RADAR_SIM_LOG="${SESSION_DIR}/radar_sim.log"
 (cd "${SCRIPT_DIR}/src" && env PX4_GZ_WORLD="${PX4_GZ_WORLD}" python3 -u radar_sim.py) >> "${RADAR_SIM_LOG}" 2>&1 &
