@@ -37,7 +37,8 @@ MAVSDK_SERVER = os.path.expanduser(
 NUM_DRONES   = 5
 BASE_UDP     = 14540
 BASE_GRPC    = 50050
-CRUISE_ALT   = 100.0    # m AGL (demo: 100m; production: use ALTITUDE=500m)
+CRUISE_ALT   = 100.0    # m AGL base — drone i flies CRUISE_ALT + i*10m
+ALT_SEP      = 10.0     # m per-drone altitude separation (G6)
 CLIMB_SPEED  = 2.0      # m/s MPC_TKO_SPEED
 MISSION_SPEED = 15.0    # m/s waypoint speed
 ARM_TIMEOUT  = 90.0
@@ -60,6 +61,10 @@ drone_states = {
     for i in range(NUM_DRONES)
 }
 
+
+def drone_alt(idx: int) -> float:
+    """Per-drone cruise altitude: CRUISE_ALT + idx×ALT_SEP (G6 collision avoidance)."""
+    return CRUISE_ALT + idx * ALT_SEP
 
 def log(idx, msg): print(f"[DRONE-{idx}] {msg}", flush=True)
 def banner(msg):   print(f"\n{'='*55}\n  {msg}\n{'='*55}", flush=True)
@@ -99,15 +104,16 @@ def start_mavsdk_servers():
     return procs
 
 
-# ── Mission items (same for every drone) ─────────────────────────────────
-def build_mission() -> MissionPlan:
-    """Survey grid + primary target approach at CRUISE_ALT."""
+# ── Mission items (per drone — altitude varies by idx for G6) ────────────
+def build_mission(idx: int = 0) -> MissionPlan:
+    """Survey grid + primary target approach at drone_alt(idx)."""
+    alt = drone_alt(idx)
     items = []
 
     # First WP: climb to cruise alt above home before survey
     items.append(MissionItem(
         latitude_deg=HOME_LAT, longitude_deg=HOME_LON,
-        relative_altitude_m=CRUISE_ALT, speed_m_s=MISSION_SPEED,
+        relative_altitude_m=alt, speed_m_s=MISSION_SPEED,
         is_fly_through=True,
         gimbal_pitch_deg=float("nan"), gimbal_yaw_deg=float("nan"),
         camera_action=MissionItem.CameraAction.NONE,
@@ -123,7 +129,7 @@ def build_mission() -> MissionPlan:
         is_last = (i == len(waypoints) - 1)
         items.append(MissionItem(
             latitude_deg=lat, longitude_deg=lon,
-            relative_altitude_m=CRUISE_ALT, speed_m_s=MISSION_SPEED,
+            relative_altitude_m=alt, speed_m_s=MISSION_SPEED,
             is_fly_through=not is_last,
             gimbal_pitch_deg=float("nan"), gimbal_yaw_deg=float("nan"),
             camera_action=MissionItem.CameraAction.NONE,
@@ -136,7 +142,7 @@ def build_mission() -> MissionPlan:
     # Primary target flyover
     items.append(MissionItem(
         latitude_deg=TARGET_LAT, longitude_deg=TARGET_LON,
-        relative_altitude_m=CRUISE_ALT, speed_m_s=MISSION_SPEED,
+        relative_altitude_m=alt, speed_m_s=MISSION_SPEED,
         is_fly_through=False,
         gimbal_pitch_deg=float("nan"), gimbal_yaw_deg=float("nan"),
         camera_action=MissionItem.CameraAction.NONE,
@@ -149,7 +155,7 @@ def build_mission() -> MissionPlan:
     # Return to home and land
     items.append(MissionItem(
         latitude_deg=HOME_LAT, longitude_deg=HOME_LON,
-        relative_altitude_m=CRUISE_ALT, speed_m_s=MISSION_SPEED,
+        relative_altitude_m=alt, speed_m_s=MISSION_SPEED,
         is_fly_through=False,
         gimbal_pitch_deg=float("nan"), gimbal_yaw_deg=float("nan"),
         camera_action=MissionItem.CameraAction.NONE,
@@ -241,13 +247,14 @@ async def arm_and_climb(drone, idx) -> bool:
         log(idx, "Arm FAILED")
         return False
 
+    target_alt = drone_alt(idx)
     try:
-        await drone.action.set_takeoff_altitude(CRUISE_ALT)
+        await drone.action.set_takeoff_altitude(target_alt)
     except Exception:
         pass
 
     drone_states[idx]["phase"] = "CLIMB"
-    log(idx, f"Takeoff → {CRUISE_ALT}m")
+    log(idx, f"Takeoff → {target_alt:.0f}m")
     await drone.action.takeoff()
     return True
 
@@ -259,10 +266,11 @@ async def run_mission(drone, idx, mission_plan: MissionPlan) -> None:
     await drone.mission.upload_mission(mission_plan)
     log(idx, f"Mission uploaded ({len(mission_plan.mission_items)} items)")
 
-    # Wait to be at cruise altitude before starting
+    # Wait to be at this drone's target altitude before starting
+    target_alt = drone_alt(idx)
     async for pos in drone.telemetry.position():
-        if pos.relative_altitude_m >= CRUISE_ALT * 0.90:
-            log(idx, f"At cruise alt {pos.relative_altitude_m:.1f}m — starting mission")
+        if pos.relative_altitude_m >= target_alt * 0.90:
+            log(idx, f"At cruise alt {pos.relative_altitude_m:.1f}m/{target_alt:.0f}m — starting mission")
             break
         await asyncio.sleep(0.5)
 
@@ -296,7 +304,8 @@ async def run_mission(drone, idx, mission_plan: MissionPlan) -> None:
 # ── Main ──────────────────────────────────────────────────────────────────
 async def main():
     banner("ARAN MBC-3 — 5-DRONE SEQUENTIAL SWARM MISSION")
-    print(f"Cruise: {CRUISE_ALT}m AGL  |  Speed: {MISSION_SPEED}m/s  |  Climb: {CLIMB_SPEED}m/s", flush=True)
+    alts_str = "/".join(f"{drone_alt(i):.0f}" for i in range(NUM_DRONES))
+    print(f"Cruise: {alts_str}m AGL (per-drone)  |  Speed: {MISSION_SPEED}m/s  |  Climb: {CLIMB_SPEED}m/s", flush=True)
 
     procs = start_mavsdk_servers()
 
@@ -310,9 +319,9 @@ async def main():
         for i in range(NUM_DRONES)
     ]
 
-    # Build mission (same for all drones)
-    mission_plan = build_mission()
-    print(f"[SWARM] Mission: {len(mission_plan.mission_items)} waypoints (survey + target + RTL)", flush=True)
+    # Build per-drone mission plans (altitude staggered by drone index — G6)
+    mission_plans = [build_mission(i) for i in range(NUM_DRONES)]
+    print(f"[SWARM] Mission: {len(mission_plans[0].mission_items)} WPs per drone, alts={alts_str}m", flush=True)
 
     # ── Phase 1: arm + climb all concurrently ──────────────────────────
     banner("PHASE 1 — ARM + CLIMB ALL 5 DRONES")
@@ -336,12 +345,13 @@ async def main():
     d2d_tasks = [asyncio.create_task(d2d_nodes[i].run()) for i in range(NUM_DRONES)]
     print("[SWARM] D2D multicast nodes started — 224.1.1.1:14900", flush=True)
 
-    # Wait for all to reach cruise alt
-    print("[SWARM] Waiting for all drones to reach cruise altitude ...", flush=True)
+    # Wait for all drones to reach their individual target altitudes
+    print("[SWARM] Waiting for all drones to reach target altitudes ...", flush=True)
     while True:
-        at_alt = [i for i in range(NUM_DRONES) if drone_states[i]["alt"] >= CRUISE_ALT * 0.90]
-        alts = [str(int(drone_states[i]["alt"])) + "m" for i in range(NUM_DRONES)]
-        print(f"[SWARM]   At altitude: {len(at_alt)}/5  alts={alts}", flush=True)
+        at_alt = [i for i in range(NUM_DRONES)
+                  if drone_states[i]["alt"] >= drone_alt(i) * 0.90]
+        alts = [f"{int(drone_states[i]['alt'])}m/{drone_alt(i):.0f}m" for i in range(NUM_DRONES)]
+        print(f"[SWARM]   At altitude: {len(at_alt)}/5  {alts}", flush=True)
         if len(at_alt) >= NUM_DRONES - len(failed):
             break
         await asyncio.sleep(10)
@@ -352,8 +362,8 @@ async def main():
         if i in failed:
             print(f"[SWARM] DRONE-{i}: skipped (arm failed)", flush=True)
             continue
-        banner(f"DRONE-{i} MISSION START ({i+1}/{NUM_DRONES})")
-        await run_mission(drones[i], i, mission_plan)
+        banner(f"DRONE-{i} MISSION START ({i+1}/{NUM_DRONES}) alt={drone_alt(i):.0f}m")
+        await run_mission(drones[i], i, mission_plans[i])
         print(f"[SWARM] DRONE-{i} complete — next drone in 5s", flush=True)
         await asyncio.sleep(5)
 
