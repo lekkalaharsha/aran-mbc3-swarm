@@ -294,8 +294,9 @@ class D2DNode:
         if self.idx > candidate:
             # I outrank the candidate — counter-nominate myself
             self._send_elect(self.idx, f"outbid DRONE-{candidate}")
-            self._candidate      = self.idx
-            self._candidate_time = time.time()
+            if self._candidate != self.idx:   # don't reset timer if already self-nominated
+                self._candidate      = self.idx
+                self._candidate_time = time.time()
         elif self._candidate is None or candidate > self._candidate:
             self._candidate      = candidate
             self._candidate_time = time.time()
@@ -321,8 +322,8 @@ class D2DNode:
             await asyncio.sleep(1.0)
             now = time.time()
 
-            # Check leader liveness via HB timestamps
-            if self.leader_idx is not None and self.leader_idx != self.idx:
+            # Check leader liveness via HB timestamps (only if no election running)
+            if self._candidate is None and self.leader_idx is not None and self.leader_idx != self.idx:
                 last = self.peer_last_hb.get(self.leader_idx, 0.0)
                 if last > 0 and (now - last) > DEATH_TIMEOUT:
                     self._start_election(
