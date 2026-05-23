@@ -195,6 +195,18 @@ def generate_survey_grid(altitude_offset: float = 0.0):
     return waypoints
 
 
+def partition_survey_grid(drone_idx: int, num_drones: int) -> list:
+    """
+    Divide survey grid rows among drones for parallel mission (G1).
+    Rows assigned round-robin: drone i owns rows where row_index % num_drones == drone_idx.
+    Returns flat list of (lat, lon) WPs for this drone (may be empty).
+    """
+    all_wps = generate_survey_grid()
+    rows_wps = [all_wps[i * 2:(i * 2) + 2] for i in range(ROWS)]
+    drone_rows = [rows_wps[i] for i in range(ROWS) if i % num_drones == drone_idx]
+    return [wp for row in drone_rows for wp in row]
+
+
 def generate_all_sweeps():
     """
     Return all altitude-step sweeps as a list of (altitude_m, waypoints) tuples.

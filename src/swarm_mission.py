@@ -27,6 +27,7 @@ from mission_config import (
     HOME_LAT, HOME_LON,
     TARGET_LAT, TARGET_LON,
     generate_survey_grid,
+    partition_survey_grid,
     ROWS, ALTITUDE, SPEED,
 )
 
@@ -123,8 +124,8 @@ def build_mission(idx: int = 0) -> MissionPlan:
         vehicle_action=MissionItem.VehicleAction.NONE,
     ))
 
-    # Survey grid
-    waypoints = generate_survey_grid()
+    # Survey sector for this drone (G1: parallel — each drone owns its rows)
+    waypoints = partition_survey_grid(idx, NUM_DRONES)
     for i, (lat, lon) in enumerate(waypoints):
         is_last = (i == len(waypoints) - 1)
         items.append(MissionItem(
@@ -356,16 +357,18 @@ async def main():
             break
         await asyncio.sleep(10)
 
-    # ── Phase 2: mission one by one ─────────────────────────────────────
-    banner("PHASE 2 — SEQUENTIAL MISSION (drone by drone)")
-    for i in range(NUM_DRONES):
-        if i in failed:
-            print(f"[SWARM] DRONE-{i}: skipped (arm failed)", flush=True)
-            continue
-        banner(f"DRONE-{i} MISSION START ({i+1}/{NUM_DRONES}) alt={drone_alt(i):.0f}m")
-        await run_mission(drones[i], i, mission_plans[i])
-        print(f"[SWARM] DRONE-{i} complete — next drone in 5s", flush=True)
-        await asyncio.sleep(5)
+    # ── Phase 2: parallel mission — all drones fly simultaneously (G1) ──
+    banner("PHASE 2 — PARALLEL MISSION (all drones simultaneously)")
+    active = [i for i in range(NUM_DRONES) if i not in failed]
+    skipped = [i for i in range(NUM_DRONES) if i in failed]
+    for i in skipped:
+        print(f"[SWARM] DRONE-{i}: skipped (arm failed)", flush=True)
+    print(f"[SWARM] Launching {len(active)} drones in parallel: {active}", flush=True)
+    await asyncio.gather(
+        *[run_mission(drones[i], i, mission_plans[i]) for i in active],
+        return_exceptions=True,
+    )
+    print("[SWARM] All drones mission complete", flush=True)
 
     banner("ALL DRONES MISSION COMPLETE")
     for node in d2d_nodes:
