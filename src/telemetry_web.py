@@ -1946,6 +1946,51 @@ drawStaticLayers({
   lat: HOME_LAT, lon: HOME_LON,
   target_lat: TARGET_LAT_JS, target_lon: TARGET_LON_JS,
 });
+
+// ══════════════════════════════════════════════════════════
+//  SWARM PANEL — populated from ASP socket events
+// ══════════════════════════════════════════════════════════
+function updateSwarmPanel(drones, leader){
+  if(!drones || !drones.length) return;
+  const list = document.getElementById('swarm-drone-list');
+  if(!list) return;
+  const colors = ['#00c8ff','#00ff9d','#ffb300','#ff3d3d','#cc44ff'];
+  list.innerHTML = drones.map((d,i) => {
+    const conn     = d.connected !== false;
+    const armed    = d.armed === true;
+    const color    = conn ? colors[i % colors.length] : '#555';
+    const phase    = (d.phase || d.flight_mode || (armed ? 'ARMED' : (conn ? 'CONN' : 'OFFLINE'))).toUpperCase();
+    const alt      = (d.alt || 0).toFixed(0);
+    const spd      = (d.groundspeed || 0).toFixed(1);
+    const armColor = armed ? 'var(--accent2)' : '#555';
+    const armLabel = armed ? 'ARMED' : 'DISARM';
+    return `<div style="padding:5px 6px;background:rgba(255,255,255,0.04);border-radius:4px;border-left:3px solid ${color};margin-bottom:2px">
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+        <span style="color:${color};font-size:14px">&#9992;</span>
+        <span style="color:${color};font-size:0.72rem;font-weight:bold;flex:1">${d.id}</span>
+        <span style="color:${armColor};font-size:0.6rem;border:1px solid ${armColor};padding:1px 4px;border-radius:2px">${armLabel}</span>
+      </div>
+      <div style="display:flex;gap:8px;font-size:0.65rem">
+        <span class="mlabel">ALT</span><span style="color:#fff;font-weight:bold">${alt}m</span>
+        <span class="mlabel">SPD</span><span style="color:#fff;font-weight:bold">${spd}m/s</span>
+        <span style="color:${color};flex:1;text-align:right;font-weight:bold">${phase}</span>
+      </div>
+    </div>`;
+  }).join('');
+  const conn = drones.filter(d => d.connected).length;
+  const badge = document.getElementById('swarm-conn-badge');
+  if(badge){ badge.textContent=conn+'/'+drones.length; badge.style.color=conn===drones.length?'var(--accent2)':conn>0?'var(--warn)':'var(--danger)'; }
+  if(leader){ const el=document.getElementById('swarm-leader'); if(el) el.textContent=leader; }
+}
+
+socket.on('asp', d => {
+  if(d.swarm_drones && d.swarm_drones.length) updateSwarmPanel(d.swarm_drones);
+});
+socket.on('leader', d => {
+  const el = document.getElementById('swarm-leader');
+  if(el){ el.textContent=d.leader_id||'---'; el.style.color=d.election_count>0?'var(--warn)':'var(--accent2)'; }
+  addLog('RADAR LEADER → '+(d.leader_id||'NONE')+(d.election_count>0?' (election #'+d.election_count+')':''), 'lwarn');
+});
 </script>
 </body>
 </html>

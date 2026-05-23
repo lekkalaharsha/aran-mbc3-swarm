@@ -159,6 +159,7 @@ async def fly_drone(idx: int) -> None:
     # Monitor + stream position
     prev = 0.0
     reached = False
+    last_log_t = 0.0
     async for pos in drone.telemetry.position():
         alt = pos.relative_altitude_m
         # Update shared state for push_loop
@@ -174,9 +175,11 @@ async def fly_drone(idx: int) -> None:
                 log(idx, f"TARGET REACHED: {alt:.1f}m ✓")
                 reached = True
 
-        # Log loiter status every ~60s (120 position ticks at 2Hz)
-        if reached and int(alt * 10) % 1200 == 0:
+        # Log loiter heartbeat every 60s
+        now_t = asyncio.get_event_loop().time()
+        if reached and (now_t - last_log_t) >= 60.0:
             log(idx, f"Loiter alt={alt:.1f}m  lat={pos.latitude_deg:.6f} lon={pos.longitude_deg:.6f}")
+            last_log_t = now_t
 
 
 async def main() -> None:

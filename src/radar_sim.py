@@ -162,7 +162,8 @@ def compute_detections(poses: dict) -> list:
             continue
 
         # Tiny deterministic noise per target
-        seed = int(name[-1]) * 7 + int(time.time() * 10) % 100
+        _m = re.search(r'\d+$', name)
+        seed = (int(_m.group()) if _m else 0) * 7 + int(time.time() * 10) % 100
         rng += (seed % 21 - 10) * NOISE_SIGMA_M * 0.1
 
         detections.append({

@@ -277,4 +277,4 @@ def get_nfz_exclusion_check(lat, lon):
                 breaching_dist = dist
                 breaching_name = nfz["name"]
     reported_name = breaching_name if inside else closest_name
-    return inside, reported_name, closest_dist
+    return inside, reported_name, breaching_dist if inside else closest_dist

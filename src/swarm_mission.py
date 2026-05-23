@@ -22,6 +22,7 @@ from mavsdk import System
 from mavsdk.mission import MissionItem, MissionPlan
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from d2d_node import D2DNode
 from mission_config import (
     HOME_LAT, HOME_LON,
     TARGET_LAT, TARGET_LON,
@@ -255,7 +256,6 @@ async def arm_and_climb(drone, idx) -> bool:
 async def run_mission(drone, idx, mission_plan: MissionPlan) -> None:
     drone_states[idx]["phase"] = "MISSION_UPLOAD"
     log(idx, "Uploading mission plan ...")
-    await drone.mission.set_return_to_launch_after_mission(True)
     await drone.mission.upload_mission(mission_plan)
     log(idx, f"Mission uploaded ({len(mission_plan.mission_items)} items)")
 
@@ -279,13 +279,10 @@ async def run_mission(drone, idx, mission_plan: MissionPlan) -> None:
                 log(idx, f"  WP {progress.current}/{progress.total}  ({pct}%)")
         else:
             log(idx, "Mission complete ✓")
-            drone_states[idx]["phase"] = "RTL"
+            drone_states[idx]["phase"] = "LANDING"
             break
 
-    # RTL
-    log(idx, "Return to launch + land")
-    await drone.action.return_to_launch()
-
+    # Mission last item has VehicleAction.LAND at HOME — drone is already landing.
     # Wait for landed
     async for landed in drone.telemetry.landed_state():
         from mavsdk.telemetry import LandedState
@@ -334,6 +331,11 @@ async def main():
         [asyncio.create_task(stream_armed(drones[i], i))    for i in range(NUM_DRONES)]
     )
 
+    # Start D2D nodes — one per drone, broadcast HB + run bully election
+    d2d_nodes = [D2DNode(i, drone_states[i]) for i in range(NUM_DRONES)]
+    d2d_tasks = [asyncio.create_task(d2d_nodes[i].run()) for i in range(NUM_DRONES)]
+    print("[SWARM] D2D multicast nodes started — 224.1.1.1:14900", flush=True)
+
     # Wait for all to reach cruise alt
     print("[SWARM] Waiting for all drones to reach cruise altitude ...", flush=True)
     while True:
@@ -356,6 +358,10 @@ async def main():
         await asyncio.sleep(5)
 
     banner("ALL DRONES MISSION COMPLETE")
+    for node in d2d_nodes:
+        node.stop()
+    for task in d2d_tasks:
+        task.cancel()
     for p in procs:
         p.terminate()
 

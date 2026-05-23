@@ -26,7 +26,6 @@ Demo:
 
 import json
 import os
-import subprocess
 import sys
 import time
 
@@ -46,24 +45,23 @@ DEATH_TIMEOUT  = 15.0
 
 
 def _px4_process_alive(idx: int) -> bool:
-    """Check if PX4 SITL instance idx is actually running (SITL-only guard).
+    """Check if PX4 SITL instance idx is alive via PID file written by swarm_launch.sh.
 
-    MAVSDK oscillation can briefly report connected=True even for a killed
-    instance, refreshing its liveness timestamp before DEATH_TIMEOUT expires.
-    Checking the actual process prevents false stamps.
-    Instance 0 uses the make target (no -i flag) — always considered alive
-    since kill_drone.sh guards against killing it.
+    os.kill(pid, 0) sends no signal — it just checks process existence.
+    Faster and more accurate than pgrep: no fork/exec, exact PID match,
+    immune to pattern collisions (e.g. -i 1 matching -i 10).
     """
     if idx == 0:
         return True   # instance 0 owns Gazebo world, never killed
     try:
-        result = subprocess.run(
-            ["pgrep", "-f", f"bin/px4.*-i {idx}"],
-            capture_output=True, timeout=0.5,
-        )
-        return result.returncode == 0
+        with open(f"/tmp/px4_swarm_pid_{idx}") as f:
+            pid = int(f.read().strip())
+        os.kill(pid, 0)   # raises ProcessLookupError if dead
+        return True
+    except (FileNotFoundError, ProcessLookupError):
+        return False
     except Exception:
-        return True   # if check fails, assume alive (fail-safe)
+        return True       # fail-safe: assume alive if check errors
 
 
 def _drone_model(idx: int) -> str:
@@ -86,7 +84,7 @@ def get_swarm_state() -> list[dict]:
 # Per-drone last-seen timestamps — updated whenever connected=True is observed.
 # Election uses these rather than the instantaneous connected flag so that
 # SITL MAVSDK oscillation blips (~10s all-offline) don't trigger false elections.
-_drone_last_online: dict[int, float] = {}
+_drone_last_online: dict[int, float] = {0: time.time()}  # drone 0 owns Gazebo world, always alive
 
 
 def update_liveness(drones: list[dict], now: float) -> None:

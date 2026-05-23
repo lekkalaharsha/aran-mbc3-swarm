@@ -36,14 +36,14 @@ else
     ALTITUDE=30
 fi
 
-# ── Spawn positions: 30m grid (clearly separated in Gazebo GUI) ──────
+# ── Spawn positions: 10m grid ──────────────────────────────────────
 # x,y,z,roll,pitch,yaw
 POSES=(
     "0,0,0.135,0,0,0"
-    "30,0,0.135,0,0,0"
-    "60,0,0.135,0,0,0"
-    "0,30,0.135,0,0,0"
-    "0,60,0.135,0,0,0"
+    "10,0,0.135,0,0,0"
+    "20,0,0.135,0,0,0"
+    "0,10,0.135,0,0,0"
+    "0,20,0.135,0,0,0"
 )
 
 PIDS=()
@@ -58,7 +58,6 @@ cleanup() {
     sleep 2
     pkill -f "bin/px4" 2>/dev/null || true
     pkill -f "gz sim"  2>/dev/null || true
-    pkill -f "swarm_monitor" 2>/dev/null || true
     pkill -f "telemetry_web" 2>/dev/null || true
     ok "Shutdown complete"
 }
@@ -78,6 +77,7 @@ pkill -9 -f "gz sim"       2>/dev/null || true
 pkill -9 -f "swarm_mon"    2>/dev/null || true
 pkill -9 -f "telemetry_web" 2>/dev/null || true
 pkill -9 -f "mavsdk_server" 2>/dev/null || true  # stale server holds UDP 14540-14544
+rm -f /tmp/px4_swarm_pid_*                        # stale PID files confuse leader_election
 sleep 2
 ok "Clean"
 
@@ -91,6 +91,7 @@ PX4_LOG_0="${SESSION_DIR}/px4_0.log"
     make px4_sitl gz_${MODEL}
 ) >> "${PX4_LOG_0}" 2>&1 &
 PIDS+=($!)
+echo "${PIDS[0]}" > /tmp/px4_swarm_pid_0
 log "Instance 0 PID: ${PIDS[0]}  |  log: ${PX4_LOG_0}"
 
 # Wait for Gazebo world ready
@@ -130,6 +131,7 @@ for i in 1 2 3 4; do
         "${PX4_BIN}" "${PX4_ETC}" -i "${i}"
     ) >> "${LOG}" 2>&1 &
     PIDS+=($!)
+    echo "${PIDS[-1]}" > /tmp/px4_swarm_pid_${i}
     log "Instance ${i} PID: ${PIDS[-1]}  |  log: ${LOG}"
     sleep 8  # stagger spawns — enough for gz service + model load to complete
 done
@@ -179,7 +181,7 @@ ELECT_LOG="${SESSION_DIR}/election.log"
 (cd "${SCRIPT_DIR}/src" && python3 -u leader_election.py) >> "${ELECT_LOG}" 2>&1 &
 PIDS+=($!)
 sleep 1
-ok "Leader election daemon running  →  initial leader: DRONE-4"
+ok "Leader election daemon running  →  initial leader: pending first election"
 
 # ── Radar Sim — pose-based target detection (no rendering required) ──
 log "Starting radar_sim (headless radar detection)..."
