@@ -1,45 +1,43 @@
 #!/usr/bin/env python3
 """
-mission_ai.py — Claude Haiku 4.5 operator intent interface for MBC-3 swarm.
+mission_ai.py — Ollama LLM operator intent interface for MBC-3 swarm.
 
 Translates natural language operator commands into structured mission deltas.
-Includes validation layer + rule-based greedy fallback when API is unavailable.
+Uses local Ollama (http://localhost:11434) — no API key, no cost.
+Falls back to rule-based parser if Ollama is not running.
 
 Integration:
     from mission_ai import MissionAI
-    ai = MissionAI()
+    ai = MissionAI()                          # auto-detects Ollama
     delta = ai.parse_command("Redirect DRONE-2 to orbit ALPHA-2 for 30 seconds",
                              swarm_state=drone_states)
     ok, reason = ai.validate(delta)
     if ok:
         apply_delta(delta)
+
+Ollama setup (one-time):
+    curl -fsSL https://ollama.com/install.sh | sh
+    ollama pull phi3:mini          # 2.3 GB — fast, good JSON
+    ollama serve                   # starts on port 11434
 """
 
 import json
 import os
 import re
 import sys
-import time
 from typing import Optional
 
-try:
-    import anthropic
-    _ANTHROPIC_AVAILABLE = True
-except ImportError:
-    _ANTHROPIC_AVAILABLE = False
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from mission_config import (
-    SECONDARY_TARGETS, NO_FLY_ZONES,
-    ALTITUDE, SPEED,
-)
+from mission_config import SECONDARY_TARGETS, NO_FLY_ZONES, ALTITUDE, SPEED
 
 CRUISE_ALT = 100.0   # swarm_mission.py base altitude (m AGL)
 ALT_SEP    = 10.0    # per-drone stagger (m)
 
-MODEL         = "claude-haiku-4-5"
-MAX_TOKENS    = 512
-API_TIMEOUT_S = 8.0
+OLLAMA_URL    = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+MODEL         = os.environ.get("MISSION_AI_MODEL", "phi3:mini")
+API_TIMEOUT_S = 30.0   # local inference can be slow first call
 
 VALID_ACTIONS = {
     "reassign_sector",  # move drone to a different survey sector
@@ -55,66 +53,57 @@ VALID_ACTIONS = {
 
 _NFZ_NAMES = ", ".join(n["name"] for n in NO_FLY_ZONES)
 
-_SYSTEM_PROMPT = f"""You are the mission controller AI for an autonomous 5-drone FMCW radar swarm (MBC-3 program, IAF competition).
-
-Your job: translate the operator's natural language command into a structured mission delta JSON.
-
-SWARM CONTEXT:
-- 5 drones: DRONE-0 through DRONE-4. Higher index = higher election priority.
-- Cruise altitudes: DRONE-i flies at {int(CRUISE_ALT)}m + i×{int(ALT_SEP)}m AGL.
-- Survey grid partitioned round-robin by row index.
-- Leader drone (highest-index alive) controls radar and reassignment.
-- No-fly zones: {_NFZ_NAMES}
-
-SECONDARY TARGETS (for orbit_target action):
-""" + "\n".join(
-    f"  {t['name']}: lat={t['lat']} lon={t['lon']} r={t['orbit_radius_m']}m"
-    for t in SECONDARY_TARGETS
-) + """
-
-VALID ACTIONS:
-  reassign_sector   — move drone to different grid sector (params: sector_idx int 0-3)
-  change_altitude   — adjust AGL altitude (params: altitude_m float)
-  change_speed      — adjust speed (params: speed_ms float)
-  orbit_target      — loiter around target (params: target_name, lat, lon,
-                      orbit_radius_m, orbit_speed_ms, orbit_duration_s)
-  rtl_drone         — return drone home (params: {})
-  abort_mission     — emergency stop all (params: reason string — required)
-  loiter            — hold position (params: {})
-  resume_mission    — resume after hold (params: {})
-  no_action         — ambiguous or nothing to do (params: raw string)
-
-OUTPUT FORMAT — JSON only, no prose, no markdown fences:
-{
-  "action": "<action_type>",
-  "target_drones": [<int>, ...],
-  "params": {<action-specific key-value pairs>},
-  "confidence": <0.0-1.0>,
-  "reasoning": "<one sentence>"
-}
-
-SAFETY RULES (enforce strictly in output):
-- altitude_m must be in [50, 600] for MBC3_MODE.
-- speed_ms must be in [5, 40].
-- Never route drones into no-fly zones.
-- abort_mission requires a non-empty reason.
-- If confidence < 0.5 emit no_action instead.
-"""
+_SYSTEM_PROMPT = (
+    "You are the mission controller AI for an autonomous 5-drone FMCW radar swarm "
+    "(MBC-3 program, IAF competition).\n\n"
+    "Your job: translate the operator's natural language command into a structured mission delta JSON.\n\n"
+    "SWARM CONTEXT:\n"
+    f"- 5 drones: DRONE-0 through DRONE-4. Higher index = higher election priority.\n"
+    f"- Cruise altitudes: DRONE-i flies at {int(CRUISE_ALT)}m + i×{int(ALT_SEP)}m AGL.\n"
+    "- Survey grid partitioned round-robin by row index.\n"
+    "- Leader drone (highest-index alive) controls radar and reassignment.\n"
+    f"- No-fly zones: {_NFZ_NAMES}\n\n"
+    "SECONDARY TARGETS (for orbit_target action):\n"
+    + "\n".join(
+        f"  {t['name']}: lat={t['lat']} lon={t['lon']} r={t['orbit_radius_m']}m"
+        for t in SECONDARY_TARGETS
+    )
+    + "\n\n"
+    "VALID ACTIONS:\n"
+    "  reassign_sector   — move drone to different grid sector (params: sector_idx int 0-3)\n"
+    "  change_altitude   — adjust AGL altitude (params: altitude_m float)\n"
+    "  change_speed      — adjust speed (params: speed_ms float)\n"
+    "  orbit_target      — loiter around target (params: target_name, lat, lon,\n"
+    "                      orbit_radius_m, orbit_speed_ms, orbit_duration_s)\n"
+    "  rtl_drone         — return drone home (params: {})\n"
+    "  abort_mission     — emergency stop all (params: reason string — required)\n"
+    "  loiter            — hold position (params: {})\n"
+    "  resume_mission    — resume after hold (params: {})\n"
+    "  no_action         — ambiguous or nothing to do (params: raw string)\n\n"
+    'OUTPUT FORMAT — output ONLY valid JSON, no prose, no markdown fences:\n'
+    '{"action":"<action_type>","target_drones":[<int>,...],'
+    '"params":{<key-value pairs>},"confidence":<0.0-1.0>,"reasoning":"<one sentence>"}\n\n'
+    "SAFETY RULES:\n"
+    "- altitude_m must be in [50, 600].\n"
+    "- speed_ms must be in [5, 40].\n"
+    "- abort_mission requires a non-empty reason.\n"
+    "- If confidence < 0.5 emit no_action instead.\n"
+)
 
 
 class MissionAI:
-    """Claude Haiku 4.5 operator command interpreter for MBC-3 swarm."""
+    """Ollama-backed operator command interpreter for MBC-3 swarm."""
 
-    def __init__(self, api_key: Optional[str] = None):
-        self._client = None
-        if _ANTHROPIC_AVAILABLE:
-            key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-            if key:
-                self._client = anthropic.Anthropic(api_key=key)
+    def __init__(self):
+        self._available = _check_ollama()
+        if self._available:
+            print(f"[AI] Ollama OK — model={MODEL}", flush=True)
+        else:
+            print(f"[AI] Ollama not reachable at {OLLAMA_URL} — rule fallback active", flush=True)
 
     @property
     def llm_available(self) -> bool:
-        return self._client is not None
+        return self._available
 
     def parse_command(
         self,
@@ -125,39 +114,21 @@ class MissionAI:
     ) -> dict:
         """
         Parse operator natural language → structured mission delta.
-        Falls back to rule-based parser if LLM unavailable or errors.
+        Falls back to rule-based parser if Ollama unavailable or errors.
         """
         ctx = _build_context(swarm_state, failed_drones, prior_reassignments)
 
-        if self._client:
+        if self._available:
             try:
-                result = self._llm_parse(command, ctx)
+                result = _ollama_parse(command, ctx)
                 result["source"] = "llm"
                 return result
             except Exception as exc:
-                print(f"[AI] LLM error ({exc}) — rule fallback", flush=True)
+                print(f"[AI] Ollama error ({exc}) — rule fallback", flush=True)
 
         result = _rule_parse(command, swarm_state or {})
         result["source"] = "rules"
         return result
-
-    def _llm_parse(self, command: str, context: str) -> dict:
-        user_msg = f"CURRENT SWARM STATE:\n{context}\n\nOPERATOR COMMAND:\n{command}"
-
-        msg = self._client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_msg}],
-            timeout=API_TIMEOUT_S,
-        )
-
-        text = msg.content[0].text.strip()
-        # Strip markdown fences if model wraps output
-        if text.startswith("```"):
-            parts = text.split("```")
-            text = parts[1][4:] if parts[1].startswith("json") else parts[1]
-        return json.loads(text)
 
     def validate(self, delta: dict, swarm_state: Optional[dict] = None) -> tuple[bool, str]:
         """
@@ -200,6 +171,51 @@ class MissionAI:
             return False, f"confidence {conf:.2f} below threshold 0.50"
 
         return True, ""
+
+
+# ── Ollama helpers ─────────────────────────────────────────────────────────────
+
+def _check_ollama() -> bool:
+    try:
+        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=2.0)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def _ollama_parse(command: str, context: str) -> dict:
+    user_msg = f"CURRENT SWARM STATE:\n{context}\n\nOPERATOR COMMAND:\n{command}"
+
+    payload = {
+        "model":  MODEL,
+        "stream": False,
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user",   "content": user_msg},
+        ],
+        "options": {"temperature": 0.1},   # low temp for deterministic JSON
+    }
+
+    r = requests.post(
+        f"{OLLAMA_URL}/api/chat",
+        json=payload,
+        timeout=API_TIMEOUT_S,
+    )
+    r.raise_for_status()
+
+    text = r.json()["message"]["content"].strip()
+
+    # Strip markdown fences if model wraps output
+    if text.startswith("```"):
+        parts = text.split("```")
+        text = parts[1][4:].strip() if parts[1].startswith("json") else parts[1].strip()
+
+    # Extract first JSON object if model adds prose before/after
+    m = re.search(r'\{.*\}', text, re.DOTALL)
+    if m:
+        text = m.group(0)
+
+    return json.loads(text)
 
 
 # ── Context builder ────────────────────────────────────────────────────────────
@@ -278,7 +294,6 @@ def _rule_parse(command: str, swarm_state: dict) -> dict:
             }
 
     for tgt in SECONDARY_TARGETS:
-        # Match "ALPHA" from "ALPHA-2 Industrial Compound"
         short = tgt["name"].split("-")[0].lower()
         full  = tgt["name"].lower()
         if short in cmd or full in cmd or tgt["name"].split()[0].lower() in cmd:
@@ -329,7 +344,6 @@ def _extract_drones(text: str) -> list:
 
 
 def _extract_number(text: str, lo: float = 0.0, hi: float = 1e9) -> Optional[float]:
-    """Return first number in text within [lo, hi], skipping out-of-range values."""
     for m in re.finditer(r'\b(\d+(?:\.\d+)?)\b', text):
         v = float(m.group(1))
         if lo <= v <= hi:
@@ -341,13 +355,11 @@ def _extract_number(text: str, lo: float = 0.0, hi: float = 1e9) -> Optional[flo
 
 if __name__ == "__main__":
     ai = MissionAI()
-    print(f"[AI] model={MODEL}  llm_available={ai.llm_available}", flush=True)
 
     mock_state = {
         i: {"alt": 100 + i * 10, "phase": "SURVEY", "armed": True}
         for i in range(5)
     }
-    mock_failed = [1]
 
     tests = [
         "Return DRONE-2 to base immediately",
@@ -363,7 +375,7 @@ if __name__ == "__main__":
     print(f"\n{'CMD':<45} {'SRC':<6} {'ACTION':<20} {'OK'}", flush=True)
     print("-" * 90, flush=True)
     for cmd in tests:
-        delta = ai.parse_command(cmd, swarm_state=mock_state, failed_drones=mock_failed)
+        delta = ai.parse_command(cmd, swarm_state=mock_state)
         ok, reason = ai.validate(delta, mock_state)
         src    = delta.get("source", "?")
         status = "OK" if ok else f"FAIL:{reason[:30]}"
