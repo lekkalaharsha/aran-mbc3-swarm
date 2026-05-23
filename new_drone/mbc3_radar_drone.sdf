@@ -5,11 +5,11 @@
         <pose>0.0001455361101692728 -0.00044782347878249648 0.1120409613729428 0 0 0</pose>
         <mass>3.8341000000000012</mass>
         <inertia>
-          <ixx>0.065612062329103299</ixx>
-          <ixy>-1.6589885501164771e-05</ixy>
-          <ixz>-4.0273143553898327e-05</ixz>
-          <iyy>0.068092590157866895</iyy>
-          <iyz>0.0001208451693226548</iyz>
+          <ixx>0.066852326243485097</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.066852326243485097</iyy>
+          <iyz>0</iyz>
           <izz>0.088652869552937469</izz>
         </inertia>
       </inertial>
@@ -254,16 +254,16 @@
         </surface>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_post_L_collision_20'>
-        <pose>0 0.14499999999999999 -0.0625 0 0 0</pose>
+        <pose>0 0.14499999999999999 -0.090 0 0 0</pose>
         <geometry>
           <cylinder>
-            <length>0.089999999999999997</length>
+            <length>0.145</length>
             <radius>0.0080000000000000002</radius>
           </cylinder>
         </geometry>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_skid_L_collision_21'>
-        <pose>0 0.14499999999999999 -0.11749999999999999 0 1.5707963267948966 0</pose>
+        <pose>0 0.14499999999999999 -0.172 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.22</length>
@@ -288,16 +288,16 @@
         </surface>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_post_R_collision_22'>
-        <pose>0 -0.14499999999999999 -0.0625 0 0 0</pose>
+        <pose>0 -0.14499999999999999 -0.090 0 0 0</pose>
         <geometry>
           <cylinder>
-            <length>0.089999999999999997</length>
+            <length>0.145</length>
             <radius>0.0080000000000000002</radius>
           </cylinder>
         </geometry>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_skid_R_collision_23'>
-        <pose>0 -0.14499999999999999 -0.11749999999999999 0 1.5707963267948966 0</pose>
+        <pose>0 -0.14499999999999999 -0.172 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.22</length>
@@ -322,37 +322,37 @@
         </surface>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_support_front_L_collision_24'>
-        <pose>0.067500000000000004 0.14499999999999999 -0.065000000000000058 0 -0.52479577165010749 0</pose>
+        <pose>0.067500000000000004 0.14499999999999999 -0.095 0 -0.34220 0</pose>
         <geometry>
           <cylinder>
-            <length>0.10977249200050079</length>
+            <length>0.1635</length>
             <radius>0.0050000000000000001</radius>
           </cylinder>
         </geometry>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_support_front_R_collision_25'>
-        <pose>0.067500000000000004 -0.14499999999999999 -0.065000000000000058 0 -0.52479577165010749 0</pose>
+        <pose>0.067500000000000004 -0.14499999999999999 -0.095 0 -0.34220 0</pose>
         <geometry>
           <cylinder>
-            <length>0.10977249200050079</length>
+            <length>0.1635</length>
             <radius>0.0050000000000000001</radius>
           </cylinder>
         </geometry>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_support_rear_L_collision_26'>
-        <pose>-0.067500000000000004 0.14499999999999999 -0.065000000000000058 0 0.52479577165010749 0</pose>
+        <pose>-0.067500000000000004 0.14499999999999999 -0.095 0 0.34220 0</pose>
         <geometry>
           <cylinder>
-            <length>0.10977249200050079</length>
+            <length>0.1635</length>
             <radius>0.0050000000000000001</radius>
           </cylinder>
         </geometry>
       </collision>
       <collision name='base_link_fixed_joint_lump__lg_support_rear_R_collision_27'>
-        <pose>-0.067500000000000004 -0.14499999999999999 -0.065000000000000058 0 0.52479577165010749 0</pose>
+        <pose>-0.067500000000000004 -0.14499999999999999 -0.095 0 0.34220 0</pose>
         <geometry>
           <cylinder>
-            <length>0.10977249200050079</length>
+            <length>0.1635</length>
             <radius>0.0050000000000000001</radius>
           </cylinder>
         </geometry>
@@ -573,8 +573,8 @@
         <pose>0 0 0.1865 0 0 0</pose>
         <geometry>
           <cylinder>
-            <length>0.02</length>
-            <radius>0.125</radius>
+            <length>0.05</length>
+            <radius>0.138</radius>
           </cylinder>
         </geometry>
         <material>
@@ -8888,9 +8888,9 @@
       <linkName>motor_bell_0</linkName>
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
+      <timeConstantDown>0.0125</timeConstantDown>
       <maxRotVelocity>838.0</maxRotVelocity>
-      <motorConstant>1.740e-05</motorConstant>
+      <motorConstant>2.800e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>0</motorNumber>
@@ -8905,9 +8905,9 @@
       <linkName>motor_bell_1</linkName>
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
+      <timeConstantDown>0.0125</timeConstantDown>
       <maxRotVelocity>838.0</maxRotVelocity>
-      <motorConstant>1.740e-05</motorConstant>
+      <motorConstant>2.800e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>1</motorNumber>
@@ -8922,9 +8922,9 @@
       <linkName>motor_bell_2</linkName>
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
+      <timeConstantDown>0.0125</timeConstantDown>
       <maxRotVelocity>838.0</maxRotVelocity>
-      <motorConstant>1.740e-05</motorConstant>
+      <motorConstant>2.800e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>2</motorNumber>
@@ -8939,9 +8939,9 @@
       <linkName>motor_bell_3</linkName>
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
+      <timeConstantDown>0.0125</timeConstantDown>
       <maxRotVelocity>838.0</maxRotVelocity>
-      <motorConstant>1.740e-05</motorConstant>
+      <motorConstant>2.800e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>3</motorNumber>
@@ -8956,9 +8956,9 @@
       <linkName>motor_bell_4</linkName>
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
+      <timeConstantDown>0.0125</timeConstantDown>
       <maxRotVelocity>838.0</maxRotVelocity>
-      <motorConstant>1.740e-05</motorConstant>
+      <motorConstant>2.800e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>4</motorNumber>
@@ -8973,9 +8973,9 @@
       <linkName>motor_bell_5</linkName>
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
-      <timeConstantDown>0.025</timeConstantDown>
+      <timeConstantDown>0.0125</timeConstantDown>
       <maxRotVelocity>838.0</maxRotVelocity>
-      <motorConstant>1.740e-05</motorConstant>
+      <motorConstant>2.800e-05</motorConstant>
       <momentConstant>0.01408</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>5</motorNumber>
@@ -8984,6 +8984,18 @@
       <motorSpeedPubTopic>motor_speed/5</motorSpeedPubTopic>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
       <motorType>velocity</motorType>
+    </plugin>
+    <plugin name='gz::sim::systems::LinearBatteryPlugin' filename='gz-sim-linearbattery-plugin-system'>
+      <battery_name>lipo_6s_5000mah</battery_name>
+      <voltage>22.2</voltage>
+      <open_circuit_voltage_constant_coef>22.2</open_circuit_voltage_constant_coef>
+      <open_circuit_voltage_linear_coef>-5.0</open_circuit_voltage_linear_coef>
+      <initial_charge>5.0</initial_charge>
+      <capacity>5.0</capacity>
+      <resistance>0.06</resistance>
+      <smooth_current_tau>2.0</smooth_current_tau>
+      <power_load>223.0</power_load>
+      <start_on_motion>true</start_on_motion>
     </plugin>
     <frame name='arm_to_esc_0' attached_to='arm_0'>
       <pose>0.19800000000000001 0 -0.014999999999999999 0 0 0</pose>

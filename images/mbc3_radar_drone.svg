@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520" font-family="monospace" font-size="11">
+<rect width="900" height="520" fill="#f4f6f8"/>
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+    <path d="M0,0 L0,6 L8,3 z" fill="white"/>
+  </marker>
+  <marker id="tick" markerWidth="4" markerHeight="8" refX="2" refY="4" orient="auto">
+    <line x1="2" y1="0" x2="2" y2="8" stroke="#888" stroke-width="1"/>
+  </marker>
+</defs>
+<text x="230" y="28" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a2a">TOP VIEW (XY plane)</text>
+<text x="660" y="28" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a2a">SIDE VIEW (XZ plane)</text>
+<text x="450" y="512" text-anchor="middle" font-size="10" fill="#888">mbc3_radar_drone  |  mass=3.83 kg  |  motor-span=720 mm  |  6-panel FMCW radar</text>
+<line x1="440" y1="40" x2="440" y2="500" stroke="#dde2ea" stroke-width="1"/>
+<path d="M230,265 L358.6047724619891,339.25 A148.5,148.5 0 0,0 358.6047724619891,190.75 Z" fill="rgba(231,76,60,0.08)" stroke="rgba(231,76,60,0.55)" stroke-width="0.8" stroke-dasharray="4,3"/>
+<path d="M230,265 L358.6047724619891,190.75 A148.5,148.5 0 0,0 230.0,116.5 Z" fill="rgba(231,76,60,0.08)" stroke="rgba(231,76,60,0.55)" stroke-width="0.8" stroke-dasharray="4,3"/>
+<path d="M230,265 L230.0,116.5 A148.5,148.5 0 0,0 101.39522753801089,190.74999999999994 Z" fill="rgba(231,76,60,0.08)" stroke="rgba(231,76,60,0.55)" stroke-width="0.8" stroke-dasharray="4,3"/>
+<path d="M230,265 L101.39522753801086,190.75 A148.5,148.5 0 0,0 101.39522753801083,339.24999999999994 Z" fill="rgba(231,76,60,0.08)" stroke="rgba(231,76,60,0.55)" stroke-width="0.8" stroke-dasharray="4,3"/>
+<path d="M230,265 L101.39522753801083,339.24999999999994 A148.5,148.5 0 0,0 229.99999999999997,413.5 Z" fill="rgba(231,76,60,0.08)" stroke="rgba(231,76,60,0.55)" stroke-width="0.8" stroke-dasharray="4,3"/>
+<path d="M230,265 L229.99999999999997,413.5 A148.5,148.5 0 0,0 358.60477246198917,339.24999999999994 Z" fill="rgba(231,76,60,0.08)" stroke="rgba(231,76,60,0.55)" stroke-width="0.8" stroke-dasharray="4,3"/>
+<line x1="193.7" y1="217.15" x2="266.3" y2="217.15" stroke="#555566" stroke-width="9.2" stroke-linecap="round"/>
+<line x1="193.7" y1="312.85" x2="266.3" y2="312.85" stroke="#555566" stroke-width="9.2" stroke-linecap="round"/>
+<line x1="230" y1="265" x2="348.8" y2="265.0" stroke="#3a3a4a" stroke-width="5.3"/>
+<circle cx="348.8" cy="265.0" r="41.9" fill="#aaccee" stroke="#3a3a4a" stroke-width="1" opacity="0.7"/>
+<circle cx="348.8" cy="265.0" r="5.4" fill="#1a1a2a"/>
+<line x1="230" y1="265" x2="289.4" y2="162.1161820304087" stroke="#3a3a4a" stroke-width="5.3"/>
+<circle cx="289.4" cy="162.1161820304087" r="41.9" fill="#aaccee" stroke="#3a3a4a" stroke-width="1" opacity="0.7"/>
+<circle cx="289.4" cy="162.1161820304087" r="5.4" fill="#1a1a2a"/>
+<line x1="230" y1="265" x2="170.60000000000002" y2="162.1161820304087" stroke="#3a3a4a" stroke-width="5.3"/>
+<circle cx="170.60000000000002" cy="162.1161820304087" r="41.9" fill="#aaccee" stroke="#3a3a4a" stroke-width="1" opacity="0.7"/>
+<circle cx="170.60000000000002" cy="162.1161820304087" r="5.4" fill="#1a1a2a"/>
+<line x1="230" y1="265" x2="111.2" y2="265.0" stroke="#3a3a4a" stroke-width="5.3"/>
+<circle cx="111.2" cy="265.0" r="41.9" fill="#aaccee" stroke="#3a3a4a" stroke-width="1" opacity="0.7"/>
+<circle cx="111.2" cy="265.0" r="5.4" fill="#1a1a2a"/>
+<line x1="230" y1="265" x2="170.59999999999994" y2="367.8838179695913" stroke="#3a3a4a" stroke-width="5.3"/>
+<circle cx="170.59999999999994" cy="367.8838179695913" r="41.9" fill="#aaccee" stroke="#3a3a4a" stroke-width="1" opacity="0.7"/>
+<circle cx="170.59999999999994" cy="367.8838179695913" r="5.4" fill="#1a1a2a"/>
+<line x1="230" y1="265" x2="289.4" y2="367.8838179695913" stroke="#3a3a4a" stroke-width="5.3"/>
+<circle cx="289.4" cy="367.8838179695913" r="41.9" fill="#aaccee" stroke="#3a3a4a" stroke-width="1" opacity="0.7"/>
+<circle cx="289.4" cy="367.8838179695913" r="5.4" fill="#1a1a2a"/>
+<polygon points="274.4,286.8 304.7,286.8 304.7,243.2 274.4,243.2" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<polygon points="271.1,237.5 286.2,211.2 248.5,189.4 233.3,215.7" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<polygon points="226.7,215.7 211.5,189.4 173.8,211.2 188.9,237.5" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<polygon points="185.6,243.2 155.3,243.2 155.3,286.8 185.6,286.8" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<polygon points="188.9,292.5 173.8,318.8 211.5,340.6 226.7,314.3" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<polygon points="233.3,314.3 248.5,340.6 286.2,318.8 271.1,292.5" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<circle cx="230" cy="265" r="45.5" fill="#2d5fa0" stroke="#1a3a70" stroke-width="1.5"/>
+<rect x="191.1" y="226.1" width="77.9" height="77.9" fill="none" stroke="#c0392b" stroke-width="1.2" stroke-dasharray="3,2"/>
+<rect x="186.3" y="252.6" width="87.5" height="24.8" fill="#27ae60" opacity="0.45" stroke="#1a7040" stroke-width="0.8"/>
+<circle cx="230" cy="265" r="3" fill="white"/>
+<line x1="230" y1="265" x2="282.8" y2="265" stroke="white" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="111.2" y1="403.6" x2="348.8" y2="403.6" stroke="#888" stroke-width="0.8" marker-start="url(#tick)" marker-end="url(#tick)"/>
+<text x="230" y="399.6" text-anchor="middle" fill="#888" font-size="10">720 mm motor-to-motor</text>
+<line x1="521.4" y1="370" x2="798.6" y2="370" stroke="#dde2ea" stroke-width="1" stroke-dasharray="4,4"/>
+<text x="785.4" y="382" fill="#888" font-size="9" text-anchor="end">z=0 (ground)</text>
+<line x1="623.7" y1="408.775" x2="696.3" y2="408.775" stroke="#555566" stroke-width="9.2" stroke-linecap="round" opacity="0.8"/>
+<line x1="623.7" y1="408.775" x2="696.3" y2="408.775" stroke="#555566" stroke-width="9.2" stroke-linecap="round" opacity="0.8"/>
+<line x1="666.6" y1="375.94" x2="666.6" y2="408.775" stroke="#555566" stroke-width="3" stroke-linecap="round"/>
+<line x1="653.4" y1="375.94" x2="653.4" y2="408.775" stroke="#555566" stroke-width="3" stroke-linecap="round"/>
+<rect x="621.1" y="350.2" width="77.9" height="15.2" fill="#c0392b" opacity="0.7" stroke="#9b1a11" stroke-width="1"/>
+<text x="660" y="346.2" text-anchor="middle" fill="#c0392b" font-size="9">RADAR</text>
+<rect x="704.4" y="335.8" width="30.4" height="43.6" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<text x="719.6" y="332.845" text-anchor="middle" fill="#e74c3c" font-size="9">A</text>
+<rect x="585.3" y="335.8" width="30.4" height="43.6" fill="#e74c3c" stroke="#9b1a11" stroke-width="0.8"/>
+<text x="600.4" y="332.845" text-anchor="middle" fill="#e74c3c" font-size="9">D</text>
+<rect x="623.7" y="334.2" width="72.6" height="1.0" fill="#7f8c8d" stroke="#555" stroke-width="0.8"/>
+<rect x="616.3" y="314.4" width="87.5" height="19.5" fill="#27ae60" opacity="0.75" stroke="#1a7040" stroke-width="1"/>
+<text x="660" y="324.1" text-anchor="middle" fill="white" font-size="8">BAT</text>
+<rect x="614.5" y="300.2" width="91.1" height="16.5" fill="#2d5fa0" stroke="#1a3a70" stroke-width="1.5" rx="4"/>
+<line x1="541.2" y1="308.455" x2="778.8" y2="308.455" stroke="#3a3a4a" stroke-width="5.3"/>
+<circle cx="778.8" cy="303.01" r="5.4" fill="#1a1a2a"/>
+<ellipse cx="778.8" cy="299.05" rx="41.9" ry="3" fill="#aaccee" opacity="0.6" stroke="#3a3a4a" stroke-width="0.8"/>
+<circle cx="541.2" cy="303.01" r="5.4" fill="#1a1a2a"/>
+<ellipse cx="541.2" cy="299.05" rx="41.9" ry="3" fill="#aaccee" opacity="0.6" stroke="#3a3a4a" stroke-width="0.8"/>
+<line x1="795.3" y1="408.775" x2="795.3" y2="370" stroke="#888" stroke-width="0.7" marker-start="url(#tick)" marker-end="url(#tick)"/>
+<text x="799.3" y="393.3875" fill="#888" font-size="9">117 mm</text>
+<line x1="795.3" y1="370" x2="795.3" y2="300.205" stroke="#888" stroke-width="0.7" marker-start="url(#tick)" marker-end="url(#tick)"/>
+<text x="799.3" y="339.10249999999996" fill="#888" font-size="9">211 mm</text>
+<line x1="468.6" y1="408.775" x2="468.6" y2="300.205" stroke="#888" stroke-width="0.7" marker-start="url(#tick)" marker-end="url(#tick)"/>
+<text x="472.6" y="358.49" fill="#888" font-size="9">329 mm total</text>
+</svg>
