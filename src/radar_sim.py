@@ -135,11 +135,12 @@ def _refresh_leader() -> None:
         pass   # keep using cached value
 
 
-def compute_detections(poses: dict) -> list:
-    if _leader_model not in poses:
+def compute_detections_for_drone(model: str, poses: dict) -> list:
+    """Compute radar detections from a specific drone model's perspective."""
+    if model not in poses:
         return []
 
-    dx, dy, dz, qx, qy, qz, qw = poses[_leader_model]
+    dx, dy, dz, qx, qy, qz, qw = poses[model]
     detections = []
 
     for name, (tx, ty, tz, *_) in poses.items():
@@ -153,7 +154,7 @@ def compute_detections(poses: dict) -> list:
             continue
 
         bx, by, bz = _quat_inv_rotate(qx, qy, qz, qw, wx, wy, wz)
-        az  = math.atan2(by, bx)                            # CCW from forward
+        az  = math.atan2(by, bx)
         el  = math.degrees(math.asin(bz / rng)) if rng > 0 else 0.0
 
         if el > EL_MAX_DEG or el < EL_MIN_DEG:
@@ -161,7 +162,6 @@ def compute_detections(poses: dict) -> list:
         if not _in_fov(az):
             continue
 
-        # Tiny deterministic noise per target
         _m = re.search(r'\d+$', name)
         seed = (int(_m.group()) if _m else 0) * 7 + int(time.time() * 10) % 100
         rng += (seed % 21 - 10) * NOISE_SIGMA_M * 0.1
@@ -180,6 +180,25 @@ def compute_detections(poses: dict) -> list:
         })
 
     return detections
+
+
+def compute_detections(poses: dict) -> list:
+    """Legacy single-drone interface — uses current leader model."""
+    return compute_detections_for_drone(_leader_model, poses)
+
+
+def compute_all_drones(poses: dict, num_drones: int = 5) -> list:
+    """
+    G4 multi-drone fusion: compute detections from all drone perspectives,
+    merge by track ID (first detector wins for position, keeps union of all IDs).
+    """
+    seen: dict[str, dict] = {}
+    for i in range(num_drones):
+        model = f"mbc3_radar_drone_{i}"
+        for det in compute_detections_for_drone(model, poses):
+            if det['id'] not in seen:
+                seen[det['id']] = det
+    return list(seen.values())
 
 
 # ── ASP push ──────────────────────────────────────────────────────────────────
@@ -226,16 +245,18 @@ def main() -> None:
 
         _refresh_leader()
         poses      = get_poses()
-        detections = compute_detections(poses) if poses else []
+        # G4: fuse detections from all 5 drone radars (not just leader)
+        detections = compute_all_drones(poses) if poses else []
         push_asp(detections, scan)
         scan += 1
 
         if scan % 10 == 0:
-            n_tgts = sum(1 for k in poses if k.startswith('radar_target_'))
+            n_tgts  = sum(1 for k in poses if k.startswith('radar_target_'))
+            n_drones = sum(1 for k in poses if k.startswith('mbc3_radar_drone_'))
             if _leader_model in poses:
                 dx, dy, dz = poses[_leader_model][:3]
                 print(f"[SIM] #{scan}: {len(detections)}/{n_tgts} detected  "
-                      f"leader={_leader_model}  pos=({dx:.0f},{dy:.0f},{dz:.0f})m",
+                      f"{n_drones}/5 radars active  leader={_leader_model}",
                       flush=True)
             else:
                 print(f"[SIM] #{scan}: leader {_leader_model} not in Gazebo — "

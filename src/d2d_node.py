@@ -81,8 +81,9 @@ class D2DNode:
         self.state   = state       # shared ref to drone_states[idx] — read in _hb()
         self._gcs    = gcs_url
 
-        self.peer_last_hb: dict[int, float] = {}
-        self.peer_state:   dict[int, dict]  = {}   # latest HB fields per peer
+        self.peer_last_hb:     dict[int, float] = {}
+        self.peer_state:       dict[int, dict]  = {}   # latest HB fields per peer
+        self.peer_radar_tracks: dict[int, list] = {}   # G4: latest RADAR tracks per peer
 
         self.leader_idx:  Optional[int] = None
         self.election_id: int           = 0
@@ -104,6 +105,17 @@ class D2DNode:
     def broadcast_radar(self, tracks: list, scan: int) -> None:
         """Leader calls this to share radar tracks with all peers over D2D."""
         self._send({"type": "RADAR", "tracks": tracks, "scan": scan})
+
+    def get_fused_tracks(self, own_tracks: list) -> list:
+        """G4: Merge own radar tracks with all received peer tracks (dedup by id)."""
+        seen: dict = {}
+        for t in own_tracks:
+            seen[t["id"]] = t
+        for peer_tracks in self.peer_radar_tracks.values():
+            for t in peer_tracks:
+                if t.get("id") and t["id"] not in seen:
+                    seen[t["id"]] = t
+        return list(seen.values())
 
     # ── Socket factories ──────────────────────────────────────────────
 
@@ -191,6 +203,10 @@ class D2DNode:
             cand = msg.get("cand", -1)
             eid  = msg.get("eid",  0)
             self._on_elect_msg(cand, eid)
+
+        elif mtype == "RADAR":
+            # G4: store peer radar tracks; leader will fuse these
+            self.peer_radar_tracks[src] = msg.get("tracks", [])
 
     # ── Leader management ─────────────────────────────────────────────
 
