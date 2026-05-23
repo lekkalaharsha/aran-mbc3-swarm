@@ -14,10 +14,12 @@ the multicast group. No code changes needed.
 
 Message types
 ─────────────
-  HB    @ 2 Hz   — position, armed, phase (every drone)
-  LEAD  @ 0.2 Hz — leader keepalive (leader only)
-  ELECT @ event  — bully nomination (any drone detecting leader silence)
-  RADAR @ 5 Hz   — radar track share (leader only, optional)
+  HB       @ 2 Hz   — position, armed, phase (every drone)
+  LEAD     @ 0.2 Hz — leader keepalive (leader only)
+  ELECT    @ event  — bully nomination (any drone detecting leader silence)
+  RADAR    @ 5 Hz   — radar track share (leader only, optional)
+  REASSIGN @ event  — leader reassigns waypoints to a peer after drone loss
+  ACK      @ event  — receiver confirms LEAD or REASSIGN receipt (G3)
 
 Integration
 ───────────
@@ -81,9 +83,12 @@ class D2DNode:
         self.state   = state       # shared ref to drone_states[idx] — read in _hb()
         self._gcs    = gcs_url
 
-        self.peer_last_hb:     dict[int, float] = {}
-        self.peer_state:       dict[int, dict]  = {}   # latest HB fields per peer
-        self.peer_radar_tracks: dict[int, list] = {}   # G4: latest RADAR tracks per peer
+        self.peer_last_hb:      dict[int, float] = {}
+        self.peer_state:        dict[int, dict]  = {}   # latest HB fields per peer
+        self.peer_radar_tracks: dict[int, list]  = {}   # G4: latest RADAR tracks per peer
+        # G3: ack tracking — msg_id → {target_idx, ack_type, sent_at, acked: bool}
+        self.pending_acks:      dict[int, dict]  = {}
+        self._msg_seq:          int              = 0    # monotonic message ID
 
         self.leader_idx:  Optional[int] = None
         self.election_id: int           = 0
@@ -116,6 +121,27 @@ class D2DNode:
                 if t.get("id") and t["id"] not in seen:
                     seen[t["id"]] = t
         return list(seen.values())
+
+    def send_reassign(self, target_idx: int, waypoints: list) -> int:
+        """G3: Leader sends REASSIGN to target drone. Returns msg_id for ACK tracking."""
+        self._msg_seq += 1
+        mid = self._msg_seq
+        self._send({
+            "type": "REASSIGN",
+            "to":   target_idx,
+            "wps":  waypoints,
+            "mid":  mid,
+        })
+        self.pending_acks[mid] = {
+            "target": target_idx,
+            "ack_type": "REASSIGN",
+            "sent_at":  time.time(),
+            "acked":    False,
+        }
+        return mid
+
+    def _send_ack(self, ack_type: str, mid: int, to_idx: int) -> None:
+        self._send({"type": "ACK", "ack_type": ack_type, "mid": mid, "to": to_idx})
 
     # ── Socket factories ──────────────────────────────────────────────
 
@@ -198,6 +224,8 @@ class D2DNode:
             eid = msg.get("eid", 0)
             if ldr is not None and eid >= self.election_id:
                 self._set_leader(ldr, eid)
+                # G3: ACK LEAD back to the leader
+                self._send_ack("LEAD", eid, src)
 
         elif mtype == "ELECT":
             cand = msg.get("cand", -1)
@@ -207,6 +235,22 @@ class D2DNode:
         elif mtype == "RADAR":
             # G4: store peer radar tracks; leader will fuse these
             self.peer_radar_tracks[src] = msg.get("tracks", [])
+
+        elif mtype == "REASSIGN":
+            # G3: ACK back to sender if this message targets us
+            if msg.get("to") == self.idx:
+                self._send_ack("REASSIGN", msg.get("mid", 0), src)
+
+        elif mtype == "ACK":
+            # G3: mark pending_acks entry resolved
+            mid = msg.get("mid", -1)
+            if mid in self.pending_acks and not self.pending_acks[mid]["acked"]:
+                self.pending_acks[mid]["acked"] = True
+                print(
+                    f"[D2D-{self.idx}] ACK received for {msg.get('ack_type')} "
+                    f"msg#{mid} from DRONE-{src}",
+                    flush=True,
+                )
 
     # ── Leader management ─────────────────────────────────────────────
 
