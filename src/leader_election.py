@@ -168,10 +168,13 @@ def main() -> None:
                 if current_leader is None:
                     print(f"[ELECT] Initial leader: {_drone_id(winner)}", flush=True)
                 else:
+                    if winner > current_leader:
+                        reason = f"{_drone_id(current_leader)} outranked"
+                    else:
+                        reason = f"{_drone_id(current_leader)} silent >{DEATH_TIMEOUT}s"
                     print(
                         f"[ELECT] *** ELECTION #{election_count} ***  "
-                        f"{_drone_id(current_leader)} DEAD (>{DEATH_TIMEOUT}s) → "
-                        f"{_drone_id(winner)} is new leader",
+                        f"{reason} → {_drone_id(winner)} is new leader",
                         flush=True,
                     )
 
