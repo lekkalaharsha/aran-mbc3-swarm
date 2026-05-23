@@ -38,12 +38,14 @@ fi
 
 # ── Spawn positions: 10m grid ──────────────────────────────────────
 # x,y,z,roll,pitch,yaw
+# z=0.195: skid bottom sits at z=-0.186 from base_link (S3 LG fix: 145→200mm clearance)
+# → spawn z must be ≥0.186. 0.195 gives 9mm clearance above ground.
 POSES=(
-    "0,0,0.135,0,0,0"
-    "10,0,0.135,0,0,0"
-    "20,0,0.135,0,0,0"
-    "0,10,0.135,0,0,0"
-    "0,20,0.135,0,0,0"
+    "0,0,0.195,0,0,0"
+    "10,0,0.195,0,0,0"
+    "20,0,0.195,0,0,0"
+    "0,10,0.195,0,0,0"
+    "0,20,0.195,0,0,0"
 )
 
 PIDS=()
@@ -78,6 +80,9 @@ pkill -9 -f "swarm_mon"    2>/dev/null || true
 pkill -9 -f "telemetry_web" 2>/dev/null || true
 pkill -9 -f "mavsdk_server" 2>/dev/null || true  # stale server holds UDP 14540-14544
 rm -f /tmp/px4_swarm_pid_*                        # stale PID files confuse leader_election
+# Remove stale PX4 working dirs so airframe param defaults take effect on each boot
+# (PX4 SITL stores params in /tmp/px4_swarm_N/rootfs/eeprom; stale files override airframe)
+rm -rf /tmp/px4_swarm_1 /tmp/px4_swarm_2 /tmp/px4_swarm_3 /tmp/px4_swarm_4
 sleep 2
 ok "Clean"
 
@@ -88,7 +93,7 @@ PX4_LOG_0="${SESSION_DIR}/px4_0.log"
 
 (
     cd "${PX4_DIR}"
-    make px4_sitl gz_${MODEL}
+    PX4_GZ_MODEL_POSE="${POSES[0]}" make px4_sitl gz_${MODEL}
 ) >> "${PX4_LOG_0}" 2>&1 &
 PIDS+=($!)
 echo "${PIDS[0]}" > /tmp/px4_swarm_pid_0
