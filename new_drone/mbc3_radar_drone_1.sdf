@@ -15,22 +15,48 @@
           <izz>0.088652869552937469</izz>
         </inertia>
       </inertial>
-
       <!-- Body hub (unchanged) -->
       <collision name="base_link_fixed_joint_lump__body_hub_collision">
         <pose>0 0 0.1865 0 0 0</pose>
-        <geometry><cylinder><length>0.05</length><radius>0.138</radius></cylinder></geometry>
-        <surface><contact><ode/></contact><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.138</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.8</mu>
+              <mu2>0.8</mu2>
+            </ode>
+          </friction>
+        </surface>
       </collision>
 
-      <!-- Arms collisions (unchanged, radius 0.008) -->
+      <!-- Arms collisions (radius fixed to 12.5mm per spec) -->
       <collision name="base_link_fixed_joint_lump__arm_0_collision_1">
         <pose>0.17999999999999999 0 0.1865 0 1.5707963267948966 0</pose>
-        <geometry><cylinder><length>0.35999999999999999</length><radius>0.008</radius></cylinder></geometry>
-        <surface><contact><ode/></contact><friction><ode/></friction></surface>
+        <geometry>
+          <cylinder>
+            <length>0.35999999999999999</length>
+            <radius>0.0125</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
       </collision>
 
-      <collision name='base_link_fixed_joint_lump__esc_0_collision_2'>
+      <collision name="base_link_fixed_joint_lump__esc_0_collision_2">
         <pose>0.19800000000000001 0 0.17150000000000001 0 0 0</pose>
         <geometry>
           <box>
@@ -38,21 +64,22 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__motor_stator_0_collision_3'>
+      <collision name="base_link_fixed_joint_lump__motor_stator_0_collision_3">
         <pose>0.35999999999999999 0 0.20749999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
             <length>0.021999999999999999</length>
-            <radius>0.016500000000000001</radius>
+            <!-- FIX3: stator collision radius reduced from 0.0165 to 0.012 to avoid overlap with motor bell -->
+            <radius>0.012</radius>
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__arm_1_collision_4'>
+      <collision name="base_link_fixed_joint_lump__arm_1_collision_4">
         <pose>0.090000000000000024 0.1558845726811989 0.1865 -1.0471975511965981 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <surface>
@@ -64,7 +91,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__esc_1_collision_5'>
+      <collision name="base_link_fixed_joint_lump__esc_1_collision_5">
         <pose>0.099000000000000032 0.17147302994931879 0.17150000000000001 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
@@ -72,21 +99,21 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__motor_stator_1_collision_6'>
+      <collision name="base_link_fixed_joint_lump__motor_stator_1_collision_6">
         <pose>0.17999999999999999 0.31176914536239791 0.20749999999999999 0 0 1.0471975511965981</pose>
         <geometry>
           <cylinder>
             <length>0.021999999999999999</length>
-            <radius>0.016500000000000001</radius>
+            <radius>0.012</radius>
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__arm_2_collision_7'>
+      <collision name="base_link_fixed_joint_lump__arm_2_collision_7">
         <pose>-0.089999999999999969 0.15588457268119901 0.1865 -2.0943951023931948 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <surface>
@@ -98,7 +125,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__esc_2_collision_8'>
+      <collision name="base_link_fixed_joint_lump__esc_2_collision_8">
         <pose>-0.098999999999999977 0.1714730299493189 0.17150000000000001 0 0 2.0943951023931948</pose>
         <geometry>
           <box>
@@ -106,21 +133,21 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__motor_stator_2_collision_9'>
+      <collision name="base_link_fixed_joint_lump__motor_stator_2_collision_9">
         <pose>-0.17999999999999991 0.31176914536239791 0.20749999999999999 0 0 2.0943951023931948</pose>
         <geometry>
           <cylinder>
             <length>0.021999999999999999</length>
-            <radius>0.016500000000000001</radius>
+            <radius>0.012</radius>
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__arm_3_collision_10'>
+      <collision name="base_link_fixed_joint_lump__arm_3_collision_10">
         <pose>-0.17999999999999999 2.2043642384652361e-17 0.1865 -3.1415926535897931 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <surface>
@@ -132,7 +159,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__esc_3_collision_11'>
+      <collision name="base_link_fixed_joint_lump__esc_3_collision_11">
         <pose>-0.19800000000000001 2.4248006623117601e-17 0.17150000000000001 0 0 3.1415926535897931</pose>
         <geometry>
           <box>
@@ -140,21 +167,21 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__motor_stator_3_collision_12'>
+      <collision name="base_link_fixed_joint_lump__motor_stator_3_collision_12">
         <pose>-0.35999999999999999 4.4087284769304723e-17 0.20749999999999999 0 0 3.1415926535897931</pose>
         <geometry>
           <cylinder>
             <length>0.021999999999999999</length>
-            <radius>0.016500000000000001</radius>
+            <radius>0.012</radius>
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__arm_4_collision_13'>
+      <collision name="base_link_fixed_joint_lump__arm_4_collision_13">
         <pose>-0.090000000000000135 -0.1558845726811989 0.1865 2.0943951023931948 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <surface>
@@ -166,7 +193,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__esc_4_collision_14'>
+      <collision name="base_link_fixed_joint_lump__esc_4_collision_14">
         <pose>-0.099000000000000143 -0.17147302994931879 0.17150000000000001 0 0 -2.0943951023931962</pose>
         <geometry>
           <box>
@@ -174,21 +201,21 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__motor_stator_4_collision_15'>
+      <collision name="base_link_fixed_joint_lump__motor_stator_4_collision_15">
         <pose>-0.1800000000000003 -0.31176914536239791 0.20749999999999999 0 0 -2.0943951023931962</pose>
         <geometry>
           <cylinder>
             <length>0.021999999999999999</length>
-            <radius>0.016500000000000001</radius>
+            <radius>0.012</radius>
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__arm_5_collision_16'>
+      <collision name="base_link_fixed_joint_lump__arm_5_collision_16">
         <pose>0.090000000000000024 -0.1558845726811989 0.1865 1.0471975511965976 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <surface>
@@ -200,7 +227,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__esc_5_collision_17'>
+      <collision name="base_link_fixed_joint_lump__esc_5_collision_17">
         <pose>0.099000000000000032 -0.17147302994931879 0.17150000000000001 0 0 -1.0471975511965981</pose>
         <geometry>
           <box>
@@ -208,58 +235,139 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__motor_stator_5_collision_18'>
+      <collision name="base_link_fixed_joint_lump__motor_stator_5_collision_18">
         <pose>0.17999999999999999 -0.31176914536239791 0.20749999999999999 0 0 -1.0471975511965981</pose>
         <geometry>
           <cylinder>
             <length>0.021999999999999999</length>
-            <radius>0.016500000000000001</radius>
+            <radius>0.012</radius>
           </cylinder>
         </geometry>
       </collision>
       <collision name="base_link_fixed_joint_lump__battery_collision_19">
         <pose>0 0 0.139 0 0 0</pose>
-          <geometry><box><size>0.170 0.065 0.055</size></box></geometry>
-        <surface><contact><ode/></contact><friction><ode/></friction></surface>
+        <geometry>
+          <box>
+            <size>0.170 0.065 0.055</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
       </collision>
 
       <!-- Landing gear – raised by 88mm for 403mm total height -->
       <collision name="base_link_fixed_joint_lump__lg_post_L_collision_20">
         <pose>0 0.14499999999999999 -0.090 0 0 0</pose>
-        <geometry><cylinder><length>0.145</length><radius>0.008</radius></cylinder></geometry>
+        <geometry>
+          <cylinder>
+            <length>0.145</length>
+            <radius>0.008</radius>
+          </cylinder>
+        </geometry>
       </collision>
       <collision name="base_link_fixed_joint_lump__lg_skid_L_collision_21">
         <pose>0 0.14499999999999999 -0.084 0 1.5707963267948966 0</pose>
-        <geometry><cylinder><length>0.22</length><radius>0.014</radius></cylinder></geometry>
-        <surface><contact><ode><kp>1000000</kp><kd>100</kd><max_vel>0.5</max_vel><min_depth>0.001</min_depth></ode></contact><friction><ode><mu>1.8</mu><mu2>1.8</mu2></ode></friction></surface>
+        <geometry>
+          <cylinder>
+            <length>0.22</length>
+            <radius>0.014</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <kp>1000000</kp>
+              <kd>100</kd>
+              <max_vel>0.5</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>1.8</mu>
+              <mu2>1.8</mu2>
+            </ode>
+          </friction>
+        </surface>
       </collision>
       <collision name="base_link_fixed_joint_lump__lg_post_R_collision_22">
         <pose>0 -0.14499999999999999 -0.090 0 0 0</pose>
-        <geometry><cylinder><length>0.145</length><radius>0.008</radius></cylinder></geometry>
+        <geometry>
+          <cylinder>
+            <length>0.145</length>
+            <radius>0.008</radius>
+          </cylinder>
+        </geometry>
       </collision>
       <collision name="base_link_fixed_joint_lump__lg_skid_R_collision_23">
         <pose>0 -0.14499999999999999 -0.084 0 1.5707963267948966 0</pose>
-        <geometry><cylinder><length>0.22</length><radius>0.014</radius></cylinder></geometry>
-        <surface><contact><ode><kp>1000000</kp><kd>100</kd><max_vel>0.5</max_vel><min_depth>0.001</min_depth></ode></contact><friction><ode><mu>1.8</mu><mu2>1.8</mu2></ode></friction></surface>
+        <geometry>
+          <cylinder>
+            <length>0.22</length>
+            <radius>0.014</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <kp>1000000</kp>
+              <kd>100</kd>
+              <max_vel>0.5</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>1.8</mu>
+              <mu2>1.8</mu2>
+            </ode>
+          </friction>
+        </surface>
       </collision>
       <collision name="base_link_fixed_joint_lump__lg_support_front_L_collision_24">
         <pose>0.0675 0.14499999999999999 -0.095 0 -0.34220 0</pose>
-        <geometry><cylinder><length>0.1635</length><radius>0.005</radius></cylinder></geometry>
+        <geometry>
+          <cylinder>
+            <length>0.1635</length>
+            <radius>0.005</radius>
+          </cylinder>
+        </geometry>
       </collision>
       <collision name="base_link_fixed_joint_lump__lg_support_front_R_collision_25">
         <pose>0.0675 -0.14499999999999999 -0.095 0 -0.34220 0</pose>
-        <geometry><cylinder><length>0.1635</length><radius>0.005</radius></cylinder></geometry>
+        <geometry>
+          <cylinder>
+            <length>0.1635</length>
+            <radius>0.005</radius>
+          </cylinder>
+        </geometry>
       </collision>
       <collision name="base_link_fixed_joint_lump__lg_support_rear_L_collision_26">
         <pose>-0.0675 0.14499999999999999 -0.095 0 0.34220 0</pose>
-        <geometry><cylinder><length>0.1635</length><radius>0.005</radius></cylinder></geometry>
+        <geometry>
+          <cylinder>
+            <length>0.1635</length>
+            <radius>0.005</radius>
+          </cylinder>
+        </geometry>
       </collision>
       <collision name="base_link_fixed_joint_lump__lg_support_rear_R_collision_27">
         <pose>-0.0675 -0.14499999999999999 -0.095 0 0.34220 0</pose>
-        <geometry><cylinder><length>0.1635</length><radius>0.005</radius></cylinder></geometry>
+        <geometry>
+          <cylinder>
+            <length>0.1635</length>
+            <radius>0.005</radius>
+          </cylinder>
+        </geometry>
       </collision>
 
-      <collision name='base_link_fixed_joint_lump__bottom_plate_collision_28'>
+      <collision name="base_link_fixed_joint_lump__bottom_plate_collision_28">
         <pose>0 0 0.107 0 0 0</pose>
         <geometry>
           <box>
@@ -275,7 +383,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__radar_box_collision_29'>
+      <collision name="base_link_fixed_joint_lump__radar_box_collision_29">
         <pose>0 0 0.037499999999999978 0 0 0</pose>
         <geometry>
           <box>
@@ -291,7 +399,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__panel_arm_A_collision_30'>
+      <collision name="base_link_fixed_joint_lump__panel_arm_A_collision_30">
         <pose>0.14000000000000001 0 0.037499999999999978 0 0 0</pose>
         <geometry>
           <box>
@@ -299,11 +407,12 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__antenna_panel_A_collision_31'>
-        <pose>0.18049999999999999 0 0.037499999999999978 0 0 0</pose>
+      <!-- FIX5: Antenna panel A collision height 0.12, center adjusted to keep bottom aligned -->
+      <collision name="base_link_fixed_joint_lump__antenna_panel_A_collision_31">
+        <pose>0.18049999999999999 0 0.0575 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.014999999999999999 0.13200000000000001 0.091999999999999998</size>
+            <size>0.014999999999999999 0.132 0.12</size>
           </box>
         </geometry>
         <surface>
@@ -315,7 +424,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__panel_arm_B_collision_32'>
+      <collision name="base_link_fixed_joint_lump__panel_arm_B_collision_32">
         <pose>0.070000000000000021 0.1212435565298214 0.037499999999999978 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
@@ -323,11 +432,11 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__antenna_panel_B_collision_33'>
-        <pose>0.090250000000000025 0.15631758538309121 0.037499999999999978 0 0 1.0471975511965981</pose>
+      <collision name="base_link_fixed_joint_lump__antenna_panel_B_collision_33">
+        <pose>0.090250000000000025 0.15631758538309121 0.0575 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
-            <size>0.014999999999999999 0.13200000000000001 0.091999999999999998</size>
+            <size>0.014999999999999999 0.132 0.12</size>
           </box>
         </geometry>
         <surface>
@@ -339,7 +448,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__panel_arm_C_collision_34'>
+      <collision name="base_link_fixed_joint_lump__panel_arm_C_collision_34">
         <pose>-0.069999999999999965 0.1212435565298214 0.037499999999999978 0 0 2.0943951023931948</pose>
         <geometry>
           <box>
@@ -347,11 +456,11 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__antenna_panel_C_collision_35'>
-        <pose>-0.090249999999999969 0.15631758538309121 0.037499999999999978 0 0 2.0943951023931948</pose>
+      <collision name="base_link_fixed_joint_lump__antenna_panel_C_collision_35">
+        <pose>-0.090249999999999969 0.15631758538309121 0.0575 0 0 2.0943951023931948</pose>
         <geometry>
           <box>
-            <size>0.014999999999999999 0.13200000000000001 0.091999999999999998</size>
+            <size>0.014999999999999999 0.132 0.12</size>
           </box>
         </geometry>
         <surface>
@@ -363,7 +472,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__panel_arm_D_collision_36'>
+      <collision name="base_link_fixed_joint_lump__panel_arm_D_collision_36">
         <pose>-0.14000000000000001 1.7145055188062941e-17 0.037499999999999978 0 0 3.1415926535897931</pose>
         <geometry>
           <box>
@@ -371,11 +480,11 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__antenna_panel_D_collision_37'>
-        <pose>-0.18049999999999999 2.2104874724609729e-17 0.037499999999999978 0 0 3.1415926535897931</pose>
+      <collision name="base_link_fixed_joint_lump__antenna_panel_D_collision_37">
+        <pose>-0.18049999999999999 2.2104874724609729e-17 0.0575 0 0 3.1415926535897931</pose>
         <geometry>
           <box>
-            <size>0.014999999999999999 0.13200000000000001 0.091999999999999998</size>
+            <size>0.014999999999999999 0.132 0.12</size>
           </box>
         </geometry>
         <surface>
@@ -387,7 +496,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__panel_arm_E_collision_38'>
+      <collision name="base_link_fixed_joint_lump__panel_arm_E_collision_38">
         <pose>-0.070000000000000062 -0.1212435565298214 0.037499999999999978 0 0 -2.0943951023931962</pose>
         <geometry>
           <box>
@@ -395,11 +504,11 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__antenna_panel_E_collision_39'>
-        <pose>-0.090250000000000094 -0.15631758538309121 0.037499999999999978 0 0 -2.0943951023931962</pose>
+      <collision name="base_link_fixed_joint_lump__antenna_panel_E_collision_39">
+        <pose>-0.090250000000000094 -0.15631758538309121 0.0575 0 0 -2.0943951023931962</pose>
         <geometry>
           <box>
-            <size>0.014999999999999999 0.13200000000000001 0.091999999999999998</size>
+            <size>0.014999999999999999 0.132 0.12</size>
           </box>
         </geometry>
         <surface>
@@ -411,7 +520,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__panel_arm_F_collision_40'>
+      <collision name="base_link_fixed_joint_lump__panel_arm_F_collision_40">
         <pose>0.070000000000000021 -0.1212435565298214 0.037499999999999978 0 0 -1.0471975511965981</pose>
         <geometry>
           <box>
@@ -419,11 +528,11 @@
           </box>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__antenna_panel_F_collision_41'>
-        <pose>0.090250000000000025 -0.15631758538309121 0.037499999999999978 0 0 -1.0471975511965981</pose>
+      <collision name="base_link_fixed_joint_lump__antenna_panel_F_collision_41">
+        <pose>0.090250000000000025 -0.15631758538309121 0.0575 0 0 -1.0471975511965981</pose>
         <geometry>
           <box>
-            <size>0.014999999999999999 0.13200000000000001 0.091999999999999998</size>
+            <size>0.014999999999999999 0.132 0.12</size>
           </box>
         </geometry>
         <surface>
@@ -435,7 +544,7 @@
           </friction>
         </surface>
       </collision>
-      <collision name='base_link_fixed_joint_lump__standoff_fl_collision_42'>
+      <collision name="base_link_fixed_joint_lump__standoff_fl_collision_42">
         <pose>0.071999999999999995 0.071999999999999995 0.08299999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -444,7 +553,7 @@
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__standoff_fr_collision_43'>
+      <collision name="base_link_fixed_joint_lump__standoff_fr_collision_43">
         <pose>0.071999999999999995 -0.071999999999999995 0.08299999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -453,7 +562,7 @@
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__standoff_rl_collision_44'>
+      <collision name="base_link_fixed_joint_lump__standoff_rl_collision_44">
         <pose>-0.071999999999999995 0.071999999999999995 0.08299999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -462,7 +571,7 @@
           </cylinder>
         </geometry>
       </collision>
-      <collision name='base_link_fixed_joint_lump__standoff_rr_collision_45'>
+      <collision name="base_link_fixed_joint_lump__standoff_rr_collision_45">
         <pose>-0.071999999999999995 -0.071999999999999995 0.08299999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -471,7 +580,8 @@
           </cylinder>
         </geometry>
       </collision>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual'>
+      <!-- Visuals -->
+      <visual name="base_link_fixed_joint_lump__body_hub_visual">
         <pose>0 0 0.1865 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -488,7 +598,7 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_1'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_1">
         <pose>0 0 0.20050000000000001 0 0 0</pose>
         <geometry>
           <sphere>
@@ -504,7 +614,7 @@
           <ambient>0.187500015 0.187500015 0.225000009 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_2'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_2">
         <pose>0 0 0.19750000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -521,7 +631,7 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_3'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_3">
         <pose>0 0 0.19850000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -538,7 +648,7 @@
           <ambient>0 1 0.25 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_4'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_4">
         <pose>0 0 0.18149999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -555,7 +665,7 @@
           <ambient>0.900000036 0.724999964 0.400000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_5'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_5">
         <pose>0.12 0 0.18149999999999999 0 1.5707963267948966 0</pose>
         <geometry>
           <box>
@@ -571,7 +681,7 @@
           <ambient>0.0749999955 0.0749999955 0.099999994 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_6'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_6">
         <pose>0 0 0.17399999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -588,7 +698,7 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_7'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_7">
         <pose>0.11749999999999999 0 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -605,7 +715,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_8'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_8">
         <pose>0.058749999999999997 0.101755 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -622,7 +732,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_9'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_9">
         <pose>-0.058749999999999997 0.101755 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -639,7 +749,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_10'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_10">
         <pose>-0.11749999999999999 0 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -656,7 +766,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_11'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_11">
         <pose>-0.058749999999999997 -0.101755 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -673,7 +783,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__body_hub_visual_12'>
+      <visual name="base_link_fixed_joint_lump__body_hub_visual_12">
         <pose>0.058749999999999997 -0.101755 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -690,17 +800,30 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-    <visual name="base_link_fixed_joint_lump__arm_0_visual_13">
+      <visual name="base_link_fixed_joint_lump__arm_0_visual_13">
         <pose>0.17999999999999999 0 0.1865 0 1.5707963267948966 0</pose>
-        <geometry><cylinder><length>0.35999999999999999</length><radius>0.0125</radius></cylinder></geometry>
-        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.125 0.125 0.149999991 1</diffuse><ambient>0.125 0.125 0.149999991 1</ambient></material>
+        <geometry>
+          <cylinder>
+            <length>0.35999999999999999</length>
+            <radius>0.0125</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/DarkGrey</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+          <diffuse>0.125 0.125 0.149999991 1</diffuse>
+          <ambient>0.125 0.125 0.149999991 1</ambient>
+        </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_0_visual_14'>
+      <!-- FIX7: inner tube radius from 0.006 to 0.011 (carbon arm ID 22mm) -->
+      <visual name="base_link_fixed_joint_lump__arm_0_visual_14">
         <pose>0.17999999999999999 0 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35399999999999998</length>
-            <radius>0.0060000000000000001</radius>
+            <radius>0.011</radius>
           </cylinder>
         </geometry>
         <material>
@@ -712,7 +835,7 @@
           <ambient>0.25 0.25 0.3125 0.300000012</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_0_visual_15'>
+      <visual name="base_link_fixed_joint_lump__arm_0_visual_15">
         <pose>0.35199999999999998 0 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -729,7 +852,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_0_visual_16'>
+      <visual name="base_link_fixed_joint_lump__arm_0_visual_16">
         <pose>0.0080000000000000002 0 0.1865 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -746,7 +869,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_0_visual_17'>
+      <visual name="base_link_fixed_joint_lump__arm_0_visual_17">
         <pose>0.17999999999999999 0 0.17649999999999999 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -763,7 +886,7 @@
           <ambient>1 0.125 0.125 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_0_visual_18'>
+      <visual name="base_link_fixed_joint_lump__arm_0_visual_18">
         <pose>0.252 0 0.19550000000000001 0 0 0</pose>
         <geometry>
           <box>
@@ -779,7 +902,7 @@
           <ambient>0 1 0.25 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_0_visual_19'>
+      <visual name="base_link_fixed_joint_lump__esc_0_visual_19">
         <pose>0.19800000000000001 0 0.17150000000000001 0 0 0</pose>
         <geometry>
           <box>
@@ -791,7 +914,7 @@
           <ambient>0.0749999955 0.0749999955 0.099999994 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_0_visual_20'>
+      <visual name="base_link_fixed_joint_lump__esc_0_visual_20">
         <pose>0.19800000000000001 0 0.17749999999999999 0 0 0</pose>
         <geometry>
           <box>
@@ -803,7 +926,7 @@
           <ambient>0 1 0.25 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_0_visual_21'>
+      <visual name="base_link_fixed_joint_lump__esc_0_visual_21">
         <pose>0.19800000000000001 0 0.17949999999999999 0 0 0</pose>
         <geometry>
           <box>
@@ -815,7 +938,7 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_0_visual_22'>
+      <visual name="base_link_fixed_joint_lump__esc_0_visual_22">
         <pose>0.186 0 0.1825 0 0 0</pose>
         <geometry>
           <box>
@@ -827,7 +950,7 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_0_visual_23'>
+      <visual name="base_link_fixed_joint_lump__esc_0_visual_23">
         <pose>0.19800000000000001 0 0.1825 0 0 0</pose>
         <geometry>
           <box>
@@ -839,7 +962,7 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_0_visual_24'>
+      <visual name="base_link_fixed_joint_lump__esc_0_visual_24">
         <pose>0.20999999999999999 0 0.1825 0 0 0</pose>
         <geometry>
           <box>
@@ -851,7 +974,7 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_0_visual_25'>
+      <visual name="base_link_fixed_joint_lump__esc_0_visual_25">
         <pose>0.22700000000000001 0 0.17150000000000001 0 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -864,7 +987,7 @@
           <ambient>0.0625 0.0625 0.0749999955 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__motor_stator_0_visual_26'>
+      <visual name="base_link_fixed_joint_lump__motor_stator_0_visual_26">
         <pose>0.35999999999999999 0 0.20749999999999999 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -877,7 +1000,7 @@
           <ambient>0.149999991 0.149999991 0.187500015 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__motor_stator_0_visual_27'>
+      <visual name="base_link_fixed_joint_lump__motor_stator_0_visual_27">
         <pose>0.35999999999999999 0 0.20860000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -890,7 +1013,7 @@
           <ambient>0.900000036 0.5625 0.25 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__motor_stator_0_visual_28'>
+      <visual name="base_link_fixed_joint_lump__motor_stator_0_visual_28">
         <pose>0.35999999999999999 0 0.19850000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -903,7 +1026,7 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__motor_stator_0_visual_29'>
+      <visual name="base_link_fixed_joint_lump__motor_stator_0_visual_29">
         <pose>0.37187999999999999 0 0.19750000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -916,7 +1039,7 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__motor_stator_0_visual_30'>
+      <visual name="base_link_fixed_joint_lump__motor_stator_0_visual_30">
         <pose>0.34811999999999999 0 0.19750000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -929,7 +1052,7 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__motor_stator_0_visual_31'>
+      <visual name="base_link_fixed_joint_lump__motor_stator_0_visual_31">
         <pose>0.35999999999999999 0.01188 0.19750000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -942,7 +1065,7 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__motor_stator_0_visual_32'>
+      <visual name="base_link_fixed_joint_lump__motor_stator_0_visual_32">
         <pose>0.35999999999999999 -0.01188 0.19750000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -955,12 +1078,13 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_1_visual_33'>
+      <!-- FIX4: arm_1 visual radius fixed to 0.0125 (same as arm_0) -->
+      <visual name="base_link_fixed_joint_lump__arm_1_visual_33">
         <pose>0.090000000000000024 0.1558845726811989 0.1865 -1.0471975511965981 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <material>
@@ -972,12 +1096,12 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_1_visual_34'>
+      <visual name="base_link_fixed_joint_lump__arm_1_visual_34">
         <pose>0.090000000000000024 0.1558845726811989 0.1865 -1.0471975511965981 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35399999999999998</length>
-            <radius>0.0060000000000000001</radius>
+            <radius>0.011</radius>
           </cylinder>
         </geometry>
         <material>
@@ -989,7 +1113,7 @@
           <ambient>0.25 0.25 0.3125 0.300000012</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_1_visual_35'>
+      <visual name="base_link_fixed_joint_lump__arm_1_visual_35">
         <pose>0.17599999999999999 0.30484094213212243 0.1865 -1.0471975511965981 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -1006,7 +1130,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_1_visual_36'>
+      <visual name="base_link_fixed_joint_lump__arm_1_visual_36">
         <pose>0.0040000000000000018 0.0069282032302755087 0.1865 -1.0471975511965981 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -1023,7 +1147,7 @@
           <ambient>0.6875 0.724999964 0.75000006 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_1_visual_37'>
+      <visual name="base_link_fixed_joint_lump__arm_1_visual_37">
         <pose>0.090000000000000024 0.1558845726811989 0.17649999999999999 -1.0471975511965981 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
@@ -1040,7 +1164,7 @@
           <ambient>1 0.125 0.125 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_1_visual_38'>
+      <visual name="base_link_fixed_joint_lump__arm_1_visual_38">
         <pose>0.12600000000000011 0.21823840175367851 0.19550000000000001 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
@@ -1056,7 +1180,7 @@
           <ambient>1 0.125 0.125 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_1_visual_39'>
+      <visual name="base_link_fixed_joint_lump__esc_1_visual_39">
         <pose>0.099000000000000032 0.17147302994931879 0.17150000000000001 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
@@ -1068,7 +1192,7 @@
           <ambient>0.0749999955 0.0749999955 0.099999994 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_1_visual_40'>
+      <visual name="base_link_fixed_joint_lump__esc_1_visual_40">
         <pose>0.099000000000000032 0.17147302994931879 0.17749999999999999 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
@@ -1080,7 +1204,7 @@
           <ambient>0 1 0.25 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_1_visual_41'>
+      <visual name="base_link_fixed_joint_lump__esc_1_visual_41">
         <pose>0.099000000000000032 0.17147302994931879 0.17949999999999999 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
@@ -1092,7 +1216,7 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__esc_1_visual_42'>
+      <visual name="base_link_fixed_joint_lump__esc_1_visual_42">
         <pose>0.093000000000000027 0.16108072510390559 0.1825 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
@@ -1104,6 +1228,57 @@
           <ambient>1 1 1 1</ambient>
         </material>
       </visual>
+      <visual name="base_link_fixed_joint_lump__esc_1_visual_43">
+        <pose>0.099000000000000032 0.17147302994931879 0.1825 0 0 1.0471975511965981</pose>
+        <geometry>
+          <box>
+            <size>0.002 0.0143 0.0060000000000000001</size>
+          </box>
+        </geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <ambient>1 1 1 1</ambient>
+        </material>
+      </visual>
+      <visual name="base_link_fixed_joint_lump__esc_1_visual_44">
+        <pose>0.105 0.1818653347947321 0.1825 0 0 1.0471975511965981</pose>
+        <geometry>
+          <box>
+            <size>0.002 0.0143 0.0060000000000000001</size>
+          </box>
+        </geometry>
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <ambient>1 1 1 1</ambient>
+        </material>
+      </visual>
+      <visual name="base_link_fixed_joint_lump__esc_1_visual_45">
+        <pose>0.1135 0.1965877666590676 0.17150000000000001 -1.0471975511965981 1.5707963267948966 0</pose>
+        <geometry>
+          <cylinder>
+            <length>0.01</length>
+            <radius>0.002</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <diffuse>0.0625 0.0625 0.0749999955 1</diffuse>
+          <ambient>0.0625 0.0625 0.0749999955 1</ambient>
+        </material>
+      </visual>
+      <visual name="base_link_fixed_joint_lump__motor_stator_1_visual_46">
+        <pose>0.17999999999999999 0.31176914536239791 0.20749999999999999 0 0 1.0471975511965981</pose>
+        <geometry>
+          <cylinder>
+            <length>0.021999999999999999</length>
+            <radius>0.012</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <diffuse>0.149999991 0.149999991 0.187500015 1</diffuse>
+          <ambient>0.149999991 0.149999991 0.187500015 1</ambient>
+        </material>
+      </visual>
+
       <visual name='base_link_fixed_joint_lump__esc_1_visual_43'>
         <pose>0.099000000000000032 0.17147302994931879 0.1825 0 0 1.0471975511965981</pose>
         <geometry>
@@ -1232,12 +1407,13 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_2_visual_53'>
+        <!-- arm_2 visual radius fixed -->
+      <visual name="base_link_fixed_joint_lump__arm_2_visual_53">
         <pose>-0.089999999999999969 0.15588457268119901 0.1865 -2.0943951023931948 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <material>
@@ -1249,12 +1425,12 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_2_visual_54'>
+      <visual name="base_link_fixed_joint_lump__arm_2_visual_54">
         <pose>-0.089999999999999969 0.15588457268119901 0.1865 -2.0943951023931948 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35399999999999998</length>
-            <radius>0.0060000000000000001</radius>
+            <radius>0.011</radius>
           </cylinder>
         </geometry>
         <material>
@@ -1266,6 +1442,7 @@
           <ambient>0.25 0.25 0.3125 0.300000012</ambient>
         </material>
       </visual>
+
       <visual name='base_link_fixed_joint_lump__arm_2_visual_55'>
         <pose>-0.17599999999999991 0.30484094213212243 0.1865 -2.0943951023931948 1.5707963267948966 0</pose>
         <geometry>
@@ -1509,12 +1686,13 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_3_visual_73'>
+            <!-- arm_3 visual radius fixed -->
+            <visual name="base_link_fixed_joint_lump__arm_3_visual_73">
         <pose>-0.17999999999999999 2.2043642384652361e-17 0.1865 -3.1415926535897931 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <material>
@@ -1526,12 +1704,12 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_3_visual_74'>
+      <visual name="base_link_fixed_joint_lump__arm_3_visual_74">
         <pose>-0.17999999999999999 2.2043642384652361e-17 0.1865 -3.1415926535897931 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35399999999999998</length>
-            <radius>0.0060000000000000001</radius>
+            <radius>0.011</radius>
           </cylinder>
         </geometry>
         <material>
@@ -1543,6 +1721,7 @@
           <ambient>0.25 0.25 0.3125 0.300000012</ambient>
         </material>
       </visual>
+
       <visual name='base_link_fixed_joint_lump__arm_3_visual_75'>
         <pose>-0.35199999999999998 4.310756732998683e-17 0.1865 -3.1415926535897931 1.5707963267948966 0</pose>
         <geometry>
@@ -1786,12 +1965,13 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_4_visual_93'>
+            <!-- arm_4 visual radius fixed -->
+      <visual name="base_link_fixed_joint_lump__arm_4_visual_93">
         <pose>-0.090000000000000135 -0.1558845726811989 0.1865 2.0943951023931948 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <material>
@@ -1803,12 +1983,12 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_4_visual_94'>
+      <visual name="base_link_fixed_joint_lump__arm_4_visual_94">
         <pose>-0.090000000000000135 -0.1558845726811989 0.1865 2.0943951023931948 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35399999999999998</length>
-            <radius>0.0060000000000000001</radius>
+            <radius>0.011</radius>
           </cylinder>
         </geometry>
         <material>
@@ -2063,12 +2243,13 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_5_visual_113'>
+            <!-- arm_5 visual radius fixed -->
+       <visual name="base_link_fixed_joint_lump__arm_5_visual_113">
         <pose>0.090000000000000024 -0.1558845726811989 0.1865 1.0471975511965976 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35999999999999999</length>
-            <radius>0.0080000000000000002</radius>
+            <radius>0.0125</radius>
           </cylinder>
         </geometry>
         <material>
@@ -2080,12 +2261,12 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__arm_5_visual_114'>
+      <visual name="base_link_fixed_joint_lump__arm_5_visual_114">
         <pose>0.090000000000000024 -0.1558845726811989 0.1865 1.0471975511965976 1.5707963267948966 0</pose>
         <geometry>
           <cylinder>
             <length>0.35399999999999998</length>
-            <radius>0.0060000000000000001</radius>
+            <radius>0.011</radius>
           </cylinder>
         </geometry>
         <material>
@@ -2176,6 +2357,7 @@
           <ambient>0.0749999955 0.0749999955 0.099999994 1</ambient>
         </material>
       </visual>
+
       <visual name='base_link_fixed_joint_lump__esc_5_visual_120'>
         <pose>0.099000000000000032 -0.17147302994931879 0.17749999999999999 0 0 -1.0471975511965981</pose>
         <geometry>
@@ -3656,11 +3838,12 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__antenna_panel_A_visual_220'>
-        <pose>0.17399999999999999 0 0.037499999999999978 0 0 0</pose>
+            <!-- FIX5: Antenna panel A visual height 0.12, center adjusted -->
+      <visual name="base_link_fixed_joint_lump__antenna_panel_A_visual_220">
+        <pose>0.17399999999999999 0 0.0575 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.0080000000000000002 0.12 0.080000000000000002</size>
+            <size>0.0080000000000000002 0.12 0.12</size>
           </box>
         </geometry>
         <material>
@@ -4125,11 +4308,11 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__antenna_panel_B_visual_250'>
-        <pose>0.087000000000000022 0.1506884202584923 0.037499999999999978 0 0 1.0471975511965981</pose>
+      <visual name="base_link_fixed_joint_lump__antenna_panel_B_visual_250">
+        <pose>0.087000000000000022 0.1506884202584923 0.0575 0 0 1.0471975511965981</pose>
         <geometry>
           <box>
-            <size>0.0080000000000000002 0.12 0.080000000000000002</size>
+            <size>0.0080000000000000002 0.12 0.12</size>
           </box>
         </geometry>
         <material>
@@ -4594,11 +4777,11 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__antenna_panel_C_visual_280'>
-        <pose>-0.086999999999999966 0.1506884202584923 0.037499999999999978 0 0 2.0943951023931948</pose>
+       <visual name="base_link_fixed_joint_lump__antenna_panel_C_visual_280">
+        <pose>-0.086999999999999966 0.1506884202584923 0.0575 0 0 2.0943951023931948</pose>
         <geometry>
           <box>
-            <size>0.0080000000000000002 0.12 0.080000000000000002</size>
+            <size>0.0080000000000000002 0.12 0.12</size>
           </box>
         </geometry>
         <material>
@@ -5063,11 +5246,11 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__antenna_panel_D_visual_310'>
-        <pose>-0.17399999999999999 2.1308854305163939e-17 0.037499999999999978 0 0 3.1415926535897931</pose>
+ <visual name="base_link_fixed_joint_lump__antenna_panel_D_visual_310">
+        <pose>-0.17399999999999999 2.1308854305163939e-17 0.0575 0 0 3.1415926535897931</pose>
         <geometry>
           <box>
-            <size>0.0080000000000000002 0.12 0.080000000000000002</size>
+            <size>0.0080000000000000002 0.12 0.12</size>
           </box>
         </geometry>
         <material>
@@ -5532,11 +5715,11 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__antenna_panel_E_visual_340'>
-        <pose>-0.087000000000000077 -0.1506884202584923 0.037499999999999978 0 0 -2.0943951023931962</pose>
+<visual name="base_link_fixed_joint_lump__antenna_panel_E_visual_340">
+        <pose>-0.087000000000000077 -0.1506884202584923 0.0575 0 0 -2.0943951023931962</pose>
         <geometry>
           <box>
-            <size>0.0080000000000000002 0.12 0.080000000000000002</size>
+            <size>0.0080000000000000002 0.12 0.12</size>
           </box>
         </geometry>
         <material>
@@ -6001,11 +6184,11 @@
           <ambient>0.6875 0.6875 0.724999964 1</ambient>
         </material>
       </visual>
-      <visual name='base_link_fixed_joint_lump__antenna_panel_F_visual_370'>
-        <pose>0.087000000000000022 -0.1506884202584923 0.037499999999999978 0 0 -1.0471975511965981</pose>
+      <visual name="base_link_fixed_joint_lump__antenna_panel_F_visual_370">
+        <pose>0.087000000000000022 -0.1506884202584923 0.0575 0 0 -1.0471975511965981</pose>
         <geometry>
           <box>
-            <size>0.0080000000000000002 0.12 0.080000000000000002</size>
+            <size>0.0080000000000000002 0.12 0.12</size>
           </box>
         </geometry>
         <material>
@@ -6874,16 +7057,30 @@
         </lidar>
         <pose>0.093 -0.161081 0.0375 0 0 -1.0472</pose>
       </sensor>
-
+    <!-- ==================== MOTOR 0 (CCW) ==================== -->
     <joint name="motor_0_spin" type="revolute">
       <pose relative_to="base_link">0.35999999999999999 0 0.2185 0 0 0</pose>
       <parent>base_link</parent>
       <child>motor_bell_0</child>
-      <axis><xyz>0 0 1</xyz><limit><effort>18</effort><velocity>1500</velocity><lower>-inf</lower><upper>inf</upper></limit><dynamics><damping>0.001</damping><friction>0.0002</friction><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics></axis>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <effort>18</effort>
+          <velocity>1948.2</velocity>
+          <lower>-inf</lower>
+          <upper>inf</upper>
+        </limit>
+        <dynamics>
+          <damping>0.001</damping>
+          <friction>0.0002</friction>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+      </axis>
     </joint>
 
-    <link name='motor_bell_0'>
-      <pose relative_to='motor_0_spin'>0 0 0 0 0 0</pose>
+    <link name="motor_bell_0">
+      <pose relative_to="motor_0_spin">0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0.01730449826989619 0 0 0</pose>
         <mass>0.072250000000000009</mass>
@@ -6896,7 +7093,8 @@
           <izz>0.00024682291249999999</izz>
         </inertia>
       </inertial>
-      <collision name='motor_bell_0_collision'>
+
+      <collision name="motor_bell_0_collision">
         <pose>0 0 0.016500000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -6905,15 +7103,12 @@
           </cylinder>
         </geometry>
         <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
+          <contact><ode/></contact>
+          <friction><ode/></friction>
         </surface>
       </collision>
-      <collision name='motor_bell_0_fixed_joint_lump__prop_0_collision_1'>
+
+      <collision name="motor_bell_0_fixed_joint_lump__prop_0_collision_1">
         <pose>0 0 0.041000000000000002 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -6922,15 +7117,13 @@
           </cylinder>
         </geometry>
         <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
+          <contact><ode/></contact>
+          <friction><ode/></friction>
         </surface>
       </collision>
-      <visual name='motor_bell_0_visual'>
+
+      <!-- Bell visuals -->
+      <visual name="motor_bell_0_visual">
         <pose>0 0 0.0089999999999999993 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -6947,7 +7140,8 @@
           <ambient>1 0.149999991 0.099999994 1</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_0_visual_1'>
+
+      <visual name="motor_bell_0_visual_1">
         <pose>0 0 0.021000000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -6961,108 +7155,12 @@
             <uri>file://media/materials/scripts/gazebo.material</uri>
           </script>
           <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>publisher
-        </material>
-      </visual>
-      <visual name='motor_bell_0_visual_2'>
-        <pose>0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
           <ambient>1 0.149999991 0.099999994 1</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_0_visual_3'>
-        <pose>-0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_0_visual_4'>
-        <pose>0 0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_0_visual_5'>
-        <pose>0 -0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_0_visual_6'>
-        <pose>0 0 0.0315 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.014999999999999999</length>
-            <radius>0.0030000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_0_visual_7'>
-        <pose>0 0 0.042000000000000003 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.0060000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_0_fixed_joint_lump__prop_0_visual_8'>
+
+      <!-- Propeller hub visual -->
+      <visual name="motor_bell_0_fixed_joint_lump__prop_0_visual_8">
         <pose>0 0 0.039 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -7079,7 +7177,9 @@
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_0_fixed_joint_lump__prop_0_visual_9'>
+
+      <!-- Propeller blades (inner and outer, extended to match collision radius) -->
+      <visual name="motor_bell_0_fixed_joint_lump__prop_0_visual_9">
         <pose>0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
         <geometry>
           <box>
@@ -7095,8 +7195,9 @@
           <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_0_fixed_joint_lump__prop_0_visual_10'>
-        <pose>0.1206 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
+
+      <visual name="motor_bell_0_fixed_joint_lump__prop_0_visual_10">
+        <pose>0.1296 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
         <geometry>
           <box>
             <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
@@ -7111,7 +7212,8 @@
           <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_0_fixed_joint_lump__prop_0_visual_11'>
+
+      <visual name="motor_bell_0_fixed_joint_lump__prop_0_visual_11">
         <pose>-0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
         <geometry>
           <box>
@@ -7127,8 +7229,9 @@
           <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_0_fixed_joint_lump__prop_0_visual_12'>
-        <pose>-0.1206 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
+
+      <visual name="motor_bell_0_fixed_joint_lump__prop_0_visual_12">
+        <pose>-0.1296 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
         <geometry>
           <box>
             <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
@@ -7144,28 +7247,31 @@
         </material>
       </visual>
     </link>
-    <joint name='motor_1_spin' type='revolute'>
-      <pose relative_to='base_link'>0.17999999999999999 0.31176914536239791 0.2185 0 0 1.0471975511965981</pose>
+
+    <!-- ==================== MOTOR 1 (CW) ==================== -->
+    <joint name="motor_1_spin" type="revolute">
+      <pose relative_to="base_link">0.17999999999999999 0.31176914536239791 0.2185 0 0 1.0471975511965981</pose>
       <parent>base_link</parent>
       <child>motor_bell_1</child>
       <axis>
         <xyz>0 0 1</xyz>
         <limit>
           <effort>18</effort>
-          <velocity>1500</velocity>
+          <velocity>1948.2</velocity>
           <lower>-inf</lower>
           <upper>inf</upper>
         </limit>
         <dynamics>
           <damping>0.001</damping>
-          <friction>0.00020000000000000001</friction>
+          <friction>0.0002</friction>
           <spring_reference>0</spring_reference>
           <spring_stiffness>0</spring_stiffness>
         </dynamics>
       </axis>
     </joint>
-    <link name='motor_bell_1'>
-      <pose relative_to='motor_1_spin'>0 0 0 0 0 0</pose>
+
+    <link name="motor_bell_1">
+      <pose relative_to="motor_1_spin">0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0.01730449826989619 0 0 0</pose>
         <mass>0.072250000000000009</mass>
@@ -7178,7 +7284,8 @@
           <izz>0.00024682291249999999</izz>
         </inertia>
       </inertial>
-      <collision name='motor_bell_1_collision'>
+
+      <collision name="motor_bell_1_collision">
         <pose>0 0 0.016500000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -7186,16 +7293,10 @@
             <radius>0.016500000000000001</radius>
           </cylinder>
         </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <collision name='motor_bell_1_fixed_joint_lump__prop_1_collision_1'>
+
+      <collision name="motor_bell_1_fixed_joint_lump__prop_1_collision_1">
         <pose>0 0 0.041000000000000002 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -7203,16 +7304,11 @@
             <radius>0.15240000000000001</radius>
           </cylinder>
         </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <visual name='motor_bell_1_visual'>
+
+      <!-- Bell visuals (similar to motor_0) -->
+      <visual name="motor_bell_1_visual">
         <pose>0 0 0.0089999999999999993 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -7221,15 +7317,13 @@
           </cylinder>
         </geometry>
         <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
+          <script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script>
           <diffuse>1 0.149999991 0.099999994 1</diffuse>
           <ambient>1 0.149999991 0.099999994 1</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_1_visual_1'>
+
+      <visual name="motor_bell_1_visual_1">
         <pose>0 0 0.021000000000000001 0 0 0</pose>
         <geometry>
           <cylinder>
@@ -7238,1320 +7332,356 @@
           </cylinder>
         </geometry>
         <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
+          <script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script>
           <diffuse>1 0.149999991 0.099999994 1</diffuse>
           <ambient>1 0.149999991 0.099999994 1</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_1_visual_2'>
-        <pose>0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_1_visual_3'>
-        <pose>-0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_1_visual_4'>
-        <pose>0 0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_1_visual_5'>
-        <pose>0 -0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_1_visual_6'>
-        <pose>0 0 0.0315 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.014999999999999999</length>
-            <radius>0.0030000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_1_visual_7'>
-        <pose>0 0 0.042000000000000003 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.0060000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_1_fixed_joint_lump__prop_1_visual_8'>
+
+      <visual name="motor_bell_1_fixed_joint_lump__prop_1_visual_8">
         <pose>0 0 0.039 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.012</length>
-            <radius>0.014</radius>
-          </cylinder>
-        </geometry>
+        <geometry><cylinder><length>0.012</length><radius>0.014</radius></cylinder></geometry>
         <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
+          <script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script>
           <diffuse>0.125 0.125 0.149999991 1</diffuse>
           <ambient>0.125 0.125 0.149999991 1</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_1_fixed_joint_lump__prop_1_visual_9'>
+
+      <visual name="motor_bell_1_fixed_joint_lump__prop_1_visual_9">
         <pose>0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
         <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
+          <script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script>
           <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
           <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_1_fixed_joint_lump__prop_1_visual_10'>
-        <pose>0.1206 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
+
+      <visual name="motor_bell_1_fixed_joint_lump__prop_1_visual_10">
+        <pose>0.1296 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
         <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
+          <script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script>
           <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
           <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_1_fixed_joint_lump__prop_1_visual_11'>
+
+      <visual name="motor_bell_1_fixed_joint_lump__prop_1_visual_11">
         <pose>-0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
         <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
+          <script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script>
           <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
           <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
         </material>
       </visual>
-      <visual name='motor_bell_1_fixed_joint_lump__prop_1_visual_12'>
-        <pose>-0.1206 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
+
+      <visual name="motor_bell_1_fixed_joint_lump__prop_1_visual_12">
+        <pose>-0.1296 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
         <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
+          <script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script>
           <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
           <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
         </material>
       </visual>
     </link>
-    <joint name='motor_2_spin' type='revolute'>
-      <pose relative_to='base_link'>-0.17999999999999991 0.31176914536239791 0.2185 0 0 2.0943951023931948</pose>
+
+    <!-- ==================== MOTOR 2 (CCW) ==================== -->
+    <joint name="motor_2_spin" type="revolute">
+      <pose relative_to="base_link">-0.17999999999999991 0.31176914536239791 0.2185 0 0 2.0943951023931948</pose>
       <parent>base_link</parent>
       <child>motor_bell_2</child>
       <axis>
         <xyz>0 0 1</xyz>
-        <limit>
-          <effort>18</effort>
-          <velocity>1500</velocity>
-          <lower>-inf</lower>
-          <upper>inf</upper>
-        </limit>
-        <dynamics>
-          <damping>0.001</damping>
-          <friction>0.00020000000000000001</friction>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
+        <limit><effort>18</effort><velocity>1948.2</velocity><lower>-inf</lower><upper>inf</upper></limit>
+        <dynamics><damping>0.001</damping><friction>0.0002</friction><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
       </axis>
     </joint>
-    <link name='motor_bell_2'>
-      <pose relative_to='motor_2_spin'>0 0 0 0 0 0</pose>
+
+    <link name="motor_bell_2">
+      <pose relative_to="motor_2_spin">0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0.01730449826989619 0 0 0</pose>
         <mass>0.072250000000000009</mass>
         <inertia>
-          <ixx>0.00013783950728806231</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.00013783950728806231</iyy>
-          <iyz>0</iyz>
+          <ixx>0.00013783950728806231</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00013783950728806231</iyy><iyz>0</iyz>
           <izz>0.00024682291249999999</izz>
         </inertia>
       </inertial>
-      <collision name='motor_bell_2_collision'>
+
+      <collision name="motor_bell_2_collision">
         <pose>0 0 0.016500000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.053000000000000012</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.053000000000000012</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <collision name='motor_bell_2_fixed_joint_lump__prop_2_collision_1'>
+
+      <collision name="motor_bell_2_fixed_joint_lump__prop_2_collision_1">
         <pose>0 0 0.041000000000000002 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.15240000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.0050000000000000001</length><radius>0.15240000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <visual name='motor_bell_2_visual'>
+
+      <!-- Visuals (copy pattern from motor_0, adjust names) -->
+      <visual name="motor_bell_2_visual">
         <pose>0 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.017999999999999999</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.017999999999999999</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_2_visual_1'>
+      <visual name="motor_bell_2_visual_1">
         <pose>0 0 0.021000000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0060000000000000001</length>
-            <radius>0.014500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.0060000000000000001</length><radius>0.014500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_2_visual_2'>
-        <pose>0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_2_visual_3'>
-        <pose>-0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_2_visual_4'>
-        <pose>0 0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_2_visual_5'>
-        <pose>0 -0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_2_visual_6'>
-        <pose>0 0 0.0315 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.014999999999999999</length>
-            <radius>0.0030000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_2_visual_7'>
-        <pose>0 0 0.042000000000000003 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.0060000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_2_fixed_joint_lump__prop_2_visual_8'>
+      <visual name="motor_bell_2_fixed_joint_lump__prop_2_visual_8">
         <pose>0 0 0.039 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.012</length>
-            <radius>0.014</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.125 0.125 0.149999991 1</diffuse>
-          <ambient>0.125 0.125 0.149999991 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.012</length><radius>0.014</radius></cylinder></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.125 0.125 0.149999991 1</diffuse><ambient>0.125 0.125 0.149999991 1</ambient></material>
       </visual>
-      <visual name='motor_bell_2_fixed_joint_lump__prop_2_visual_9'>
+      <visual name="motor_bell_2_fixed_joint_lump__prop_2_visual_9">
         <pose>0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_2_fixed_joint_lump__prop_2_visual_10'>
-        <pose>0.1206 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_2_fixed_joint_lump__prop_2_visual_10">
+        <pose>0.1296 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_2_fixed_joint_lump__prop_2_visual_11'>
+      <visual name="motor_bell_2_fixed_joint_lump__prop_2_visual_11">
         <pose>-0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_2_fixed_joint_lump__prop_2_visual_12'>
-        <pose>-0.1206 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_2_fixed_joint_lump__prop_2_visual_12">
+        <pose>-0.1296 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
     </link>
-    <joint name='motor_3_spin' type='revolute'>
-      <pose relative_to='base_link'>-0.35999999999999999 4.4087284769304723e-17 0.2185 0 0 3.1415926535897931</pose>
+
+    <!-- ==================== MOTOR 3 (CW) ==================== -->
+    <joint name="motor_3_spin" type="revolute">
+      <pose relative_to="base_link">-0.35999999999999999 4.4087284769304723e-17 0.2185 0 0 3.1415926535897931</pose>
       <parent>base_link</parent>
       <child>motor_bell_3</child>
       <axis>
         <xyz>0 0 1</xyz>
-        <limit>
-          <effort>18</effort>
-          <velocity>1500</velocity>
-          <lower>-inf</lower>
-          <upper>inf</upper>
-        </limit>
-        <dynamics>
-          <damping>0.001</damping>
-          <friction>0.00020000000000000001</friction>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
+        <limit><effort>18</effort><velocity>1948.2</velocity><lower>-inf</lower><upper>inf</upper></limit>
+        <dynamics><damping>0.001</damping><friction>0.0002</friction><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
       </axis>
     </joint>
-    <link name='motor_bell_3'>
-      <pose relative_to='motor_3_spin'>0 0 0 0 0 0</pose>
+
+    <link name="motor_bell_3">
+      <pose relative_to="motor_3_spin">0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0.01730449826989619 0 0 0</pose>
         <mass>0.072250000000000009</mass>
         <inertia>
-          <ixx>0.00013783950728806231</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.00013783950728806231</iyy>
-          <iyz>0</iyz>
+          <ixx>0.00013783950728806231</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00013783950728806231</iyy><iyz>0</iyz>
           <izz>0.00024682291249999999</izz>
         </inertia>
       </inertial>
-      <collision name='motor_bell_3_collision'>
+
+      <collision name="motor_bell_3_collision">
         <pose>0 0 0.016500000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.053000000000000012</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.053000000000000012</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <collision name='motor_bell_3_fixed_joint_lump__prop_3_collision_1'>
+
+      <collision name="motor_bell_3_fixed_joint_lump__prop_3_collision_1">
         <pose>0 0 0.041000000000000002 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.15240000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.0050000000000000001</length><radius>0.15240000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <visual name='motor_bell_3_visual'>
+
+      <!-- Visuals (identical pattern, names changed) -->
+      <visual name="motor_bell_3_visual">
         <pose>0 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.017999999999999999</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.017999999999999999</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_3_visual_1'>
+      <visual name="motor_bell_3_visual_1">
         <pose>0 0 0.021000000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0060000000000000001</length>
-            <radius>0.014500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.0060000000000000001</length><radius>0.014500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_3_visual_2'>
-        <pose>0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_3_visual_3'>
-        <pose>-0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_3_visual_4'>
-        <pose>0 0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_3_visual_5'>
-        <pose>0 -0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_3_visual_6'>
-        <pose>0 0 0.0315 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.014999999999999999</length>
-            <radius>0.0030000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_3_visual_7'>
-        <pose>0 0 0.042000000000000003 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.0060000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_3_fixed_joint_lump__prop_3_visual_8'>
+      <visual name="motor_bell_3_fixed_joint_lump__prop_3_visual_8">
         <pose>0 0 0.039 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.012</length>
-            <radius>0.014</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.125 0.125 0.149999991 1</diffuse>
-          <ambient>0.125 0.125 0.149999991 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.012</length><radius>0.014</radius></cylinder></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.125 0.125 0.149999991 1</diffuse><ambient>0.125 0.125 0.149999991 1</ambient></material>
       </visual>
-      <visual name='motor_bell_3_fixed_joint_lump__prop_3_visual_9'>
+      <visual name="motor_bell_3_fixed_joint_lump__prop_3_visual_9">
         <pose>0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_3_fixed_joint_lump__prop_3_visual_10'>
-        <pose>0.1206 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_3_fixed_joint_lump__prop_3_visual_10">
+        <pose>0.1296 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_3_fixed_joint_lump__prop_3_visual_11'>
+      <visual name="motor_bell_3_fixed_joint_lump__prop_3_visual_11">
         <pose>-0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_3_fixed_joint_lump__prop_3_visual_12'>
-        <pose>-0.1206 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_3_fixed_joint_lump__prop_3_visual_12">
+        <pose>-0.1296 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
     </link>
-    <joint name='motor_4_spin' type='revolute'>
-      <pose relative_to='base_link'>-0.1800000000000003 -0.31176914536239791 0.2185 0 0 -2.0943951023931962</pose>
+
+    <!-- ==================== MOTOR 4 (CCW) ==================== -->
+    <joint name="motor_4_spin" type="revolute">
+      <pose relative_to="base_link">-0.1800000000000003 -0.31176914536239791 0.2185 0 0 -2.0943951023931962</pose>
       <parent>base_link</parent>
       <child>motor_bell_4</child>
       <axis>
         <xyz>0 0 1</xyz>
-        <limit>
-          <effort>18</effort>
-          <velocity>1500</velocity>
-          <lower>-inf</lower>
-          <upper>inf</upper>
-        </limit>
-        <dynamics>
-          <damping>0.001</damping>
-          <friction>0.00020000000000000001</friction>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
+        <limit><effort>18</effort><velocity>1948.2</velocity><lower>-inf</lower><upper>inf</upper></limit>
+        <dynamics><damping>0.001</damping><friction>0.0002</friction><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
       </axis>
     </joint>
-    <link name='motor_bell_4'>
-      <pose relative_to='motor_4_spin'>0 0 0 0 0 0</pose>
+
+    <link name="motor_bell_4">
+      <pose relative_to="motor_4_spin">0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0.01730449826989619 0 0 0</pose>
         <mass>0.072250000000000009</mass>
         <inertia>
-          <ixx>0.00013783950728806231</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.00013783950728806231</iyy>
-          <iyz>0</iyz>
+          <ixx>0.00013783950728806231</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00013783950728806231</iyy><iyz>0</iyz>
           <izz>0.00024682291249999999</izz>
         </inertia>
       </inertial>
-      <collision name='motor_bell_4_collision'>
+
+      <collision name="motor_bell_4_collision">
         <pose>0 0 0.016500000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.053000000000000012</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.053000000000000012</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <collision name='motor_bell_4_fixed_joint_lump__prop_4_collision_1'>
+
+      <collision name="motor_bell_4_fixed_joint_lump__prop_4_collision_1">
         <pose>0 0 0.041000000000000002 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.15240000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.0050000000000000001</length><radius>0.15240000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <visual name='motor_bell_4_visual'>
+
+      <!-- Visuals -->
+      <visual name="motor_bell_4_visual">
         <pose>0 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.017999999999999999</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.017999999999999999</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_4_visual_1'>
+      <visual name="motor_bell_4_visual_1">
         <pose>0 0 0.021000000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0060000000000000001</length>
-            <radius>0.014500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.0060000000000000001</length><radius>0.014500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_4_visual_2'>
-        <pose>0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_4_visual_3'>
-        <pose>-0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_4_visual_4'>
-        <pose>0 0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_4_visual_5'>
-        <pose>0 -0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_4_visual_6'>
-        <pose>0 0 0.0315 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.014999999999999999</length>
-            <radius>0.0030000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_4_visual_7'>
-        <pose>0 0 0.042000000000000003 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.0060000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_4_fixed_joint_lump__prop_4_visual_8'>
+      <visual name="motor_bell_4_fixed_joint_lump__prop_4_visual_8">
         <pose>0 0 0.039 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.012</length>
-            <radius>0.014</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.125 0.125 0.149999991 1</diffuse>
-          <ambient>0.125 0.125 0.149999991 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.012</length><radius>0.014</radius></cylinder></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.125 0.125 0.149999991 1</diffuse><ambient>0.125 0.125 0.149999991 1</ambient></material>
       </visual>
-      <visual name='motor_bell_4_fixed_joint_lump__prop_4_visual_9'>
+      <visual name="motor_bell_4_fixed_joint_lump__prop_4_visual_9">
         <pose>0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_4_fixed_joint_lump__prop_4_visual_10'>
-        <pose>0.1206 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_4_fixed_joint_lump__prop_4_visual_10">
+        <pose>0.1296 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_4_fixed_joint_lump__prop_4_visual_11'>
+      <visual name="motor_bell_4_fixed_joint_lump__prop_4_visual_11">
         <pose>-0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_4_fixed_joint_lump__prop_4_visual_12'>
-        <pose>-0.1206 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_4_fixed_joint_lump__prop_4_visual_12">
+        <pose>-0.1296 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
     </link>
-    <joint name='motor_5_spin' type='revolute'>
-      <pose relative_to='base_link'>0.17999999999999999 -0.31176914536239791 0.2185 0 0 -1.0471975511965981</pose>
+
+    <!-- ==================== MOTOR 5 (CW) ==================== -->
+    <joint name="motor_5_spin" type="revolute">
+      <pose relative_to="base_link">0.17999999999999999 -0.31176914536239791 0.2185 0 0 -1.0471975511965981</pose>
       <parent>base_link</parent>
       <child>motor_bell_5</child>
       <axis>
         <xyz>0 0 1</xyz>
-        <limit>
-          <effort>18</effort>
-          <velocity>1500</velocity>
-          <lower>-inf</lower>
-          <upper>inf</upper>
-        </limit>
-        <dynamics>
-          <damping>0.001</damping>
-          <friction>0.00020000000000000001</friction>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
+        <limit><effort>18</effort><velocity>1948.2</velocity><lower>-inf</lower><upper>inf</upper></limit>
+        <dynamics><damping>0.001</damping><friction>0.0002</friction><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
       </axis>
     </joint>
-    <link name='motor_bell_5'>
-      <pose relative_to='motor_5_spin'>0 0 0 0 0 0</pose>
+
+    <link name="motor_bell_5">
+      <pose relative_to="motor_5_spin">0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0.01730449826989619 0 0 0</pose>
         <mass>0.072250000000000009</mass>
         <inertia>
-          <ixx>0.00013783950728806231</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.00013783950728806231</iyy>
-          <iyz>0</iyz>
+          <ixx>0.00013783950728806231</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00013783950728806231</iyy><iyz>0</iyz>
           <izz>0.00024682291249999999</izz>
         </inertia>
       </inertial>
-      <collision name='motor_bell_5_collision'>
+
+      <collision name="motor_bell_5_collision">
         <pose>0 0 0.016500000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.053000000000000012</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.053000000000000012</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <collision name='motor_bell_5_fixed_joint_lump__prop_5_collision_1'>
+
+      <collision name="motor_bell_5_fixed_joint_lump__prop_5_collision_1">
         <pose>0 0 0.041000000000000002 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.15240000000000001</radius>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode/>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
+        <geometry><cylinder><length>0.0050000000000000001</length><radius>0.15240000000000001</radius></cylinder></geometry>
+        <surface><contact><ode/></contact><friction><ode/></friction></surface>
       </collision>
-      <visual name='motor_bell_5_visual'>
+
+      <!-- Visuals -->
+      <visual name="motor_bell_5_visual">
         <pose>0 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.017999999999999999</length>
-            <radius>0.016500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.017999999999999999</length><radius>0.016500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_5_visual_1'>
+      <visual name="motor_bell_5_visual_1">
         <pose>0 0 0.021000000000000001 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0060000000000000001</length>
-            <radius>0.014500000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.0060000000000000001</length><radius>0.014500000000000001</radius></cylinder></geometry>
+        <material><script><name>Gazebo/Red</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>1 0.149999991 0.099999994 1</diffuse><ambient>1 0.149999991 0.099999994 1</ambient></material>
       </visual>
-      <visual name='motor_bell_5_visual_2'>
-        <pose>0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_5_visual_3'>
-        <pose>-0.014500000000000001 0 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.002 0.0060000000000000001 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_5_visual_4'>
-        <pose>0 0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_5_visual_5'>
-        <pose>0 -0.014500000000000001 0.0089999999999999993 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.0060000000000000001 0.002 0.017999999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>1 0.149999991 0.099999994 1</diffuse>
-          <ambient>1 0.149999991 0.099999994 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_5_visual_6'>
-        <pose>0 0 0.0315 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.014999999999999999</length>
-            <radius>0.0030000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_5_visual_7'>
-        <pose>0 0 0.042000000000000003 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.0050000000000000001</length>
-            <radius>0.0060000000000000001</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/Red</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.6875 0.6875 0.724999964 1</diffuse>
-          <ambient>0.6875 0.6875 0.724999964 1</ambient>
-        </material>
-      </visual>
-      <visual name='motor_bell_5_fixed_joint_lump__prop_5_visual_8'>
+      <visual name="motor_bell_5_fixed_joint_lump__prop_5_visual_8">
         <pose>0 0 0.039 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <length>0.012</length>
-            <radius>0.014</radius>
-          </cylinder>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.125 0.125 0.149999991 1</diffuse>
-          <ambient>0.125 0.125 0.149999991 1</ambient>
-        </material>
+        <geometry><cylinder><length>0.012</length><radius>0.014</radius></cylinder></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.125 0.125 0.149999991 1</diffuse><ambient>0.125 0.125 0.149999991 1</ambient></material>
       </visual>
-      <visual name='motor_bell_5_fixed_joint_lump__prop_5_visual_9'>
+      <visual name="motor_bell_5_fixed_joint_lump__prop_5_visual_9">
         <pose>0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_5_fixed_joint_lump__prop_5_visual_10'>
-        <pose>0.1206 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_5_fixed_joint_lump__prop_5_visual_10">
+        <pose>0.1296 0 0.041500000000000002 0 -0.22689280275926291 0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_5_fixed_joint_lump__prop_5_visual_11'>
+      <visual name="motor_bell_5_fixed_joint_lump__prop_5_visual_11">
         <pose>-0.066000000000000003 0 0.040500000000000001 0 -0.12217304763960311 0.034906585039886591</pose>
-        <geometry>
-          <box>
-            <size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+        <geometry><box><size>0.084500000000000006 0.037999999999999999 0.0030000000000000001</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
-      <visual name='motor_bell_5_fixed_joint_lump__prop_5_visual_12'>
-        <pose>-0.1206 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
-        <geometry>
-          <box>
-            <size>0.045499999999999999 0.01976 0.0019499999999999999</size>
-          </box>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-          <diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse>
-          <ambient>0.099999994 0.099999994 0.125 0.879999995</ambient>
-        </material>
+      <visual name="motor_bell_5_fixed_joint_lump__prop_5_visual_12">
+        <pose>-0.1296 0 0.041500000000000002 0 -0.22689280275926291 -0.069813170079773182</pose>
+        <geometry><box><size>0.045499999999999999 0.01976 0.0019499999999999999</size></box></geometry>
+        <material><script><name>Gazebo/DarkGrey</name><uri>file://media/materials/scripts/gazebo.material</uri></script><diffuse>0.099999994 0.099999994 0.125 0.879999995</diffuse><ambient>0.099999994 0.099999994 0.125 0.879999995</ambient></material>
       </visual>
     </link>
         <!-- FIX6: PX4 velocity control — NEW, required for SITL -->
