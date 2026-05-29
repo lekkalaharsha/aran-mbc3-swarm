@@ -11,7 +11,7 @@
 # Usage:  bash ~/aran_mbc/tools/pre_demo_check.sh
 set -eo pipefail
 
-ARAN="$HOME/aran_mbc"
+ARAN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WS_SETUP="$HOME/ros2_ws/install/setup.bash"
 PASS=0; FAIL=0
 

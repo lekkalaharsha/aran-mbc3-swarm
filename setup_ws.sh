@@ -3,7 +3,7 @@
 # Run once before using fly_demo.sh or the demo pipeline.
 set -eo pipefail
 
-ARAN="$HOME/aran_mbc"
+ARAN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS="$HOME/ros2_ws"
 
 echo "=== MBC-3 ros2_ws setup ==="

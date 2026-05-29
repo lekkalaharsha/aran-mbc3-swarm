@@ -9,7 +9,7 @@
 
 set -eo pipefail
 
-ARAN="$HOME/aran_mbc"
+ARAN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS_SETUP="$HOME/ros2_ws/install/setup.bash"
 
 # ── Source ROS2 ──────────────────────────────────────────────────────────────
