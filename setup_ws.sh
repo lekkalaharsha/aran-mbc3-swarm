@@ -9,11 +9,13 @@ WS="$HOME/ros2_ws"
 echo "=== MBC-3 ros2_ws setup ==="
 
 # ── colcon ───────────────────────────────────────────────────────────────────
+export PATH="$HOME/.local/bin:$PATH"   # pip-installed tools land here
 if ! command -v colcon &>/dev/null; then
-    echo "[0/5] Installing colcon..."
-    sudo apt-get install -y -q python3-colcon-common-extensions
+    echo "[0/5] Installing colcon (pip)..."
+    pip install --quiet --break-system-packages colcon-common-extensions
+    export PATH="$HOME/.local/bin:$PATH"
 else
-    echo "[0/5] colcon already installed — skip"
+    echo "[0/5] colcon found — skip"
 fi
 
 # ── Create workspace ──────────────────────────────────────────────────────────
@@ -62,12 +64,14 @@ colcon build \
 # ── Verify ────────────────────────────────────────────────────────────────────
 echo "[5/5] Verifying install..."
 source "$WS/install/setup.bash"
-if ros2 pkg list | grep -q radar_fusion && ros2 pkg list | grep -q aeris10_driver; then
-    echo "  radar_fusion    ✓"
-    echo "  aeris10_driver  ✓"
-else
-    echo "  WARNING: one or more packages not found in ros2 pkg list"
-fi
+PKGS=$(ros2 pkg list 2>/dev/null || true)
+for pkg in radar_fusion aeris10_driver; do
+    if echo "$PKGS" | grep -q "^${pkg}$"; then
+        echo "  $pkg  ✓"
+    else
+        echo "  WARNING: $pkg not found in ros2 pkg list"
+    fi
+done
 
 echo ""
 echo "=== Build complete ==="

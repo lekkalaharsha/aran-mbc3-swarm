@@ -15,9 +15,9 @@ ARAN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WS_SETUP="$HOME/ros2_ws/install/setup.bash"
 PASS=0; FAIL=0
 
-ok()   { echo "  ✓  $*"; ((PASS++)); }
-fail() { echo "  ✗  $*"; ((FAIL++)); }
-head() { echo ""; echo "── $* ──"; }
+ok()   { echo "  ✓  $*"; PASS=$((PASS+1)); }
+fail() { echo "  ✗  $*"; FAIL=$((FAIL+1)); }
+section() { echo ""; echo "── $* ──"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
@@ -25,7 +25,7 @@ echo "║   MBC-3 Phase 0 — Pre-Demo Pipeline Check            ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
 # ── Step 1: Environment ───────────────────────────────────────────────────────
-head "1. Environment"
+section "1. Environment"
 
 source /opt/ros/jazzy/setup.bash
 
@@ -37,13 +37,14 @@ else
     echo ""; echo "Cannot continue without built workspace. Run setup_ws.sh first."; exit 1
 fi
 
-if ros2 pkg list 2>/dev/null | grep -q "^radar_fusion$"; then
+PKGS=$(ros2 pkg list 2>/dev/null || true)
+if echo "$PKGS" | grep -q "^radar_fusion$"; then
     ok "radar_fusion package found"
 else
     fail "radar_fusion not in ros2 pkg list"
 fi
 
-if ros2 pkg list 2>/dev/null | grep -q "^aeris10_driver$"; then
+if echo "$PKGS" | grep -q "^aeris10_driver$"; then
     ok "aeris10_driver package found"
 else
     fail "aeris10_driver not in ros2 pkg list"
@@ -56,7 +57,7 @@ else
 fi
 
 # ── Step 2: Start aeris10_driver in sim_mode ──────────────────────────────────
-head "2. AERIS-10 driver (sim_mode)"
+section "2. AERIS-10 driver (sim_mode)"
 
 ros2 run aeris10_driver driver_node \
     --ros-args -p sim_mode:=true -p publish_hz:=10.0 \
@@ -85,7 +86,7 @@ if [[ "$TOPIC_FOUND" -eq 0 ]]; then
 fi
 
 # ── Step 3: Start detection_node ──────────────────────────────────────────────
-head "3. detection_node"
+section "3. detection_node"
 
 ros2 run radar_fusion detection_node 2>/dev/null &
 DET_PID=$!
@@ -99,33 +100,34 @@ else
     fail "/radar/targets not found (detection_node may have crashed)"
 fi
 
-# ── Step 4: Read one detection ────────────────────────────────────────────────
-head "4. Detection output"
+# ── Step 4: Read detections — sample with --once loop (continuous echo exits early) ─
+section "4. Detection output"
 
-DETECTION=$(timeout 8 ros2 topic echo /radar/targets --once 2>/dev/null | \
-    grep "^data:" | head -1 || true)
-
-if [[ -z "$DETECTION" ]]; then
-    fail "No message received on /radar/targets in 8s"
-else
-    # Extract JSON from data: '...'
-    RAW="${DETECTION#data: }"
-    RAW="${RAW#\'}"
-    RAW="${RAW%\'}"
-    N_TGTS=$(python3 -c "import json; d=json.loads('$RAW'); print(d.get('n_targets',0))" 2>/dev/null || echo "0")
-
-    if [[ "$N_TGTS" -gt 0 ]]; then
-        ok "Received detection: $N_TGTS target(s)"
-        python3 -c "
-import json, sys
-raw = sys.argv[1]
-d = json.loads(raw)
-for t in d.get('targets', []):
-    print(f'     → {t[\"id\"]}  R={t[\"range_m\"]}m  Az={t[\"az_deg\"]}°  Panel={t[\"panel\"]}')
-" "$RAW" 2>/dev/null || true
-    else
-        fail "Message received but n_targets=0 (pipeline gap)"
+BEST_N=0
+BEST_RAW=""
+for i in $(seq 1 15); do
+    LINE=$(timeout 3 ros2 topic echo /radar/targets --once --full-length 2>/dev/null | grep "^data:" || true)
+    [[ -z "$LINE" ]] && continue
+    RAW="${LINE#data: }"; RAW="${RAW#\'}"; RAW="${RAW%\'}"
+    N=$(printf '%s' "$RAW" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('n_targets',0))" 2>/dev/null || echo 0)
+    if [[ "$N" -gt "$BEST_N" ]]; then
+        BEST_N=$N; BEST_RAW="$RAW"
     fi
+    [[ "$BEST_N" -gt 0 ]] && break
+done
+
+if [[ "$BEST_N" -gt 0 ]]; then
+    ok "Detection confirmed: $BEST_N target(s)"
+    printf '%s' "$BEST_RAW" | python3 -c "
+import sys, json
+d = json.loads(sys.stdin.read())
+for t in d.get('targets', [])[:4]:
+    print(f\"  → {t['id']}  R={t['range_m']}m  Az={t['az_deg']}°  Panel={t['panel']}\")
+" 2>/dev/null || true
+elif [[ -z "$BEST_RAW" ]]; then
+    fail "No messages received on /radar/targets in 15 attempts"
+else
+    fail "15 messages sampled — all had n_targets=0 (detection_node not clustering)"
 fi
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────

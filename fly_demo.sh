@@ -82,7 +82,7 @@ echo "[radar]  Listening on /radar/targets (30s — detection_node must run in T
 echo "         Format: n_targets | ID | range | azimuth"
 echo ""
 
-timeout 30 ros2 topic echo /radar/targets 2>/dev/null | \
+timeout 30 ros2 topic echo /radar/targets --full-length 2>/dev/null | \
 python3 -u -c "
 import sys, json
 count = 0
