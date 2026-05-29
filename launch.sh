@@ -89,6 +89,13 @@ PID_ROS_BRIDGE=""
 PID_RADAR_DET=""
 PID_RADAR_FUSION=""
 PID_RADAR_SIM=""
+PID_AERIS10=""
+
+# AERIS10_SIM_MODE=1: start aeris10_driver in sim_mode as radar data source.
+# Use 1 (default) because mbc3_exact_v3.sdf has no Gazebo radar sensor plugin —
+# the gz_bridge would have nothing to bridge. Set 0 only when Gazebo SDF has
+# radar sensor plugins publishing /radar_*/scan/points.
+AERIS10_SIM_MODE="${AERIS10_SIM_MODE:-1}"
 
 # ══════════════════════════════════════════════════════════
 #  USAGE
@@ -158,8 +165,8 @@ done
 cleanup() {
     echo ""
     banner "SHUTDOWN — stopping all processes"
-    local -a pids=("${PID_MISSION}" "${PID_RADAR_SIM:-}" "${PID_RADAR_FUSION}" "${PID_RADAR_DET}" "${PID_ROS_BRIDGE}" "${PID_GCS}" "${PID_PX4}")
-    local -a names=("Mission" "Radar Sim" "Radar Fusion" "Radar Detection" "ros_gz_bridge" "GCS" "PX4 SITL")
+    local -a pids=("${PID_MISSION}" "${PID_RADAR_SIM:-}" "${PID_AERIS10:-}" "${PID_RADAR_FUSION}" "${PID_RADAR_DET}" "${PID_ROS_BRIDGE}" "${PID_GCS}" "${PID_PX4}")
+    local -a names=("Mission" "Radar Sim" "AERIS-10" "Radar Fusion" "Radar Detection" "ros_gz_bridge" "GCS" "PX4 SITL")
     for i in "${!pids[@]}"; do
         local pid="${pids[$i]}"
         local name="${names[$i]}"
@@ -718,6 +725,32 @@ BRIDGEYAML
             fi
         fi
     fi
+fi
+
+# ── AERIS-10 driver (sim_mode) ───────────────────────────────────────────────
+# Provides synthetic 200m rotating target on /radar_A..F/scan/points.
+# Runs when AERIS10_SIM_MODE=1 (default) AND ROS2 workspace is built.
+AERIS10_INSTALL="${ROS2_WS}/install/aeris10_driver"
+if [[ "${AERIS10_SIM_MODE}" == "1" ]] && [[ -d "${AERIS10_INSTALL}" ]] && [[ -n "${ROS2_DISTRO}" ]]; then
+    AERIS10_LOG="${SESSION_DIR}/aeris10.log"
+    log "Starting AERIS-10 driver (sim_mode — synthetic 200m target, 10 Hz)..."
+    (
+        # shellcheck disable=SC1090
+        source "/opt/ros/${ROS2_DISTRO}/setup.bash"
+        source "${ROS2_WS}/install/setup.bash"
+        ros2 run aeris10_driver driver_node \
+            --ros-args -p sim_mode:=true -p publish_hz:=10.0
+    ) >> "${AERIS10_LOG}" 2>&1 &
+    PID_AERIS10=$!
+    sleep 2
+    if kill -0 "${PID_AERIS10}" 2>/dev/null; then
+        log_ok "AERIS-10 sim running  →  /radar_A..F/scan/points at 10 Hz  |  log: ${AERIS10_LOG}"
+        _radar_started=true
+    else
+        log_warn "AERIS-10 driver exited — check ${AERIS10_LOG}"
+    fi
+elif [[ "${AERIS10_SIM_MODE}" == "1" ]]; then
+    log_info "AERIS-10 sim skipped (aeris10_driver not built — run: bash ~/aran_mbc/setup_ws.sh)"
 fi
 
 [[ "${_radar_started}" == true ]] \

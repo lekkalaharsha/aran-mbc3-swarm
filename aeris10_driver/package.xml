@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>aeris10_driver</name>
+  <version>0.1.0</version>
+  <description>ROS2 driver for AERIS-10 FMCW phased-array radar (USB, ADAR1000 beamsteering)</description>
+  <maintainer email="eeindia@bosonmotors.com">Boson Motors</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>sensor_msgs_py</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-pyusb</exec_depend>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+  <test_depend>ament_pep257</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

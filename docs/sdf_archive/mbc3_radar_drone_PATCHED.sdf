@@ -1,0 +1,326 @@
+<?xml version="1.0" ?>
+<!--
+  mbc3_radar_drone_PATCHED.sdf
+  Based on mbc3_radar_drone.sdf — 8 bugs fixed vs assembly drawing.
+  Apply the CHANGED sections below into the full original SDF.
+
+  CHANGES SUMMARY:
+    FIX1  Motors (×6):   maxRotVelocity 838→1948.2 rad/s (838KV×22.2V)
+                         motorConstant  1.74e-4→6.60e-6  (rescaled for ω_hover≈50%)
+                         momentConstant 0.01408→5.341e-4 (km/kf ratio preserved)
+    FIX2  Radar (×6):    range resolution 120m→1.5m
+    FIX3  Battery:       plugin enabled, capacity 5000→10000mAh, voltage 22.2→25.2V
+    FIX4  Battery:       collision/visual box 265×75×59mm→170×65×55mm
+    FIX5  Radar (×6):    gz_frame_id added for ROS2 bridge TF tree
+    FIX6  Plugins:       MulticopterVelocityControl added for PX4 SITL
+    FIX7  Odometry:      <dimensions>3</dimensions> added for aerial vehicle
+    FIX8  GPS:           update_rate 30Hz→10Hz (uBlox M8N hardware limit)
+-->
+<sdf version="1.11">
+  <model name="mbc3_radar_drone">
+    <!--
+    =====================================================================
+    NOTE: This file contains ONLY the changed sections.
+    Copy each block into the matching location in the original SDF.
+    All unchanged geometry, inertia, collision, and visual elements
+    from the original remain valid — do not modify them.
+    =====================================================================
+    -->
+
+    <!-- ===== FIX4: BATTERY COLLISION (replace battery_collision_19) ===== -->
+    <!--
+      FIND:
+        <collision name="base_link_fixed_joint_lump__battery_collision_19">
+          ...
+          <geometry><box><size>0.265 0.075 0.059</size></box></geometry>
+
+      REPLACE size with:
+          <geometry><box><size>0.170 0.065 0.055</size></box></geometry>
+
+      REASON: 6S 10000mAh LiPo physical envelope = 170×65×55mm.
+              Original 265mm length matches a ~5000mAh pack.
+    -->
+
+    <!-- ===== FIX4: BATTERY VISUAL (replace battery_visual_134 first box) ===== -->
+    <!--
+      FIND (visual_134, first geometry box):
+          <size>0.255 0.065000000000000002 0.052999999999999999</size>
+
+      REPLACE WITH:
+          <size>0.160 0.055 0.048</size>
+    -->
+
+    <!-- ===== FIX2 + FIX5: CORRECTED RADAR SENSORS (replace all 6) ===== -->
+    <!-- Place these inside base_link, replacing the original radar_A through radar_F sensors -->
+
+      <!-- Radar A — Front (yaw=0°) -->
+      <!-- FIX2: resolution 120m→1.5m | FIX5: gz_frame_id added -->
+      <sensor name="radar_A" type="lidar">
+        <gz_frame_id>radar_frame_A</gz_frame_id>
+        <always_on>true</always_on>
+        <update_rate>5</update_rate>
+        <visualize>false</visualize>
+        <lidar>
+          <scan>
+            <horizontal><samples>110</samples><resolution>1</resolution><min_angle>-0.523599</min_angle><max_angle>0.523599</max_angle></horizontal>
+            <vertical><samples>45</samples><resolution>1</resolution><min_angle>-0.392699</min_angle><max_angle>0.392699</max_angle></vertical>
+          </scan>
+          <range><min>0.5</min><max>2500</max><resolution>1.5</resolution></range>
+          <noise><type>gaussian</type><mean>0</mean><stddev>0.1</stddev></noise>
+        </lidar>
+        <pose>0.187 0 0.0375 0 0 0</pose>
+      </sensor>
+
+      <!-- Radar B — Front-Right (yaw=+60°) -->
+      <sensor name="radar_B" type="lidar">
+        <gz_frame_id>radar_frame_B</gz_frame_id>
+        <always_on>true</always_on>
+        <update_rate>5</update_rate>
+        <visualize>false</visualize>
+        <lidar>
+          <scan>
+            <horizontal><samples>110</samples><resolution>1</resolution><min_angle>-0.523599</min_angle><max_angle>0.523599</max_angle></horizontal>
+            <vertical><samples>45</samples><resolution>1</resolution><min_angle>-0.392699</min_angle><max_angle>0.392699</max_angle></vertical>
+          </scan>
+          <range><min>0.5</min><max>2500</max><resolution>1.5</resolution></range>
+          <noise><type>gaussian</type><mean>0</mean><stddev>0.1</stddev></noise>
+        </lidar>
+        <pose>0.093 0.161081 0.0375 0 0 1.0472</pose>
+      </sensor>
+
+      <!-- Radar C — Rear-Right (yaw=+120°) -->
+      <sensor name="radar_C" type="lidar">
+        <gz_frame_id>radar_frame_C</gz_frame_id>
+        <always_on>true</always_on>
+        <update_rate>5</update_rate>
+        <visualize>false</visualize>
+        <lidar>
+          <scan>
+            <horizontal><samples>110</samples><resolution>1</resolution><min_angle>-0.523599</min_angle><max_angle>0.523599</max_angle></horizontal>
+            <vertical><samples>45</samples><resolution>1</resolution><min_angle>-0.392699</min_angle><max_angle>0.392699</max_angle></vertical>
+          </scan>
+          <range><min>0.5</min><max>2500</max><resolution>1.5</resolution></range>
+          <noise><type>gaussian</type><mean>0</mean><stddev>0.1</stddev></noise>
+        </lidar>
+        <pose>-0.093 0.161081 0.0375 0 0 2.0944</pose>
+      </sensor>
+
+      <!-- Radar D — Rear (yaw=180°) -->
+      <sensor name="radar_D" type="lidar">
+        <gz_frame_id>radar_frame_D</gz_frame_id>
+        <always_on>true</always_on>
+        <update_rate>5</update_rate>
+        <visualize>false</visualize>
+        <lidar>
+          <scan>
+            <horizontal><samples>110</samples><resolution>1</resolution><min_angle>-0.523599</min_angle><max_angle>0.523599</max_angle></horizontal>
+            <vertical><samples>45</samples><resolution>1</resolution><min_angle>-0.392699</min_angle><max_angle>0.392699</max_angle></vertical>
+          </scan>
+          <range><min>0.5</min><max>2500</max><resolution>1.5</resolution></range>
+          <noise><type>gaussian</type><mean>0</mean><stddev>0.1</stddev></noise>
+        </lidar>
+        <pose>-0.187 0 0.0375 0 0 3.14159</pose>
+      </sensor>
+
+      <!-- Radar E — Rear-Left (yaw=-120°) -->
+      <sensor name="radar_E" type="lidar">
+        <gz_frame_id>radar_frame_E</gz_frame_id>
+        <always_on>true</always_on>
+        <update_rate>5</update_rate>
+        <visualize>false</visualize>
+        <lidar>
+          <scan>
+            <horizontal><samples>110</samples><resolution>1</resolution><min_angle>-0.523599</min_angle><max_angle>0.523599</max_angle></horizontal>
+            <vertical><samples>45</samples><resolution>1</resolution><min_angle>-0.392699</min_angle><max_angle>0.392699</max_angle></vertical>
+          </scan>
+          <range><min>0.5</min><max>2500</max><resolution>1.5</resolution></range>
+          <noise><type>gaussian</type><mean>0</mean><stddev>0.1</stddev></noise>
+        </lidar>
+        <pose>-0.093 -0.161081 0.0375 0 0 -2.0944</pose>
+      </sensor>
+
+      <!-- Radar F — Front-Left (yaw=-60°) -->
+      <sensor name="radar_F" type="lidar">
+        <gz_frame_id>radar_frame_F</gz_frame_id>
+        <always_on>true</always_on>
+        <update_rate>5</update_rate>
+        <visualize>false</visualize>
+        <lidar>
+          <scan>
+            <horizontal><samples>110</samples><resolution>1</resolution><min_angle>-0.523599</min_angle><max_angle>0.523599</max_angle></horizontal>
+            <vertical><samples>45</samples><resolution>1</resolution><min_angle>-0.392699</min_angle><max_angle>0.392699</max_angle></vertical>
+          </scan>
+          <range><min>0.5</min><max>2500</max><resolution>1.5</resolution></range>
+          <noise><type>gaussian</type><mean>0</mean><stddev>0.1</stddev></noise>
+        </lidar>
+        <pose>0.093 -0.161081 0.0375 0 0 -1.0472</pose>
+      </sensor>
+
+      <!-- FIX8: GPS update_rate 30Hz → 10Hz (uBlox M8N hardware limit; PX4 default) -->
+      <sensor name="navsat_sensor" type="navsat">
+        <always_on>true</always_on>
+        <update_rate>10</update_rate>
+        <pose>0 0 0.319 0 0 0</pose>
+      </sensor>
+
+    <!-- ===== FIX1 + FIX3 + FIX6 + FIX7: CORRECTED PLUGIN SECTION ===== -->
+    <!-- Replace the entire PLUGINS section (from the comment to end of model) -->
+
+    <!-- FIX6: PX4 velocity control — NEW, required for SITL -->
+    <plugin name="gz::sim::systems::MulticopterVelocityControl"
+            filename="gz-sim-multicopter-velocity-control-system">
+      <robotNamespace>mbc3_radar_drone</robotNamespace>
+      <commandSubTopic>cmd_vel</commandSubTopic>
+      <enableSubTopic>enable</enableSubTopic>
+      <velocityGain>2.5 2.5 2.5</velocityGain>
+      <attitudeGain>2.0 2.0 2.0</attitudeGain>
+      <angularVelocityGain>0.4 0.4 0.4</angularVelocityGain>
+    </plugin>
+
+    <plugin name="gz::sim::systems::PosePublisher" filename="gz-sim-pose-publisher-system">
+      <publish_link_pose>true</publish_link_pose>
+      <publish_sensor_pose>false</publish_sensor_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_nested_model_pose>false</publish_nested_model_pose>
+      <update_frequency>100</update_frequency>
+    </plugin>
+
+    <!-- FIX7: dimensions=3 added for aerial vehicle 3D odometry -->
+    <plugin name="gz::sim::systems::OdometryPublisher" filename="gz-sim-odometry-publisher-system">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <publish_rate>50</publish_rate>
+      <dimensions>3</dimensions>
+    </plugin>
+
+    <!-- FIX1: Motor 0 (CCW) — maxRotVelocity 838→1948.2; kf/km rescaled for 838KV@22.2V -->
+    <plugin name="gz::sim::systems::MulticopterMotorModel" filename="gz-sim-multicopter-motor-model-system">
+      <jointName>motor_0_spin</jointName>
+      <linkName>motor_bell_0</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1948.2</maxRotVelocity>
+      <motorConstant>6.60e-6</motorConstant>
+      <momentConstant>5.341e-4</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <actuator_number>0</actuator_number>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/0</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+
+    <!-- FIX1: Motor 1 (CW) -->
+    <plugin name="gz::sim::systems::MulticopterMotorModel" filename="gz-sim-multicopter-motor-model-system">
+      <jointName>motor_1_spin</jointName>
+      <linkName>motor_bell_1</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1948.2</maxRotVelocity>
+      <motorConstant>6.60e-6</motorConstant>
+      <momentConstant>5.341e-4</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <actuator_number>1</actuator_number>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/1</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+
+    <!-- FIX1: Motor 2 (CCW) -->
+    <plugin name="gz::sim::systems::MulticopterMotorModel" filename="gz-sim-multicopter-motor-model-system">
+      <jointName>motor_2_spin</jointName>
+      <linkName>motor_bell_2</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1948.2</maxRotVelocity>
+      <motorConstant>6.60e-6</motorConstant>
+      <momentConstant>5.341e-4</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <actuator_number>2</actuator_number>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/2</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+
+    <!-- FIX1: Motor 3 (CW) -->
+    <plugin name="gz::sim::systems::MulticopterMotorModel" filename="gz-sim-multicopter-motor-model-system">
+      <jointName>motor_3_spin</jointName>
+      <linkName>motor_bell_3</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1948.2</maxRotVelocity>
+      <motorConstant>6.60e-6</motorConstant>
+      <momentConstant>5.341e-4</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <actuator_number>3</actuator_number>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/3</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+
+    <!-- FIX1: Motor 4 (CCW) -->
+    <plugin name="gz::sim::systems::MulticopterMotorModel" filename="gz-sim-multicopter-motor-model-system">
+      <jointName>motor_4_spin</jointName>
+      <linkName>motor_bell_4</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1948.2</maxRotVelocity>
+      <motorConstant>6.60e-6</motorConstant>
+      <momentConstant>5.341e-4</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <actuator_number>4</actuator_number>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/4</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+
+    <!-- FIX1: Motor 5 (CW) -->
+    <plugin name="gz::sim::systems::MulticopterMotorModel" filename="gz-sim-multicopter-motor-model-system">
+      <jointName>motor_5_spin</jointName>
+      <linkName>motor_bell_5</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1948.2</maxRotVelocity>
+      <motorConstant>6.60e-6</motorConstant>
+      <momentConstant>5.341e-4</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <actuator_number>5</actuator_number>
+      <rotorDragCoefficient>8.06e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <motorSpeedPubTopic>motor_speed/5</motorSpeedPubTopic>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+
+    <!-- FIX3: Battery — enabled, 10000mAh, full-charge voltage 25.2V, correct resistance -->
+    <plugin name='gz::sim::systems::LinearBatteryPlugin' filename='gz-sim-linearbattery-plugin-system'>
+      <battery_name>lipo_6s_10000mah</battery_name>
+      <voltage>25.2</voltage>
+      <open_circuit_voltage_constant_coef>25.2</open_circuit_voltage_constant_coef>
+      <open_circuit_voltage_linear_coef>-6.0</open_circuit_voltage_linear_coef>
+      <initial_charge>10.0</initial_charge>
+      <capacity>10.0</capacity>
+      <resistance>0.03</resistance>
+      <smooth_current_tau>2.0</smooth_current_tau>
+      <power_load>250.0</power_load>
+      <start_on_motion>false</start_on_motion>
+    </plugin>
+
+  </model>
+</sdf>

@@ -1,0 +1,14 @@
+# aeris10_driver — parameter defaults
+# ros2 run aeris10_driver driver_node --ros-args --params-file <this file>
+
+/aeris10_driver:
+  ros__parameters:
+    drone_ns:       ''        # namespace prefix (e.g. 'drone_L' for swarm)
+    vid:            0x0483    # USB Vendor ID — STM32 default; update from lsusb
+    pid:            0xAE10    # USB Product ID — update from lsusb
+    min_range_m:    1.0       # filter out returns closer than this
+    max_range_m:    5000.0    # filter out returns farther than this
+    min_power_dBm: -80.0      # noise floor — reject weak returns
+    reconnect_s:    2.0       # seconds between USB reconnect attempts
+    publish_hz:     20.0      # PointCloud2 publish rate per panel
+    sim_mode:       false     # true → synthetic rotating target (no hardware)

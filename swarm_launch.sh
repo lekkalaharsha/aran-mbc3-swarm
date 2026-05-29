@@ -160,13 +160,16 @@ while (( READY_COUNT < 5 && waited < 120 )); do
 done
 ok "${READY_COUNT}/5 drones ready"
 
-# ── GCS Dashboard ────────────────────────────────────────────
-log "Starting GCS dashboard..."
+# ── GCS Dashboard (swarm_telemetry_web.py — 5-drone map + radar panel) ───────
+log "Starting Swarm Command Center dashboard..."
 GCS_LOG="${SESSION_DIR}/gcs.log"
-(cd "${SCRIPT_DIR}/src" && env SWARM_MODE=1 python3 telemetry_web.py) >> "${GCS_LOG}" 2>&1 &
+(cd "${SCRIPT_DIR}/src" && python3 swarm_telemetry_web.py) >> "${GCS_LOG}" 2>&1 &
 PIDS+=($!)
 sleep 2
-ok "GCS live → http://localhost:5000  |  ASP → http://localhost:5000/asp"
+ok "Swarm GCS live → http://localhost:5000"
+ok "  Map: 5 drone markers + trails + sector polygons + NFZ"
+ok "  Radar: 6-panel AERIS-10 polar SVG per drone"
+ok "  Events: redistribution + failure log"
 
 # ── Swarm Mission — arm + climb all 5, then sequential mission one by one ──
 # Starts mavsdk_server per drone (grpc 50050-50054) for isolated control.
