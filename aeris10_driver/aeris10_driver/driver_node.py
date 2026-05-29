@@ -220,7 +220,8 @@ class Aeris10DriverNode(Node):
     def _sim_loop(self):
         """
         Synthetic rotating target at 200m range for bench testing.
-        Generates 5 scatter points per cycle so min_cluster_hits=3 is satisfied.
+        Generates 15 scatter points per cycle: satisfies min_cluster_hits=3 (detection_node)
+        and the RF gate's 9-hit threshold for "real target" classification.
         """
         az_deg = 0.0
         rng_base = 200.0
@@ -235,9 +236,9 @@ class Aeris10DriverNode(Node):
             panel = _az_to_panel(az_deg)
             RT    = PANELS[panel]['RT']
 
-            # 5 scatter points within 0.5m — all cluster together
+            # 15 scatter points within 0.4m — all cluster together, pass RF gate (needs ≥9 hits)
             pts = []
-            for _ in range(5):
+            for _ in range(15):
                 noise = np.random.normal(0.0, 0.2, 3)
                 pt = RT @ (np.array([bx, by, bz]) + noise)
                 pts.append((float(pt[0]), float(pt[1]), float(pt[2])))

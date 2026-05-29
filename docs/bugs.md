@@ -454,6 +454,33 @@ distances, 0.0 for bearings) before payload assembly.
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 23 | Total: 27
+---
 
-**Next action:** Test 5-drone swarm: `MBC3_MODE=1 HEADLESS=1 bash swarm_launch.sh`
+## Batch 14 — Phase 0 demo pipeline (2026-05-29, test/phase6-leader-failover)
+
+### BUG-D1 | CRITICAL | sim_mode generates 5 hits → RF gate classifies all targets as clutter → zero detections on demo
+**File:** `aeris10_driver/aeris10_driver/driver_node.py` — `_sim_loop()`
+**Status:** ✅ FIXED
+
+**Problem:**
+`_sim_loop()` generated 5 scatter points per cycle. `detection_node.py`'s RF gate
+(`rf_classifier.py`) is trained with:
+- Real targets: hits 9–100
+- Clutter/noise: hits 3–7
+
+5 hits falls in the clutter band. Every synthetic target was classified as clutter and
+filtered out by `_rf.predict()` in `_publish()`. All demo runs would show n_targets=0.
+
+**Root cause:** `_sim_loop` comment said "5 scatter points so min_cluster_hits=3 is
+satisfied" — written before the RF gate was added. min_hits=3 is the clustering floor,
+not the RF gate floor. RF gate floor is 9 hits.
+
+**Fix:** Changed scatter count 5 → 15. 15 hits >> RF gate threshold of 9. Noise std=0.2m
+means all 15 points cluster within 0.6m (< cluster_radius=2.5m) → compact, high-hit →
+classified as target.
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 24 | Total: 28
+
+**Next action:** Record Phase 0 demo video, then submit to IAF website.

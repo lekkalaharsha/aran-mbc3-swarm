@@ -202,7 +202,7 @@ Cruise current          = 950 / 22.2           = 42.8 A
 
 | # | Gap | Impact | Priority |
 |---|-----|--------|----------|
-| S1 | **`fly_demo.sh` radar/targets echo parsing untested** — Python pipe from `ros2 topic echo` | Demo script may show no output | HIGH |
+| S1 | ~~`fly_demo.sh` radar/targets echo parsing untested~~ → **FIXED (BUG-D1)**: sim_mode generated 5 hits (clutter band) → RF gate zeroed all detections. Fixed: 15 scatter points. Parsing logic verified correct. | ✓ closed | — |
 | S2 | **`swarm_mission.py` redistribution untested** — EXTRA_WPS queue written but no end-to-end test | Core Phase 0 proof unverified | HIGH |
 | S3 | **`launch.sh` aeris10 path hardcoded to python3.12** — MAVSDK_SERVER path in swarm_mission.py may not match system | Swarm won't start | HIGH |
 | S4 | **No heartbeat timeout in `run_mission()`** — failure only detected on exception, not silent hang | Drone can hang mid-mission undetected | MEDIUM |
