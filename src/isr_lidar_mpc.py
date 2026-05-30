@@ -1500,8 +1500,14 @@ async def run():
 
         t_approach = asyncio.get_running_loop().time()
         APPROACH_TIMEOUT_S = 180.0   # raised: 40 m/s × 180s = 7.2 km max range
-        async for pos in drone.telemetry.position():
-            dist = haversine(pos.latitude_deg, pos.longitude_deg, t_lat, t_lon)
+        _last_goto_t = t_approach
+        # BUG-E1 FIX: use drone_state lat/lon (background telemetry, always current)
+        # instead of async-for on drone.telemetry.position() which backs up under load
+        # (MAVSDK callback queue lag causes stale position reads → arrival never fires).
+        # Re-issue goto_location every 10 s so PX4 stays committed after mission-HOLD.
+        while True:
+            await asyncio.sleep(0.5)
+            dist = haversine(drone_state["lat"], drone_state["lon"], t_lat, t_lon)
             print(f"\r  Distance to {t_name}: {dist:.1f}m  "
                   f"(entry at {t_r:.0f}m)     ", end="", flush=True)
             # Arrived when within 1.3× orbit radius — on or near the orbit circle
@@ -1509,12 +1515,18 @@ async def run():
                 print()
                 log(f"At orbit entry — dist={dist:.1f}m  target_r={t_r:.0f}m")
                 break
-            if asyncio.get_running_loop().time() - t_approach > APPROACH_TIMEOUT_S:
+            now = asyncio.get_running_loop().time()
+            if now - t_approach > APPROACH_TIMEOUT_S:
                 print()
                 log_warn(f"Approach timeout ({APPROACH_TIMEOUT_S:.0f}s) — "
                          f"still {dist:.0f}m from {t_name}, proceeding to orbit")
                 break
-            await asyncio.sleep(0.1)
+            if now - _last_goto_t >= 10.0:
+                _last_goto_t = now
+                try:
+                    await drone.action.goto_location(entry_lat, entry_lon, goto_alt, float("nan"))
+                except Exception:
+                    pass
 
         # In-flight NFZ check before committing to orbit
         nfz_inside, nfz_name, _ = get_nfz_exclusion_check(t_lat, t_lon)

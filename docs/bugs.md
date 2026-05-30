@@ -481,6 +481,31 @@ classified as target.
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 24 | Total: 28
+---
+
+### BUG-E1 | HIGH | Orbit approach timeout — stale telemetry position from backed-up MAVSDK callback queue
+**File:** `src/isr_lidar_mpc.py` — `_do_orbit_phase()`
+**Status:** ✅ FIXED
+
+**Problem:** Approach loop `async for pos in drone.telemetry.position()` reads from MAVSDK's
+internal callback queue. Under load (survey just completed, 5+ coroutines running), the queue
+backs up (MAVSDK logs "User callback queue slow, size: 10–13"). The loop consumes stale
+positions while the actual drone moves/overshoots. Arrival condition (`dist <= t_r * 1.3`)
+never fires. Timeout fires at 180s; queue finally flushes showing drone 365–598m from target.
+
+**Root cause:** `drone.telemetry.position()` async iterator is backed by a buffered queue.
+High coroutine count + SITL telemetry rate causes queue lag. `drone_state["lat"/"lon"]` is
+updated by the background `_telemetry` coroutine via rate-limited streams — always reflects
+real current position.
+
+**Fix:**
+- Replace `async for pos in drone.telemetry.position()` with `asyncio.sleep(0.5)` poll
+  using `drone_state["lat"]` and `drone_state["lon"]` (always fresh, no queue lag)
+- Re-issue `goto_location` every 10 s during approach so PX4 stays committed to target
+  (mission-complete HOLD can drift without periodic position setpoint refresh)
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 25 | Total: 29
 
 **Next action:** Record Phase 0 demo video, then submit to IAF website.
