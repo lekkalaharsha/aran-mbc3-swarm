@@ -225,6 +225,16 @@ def push_to_gcs():
                                     drone_state["alt"],
                                 ) if lidar_state["raw_ranges"] else [],
             "asp_drone_id":     "DRONE-L",
+            # Drone position/state — GCS MAVSDK connection is unreliable when
+            # isr_lidar_mpc owns the mavsdk_server; push these so the GCS
+            # dashboard stays accurate regardless of its own MAVSDK stream.
+            "drone_lat":         _safe_float(drone_state["lat"], 0.0),
+            "drone_lon":         _safe_float(drone_state["lon"], 0.0),
+            "drone_alt":         _safe_float(drone_state["alt"], 0.0),
+            "drone_heading":     _safe_float(drone_state["heading"], 0.0),
+            "drone_armed":       drone_state["armed"],
+            "drone_flight_mode": drone_state["flight_mode"],
+            "drone_battery":     _safe_float(drone_state["battery"], 0.0),
         }
         resp = requests.post(GCS_URL, json=payload, timeout=0.2)
         if resp.ok:
@@ -1485,6 +1495,15 @@ async def run():
         # descent per orbit. Cap to cruise altitude so we never descend below survey alt.
         goto_alt = home_abs_alt + max(t_alt, ALTITUDE)
 
+        # Hold first so PX4 exits any prior orbit/mission mode before we upload
+        # the approach mission. Without this, a lingering orbit command causes
+        # the new mission to be delayed 10-30s while PX4 finishes the prior mode.
+        try:
+            await drone.action.hold()
+            await asyncio.sleep(2.0)
+        except Exception as e:
+            log_warn(f"hold() before approach failed (non-critical): {e}")
+
         # BUG-E1 FIX v2: upload a 1-WP mission to orbit entry point and execute it.
         # goto_location (DO_REPOSITION) was unreliable post-survey — PX4 would comply
         # briefly then revert to loiter/RTL. A mission waypoint uses the same AUTO.MISSION
@@ -1520,7 +1539,10 @@ async def run():
             await drone.action.goto_location(entry_lat, entry_lon, goto_alt, float("nan"))
 
         t_approach = asyncio.get_running_loop().time()
-        APPROACH_TIMEOUT_S = 90.0    # 90s: entry is <200m from last survey WP at 15 m/s
+        # Dynamic timeout: distance to entry at conservative 8 m/s + 60s buffer.
+        # Fixed 90s failed for far targets like BRAVO-1 (>400m away, ~100s needed).
+        dist_to_entry = haversine(drone_state["lat"], drone_state["lon"], entry_lat, entry_lon)
+        APPROACH_TIMEOUT_S = max(90.0, dist_to_entry / 8.0 + 60.0)
         while True:
             await asyncio.sleep(0.5)
             dist = haversine(drone_state["lat"], drone_state["lon"], t_lat, t_lon)
@@ -1569,16 +1591,6 @@ async def run():
         log(f"Orbit complete — {t_name}")
 
     # ── PHASE 3: Primary target orbit ─────────────────────
-    # BUG-E1 FIX: put PX4 in HOLD before goto_location so it exits MISSION mode.
-    # Without this, PX4 stays in AUTO.MISSION after survey complete and overrides
-    # goto_location after brief compliance, causing the drone to fly away.
-    log("Switching to HOLD before orbit approach...")
-    try:
-        await drone.action.hold()
-        await asyncio.sleep(2.0)
-    except Exception as e:
-        log_warn(f"hold() failed (non-critical): {e}")
-
     mission_state["mission_phase"] = "LOITER"
     primary_target = {
         "name":             "PRIMARY TARGET",

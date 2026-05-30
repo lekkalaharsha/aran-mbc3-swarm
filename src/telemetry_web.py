@@ -43,6 +43,7 @@ v13 Additions:
 """
 import asyncio
 import math
+import os
 import threading
 import time
 from collections import deque
@@ -121,6 +122,14 @@ flight_log   = deque(maxlen=10000)
 # script applies them immediately (NFZ append, target append, config patch,
 # event injection) without needing a separate HTTP server on its side.
 _dyn_cmd_lock    = threading.Lock()
+# _shared_lock serialises all reads/writes of `data` and `lidar_data`; prevents
+# torn reads between the Flask request thread and the socketio emit_loop thread.
+_shared_lock     = threading.Lock()
+# Watchdog: mission script must POST /lidar_update within 10s or GCS shows STALE.
+_mission_alive   = {"last_push": 0.0}
+# Optional GCS command auth — set GCS_TOKEN env var to require a token header.
+GCS_TOKEN = os.environ.get("GCS_TOKEN", "")
+
 dynamic_commands = {
     "nfz_queue":      [],   # [{name,lat,lon,radius_m,reason}]
     "target_queue":   [],   # [{name,lat,lon,orbit_*,priority}]
@@ -144,66 +153,78 @@ asp_data = {
 }
 
 
+def _check_auth():
+    """Return a 403 Response if GCS_TOKEN is set and the request header is wrong."""
+    if not GCS_TOKEN:
+        return None
+    if request.headers.get("X-GCS-Token", "") != GCS_TOKEN:
+        return jsonify({"ok": False, "error": "Unauthorized — set X-GCS-Token header"}), 403
+    return None
+
+
 # ── LiDAR update endpoint ──────────────────────────────────────────
 @app.route("/lidar_update", methods=["POST"])
 def lidar_update():
     payload = request.get_json(silent=True) or {}
-    lidar_data["nearest_dist"]     = payload.get("nearest_dist",     999.0)
-    lidar_data["nearest_bearing"]  = payload.get("nearest_bearing",  0.0)
-    lidar_data["scan_count"]       = payload.get("scan_count",       0)
-    lidar_data["avoidance_active"] = payload.get("avoidance_active", False)
-    lidar_data["avoidance_count"]  = payload.get("avoidance_count",  0)
-    lidar_data["detour_lat"]       = payload.get("detour_lat",       None)
-    lidar_data["detour_lon"]       = payload.get("detour_lon",       None)
-    lidar_data["alert_msg"]        = payload.get("alert_msg",        "")
-    lidar_data["escape_side"]      = payload.get("escape_side",      "---")
-    lidar_data["timeout_active"]   = payload.get("timeout_active",   False)
-    # BUG FIX: sectors were never read from the POST payload — sector overlay
-    # on the GCS map was permanently frozen at the [999.0]*8 init value.
-    if "sectors" in payload:
-        lidar_data["sectors"] = payload["sectors"]
-    if "groundspeed" in payload: data["groundspeed"] = payload["groundspeed"]
-    if "gps_ok"      in payload: data["gps_ok"]      = payload["gps_ok"]
-    if "reconnects"  in payload: data["reconnects"]  = payload["reconnects"]
-    if "eta_seconds" in payload: data["eta_seconds"] = payload["eta_seconds"]
-    # BUG FIX: mission_phase pushed by isr_lidar_mpc.push_to_gcs() was never
-    # written into data[], so SEC-1/2/3 phases were invisible to the GCS
-    # frontend — the phase panel stayed frozen at "LOITER" for all secondary
-    # orbits (PX4 reports HOLD for every do_orbit call).
-    if "mission_phase" in payload:
-        data["mission_phase"] = payload["mission_phase"]
-        _phase_state["push_time"] = datetime.now().timestamp()
-    # BUG FIX: wp_current / wp_total pushed from isr_lidar_mpc were never
-    # written into data[] — waypoint progress bar only updated from MAVSDK
-    # stream which stops during orbit/RTL phases. Now kept in sync from push.
-    if "wp_current"  in payload: data["wp_current"]  = payload["wp_current"]
-    if "wp_total"    in payload: data["wp_total"]     = payload["wp_total"]
-    # ASP tracks piggybacked on lidar_update — forward to /asp_update handler
-    if "asp_tracks" in payload:
-        tracks = payload["asp_tracks"]
-        asp_data["tracks"]      = tracks
-        asp_data["scan_count"] += 1
-        asp_data["last_update"] = time.time()
-        for t in tracks:
-            asp_data["track_log"].append({
-                "time":        datetime.now().strftime("%H:%M:%S.%f")[:-3],
-                "id":          t.get("id","?"),
-                "lat":         t.get("lat",0),
-                "lon":         t.get("lon",0),
-                "range_m":     t.get("range_m",0),
-                "bearing_deg": t.get("bearing_deg",0),
-                "alt_m":       t.get("alt_m",0),
-                "velocity_ms": t.get("velocity_ms",0),
-                "confidence":  t.get("confidence",0),
-                "drone_id":    payload.get("asp_drone_id","DRONE-L"),
-            })
-        socketio.emit("asp", {
-            "tracks":      asp_data["tracks"],
-            "scan_count":  asp_data["scan_count"],
-            "last_update": asp_data["last_update"],
-            "drone":       {"lat": data["lat"], "lon": data["lon"],
-                            "alt": data["alt"], "heading": data["heading"]},
-        })
+    _mission_alive["last_push"] = time.time()
+    with _shared_lock:
+        lidar_data["nearest_dist"]     = payload.get("nearest_dist",     999.0)
+        lidar_data["nearest_bearing"]  = payload.get("nearest_bearing",  0.0)
+        lidar_data["scan_count"]       = payload.get("scan_count",       0)
+        lidar_data["avoidance_active"] = payload.get("avoidance_active", False)
+        lidar_data["avoidance_count"]  = payload.get("avoidance_count",  0)
+        lidar_data["detour_lat"]       = payload.get("detour_lat",       None)
+        lidar_data["detour_lon"]       = payload.get("detour_lon",       None)
+        lidar_data["alert_msg"]        = payload.get("alert_msg",        "")
+        lidar_data["escape_side"]      = payload.get("escape_side",      "---")
+        lidar_data["timeout_active"]   = payload.get("timeout_active",   False)
+        if "sectors" in payload:
+            lidar_data["sectors"] = payload["sectors"]
+        if "groundspeed"       in payload: data["groundspeed"]  = payload["groundspeed"]
+        if "gps_ok"            in payload: data["gps_ok"]       = payload["gps_ok"]
+        if "reconnects"        in payload: data["reconnects"]   = payload["reconnects"]
+        if "eta_seconds"       in payload: data["eta_seconds"]  = payload["eta_seconds"]
+        if "drone_lat"         in payload: data["lat"]          = payload["drone_lat"]
+        if "drone_lon"         in payload: data["lon"]          = payload["drone_lon"]
+        if "drone_alt"         in payload: data["alt"]          = payload["drone_alt"]
+        if "drone_heading"     in payload: data["heading"]      = payload["drone_heading"]
+        if "drone_armed"       in payload: data["armed"]        = payload["drone_armed"]
+        if "drone_flight_mode" in payload: data["flight_mode"]  = payload["drone_flight_mode"]
+        if "drone_battery"     in payload: data["battery"]      = payload["drone_battery"]
+        if "mission_phase" in payload:
+            data["mission_phase"] = payload["mission_phase"]
+            _phase_state["push_time"] = datetime.now().timestamp()
+        if "wp_current" in payload: data["wp_current"] = payload["wp_current"]
+        if "wp_total"   in payload: data["wp_total"]   = payload["wp_total"]
+        # Snapshot for socketio.emit after releasing the lock
+        _asp_emit = None
+        if "asp_tracks" in payload:
+            tracks = payload["asp_tracks"]
+            asp_data["tracks"]      = tracks
+            asp_data["scan_count"] += 1
+            asp_data["last_update"] = time.time()
+            for t in tracks:
+                asp_data["track_log"].append({
+                    "time":        datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                    "id":          t.get("id","?"),
+                    "lat":         t.get("lat",0),
+                    "lon":         t.get("lon",0),
+                    "range_m":     t.get("range_m",0),
+                    "bearing_deg": t.get("bearing_deg",0),
+                    "alt_m":       t.get("alt_m",0),
+                    "velocity_ms": t.get("velocity_ms",0),
+                    "confidence":  t.get("confidence",0),
+                    "drone_id":    payload.get("asp_drone_id","DRONE-L"),
+                })
+            _asp_emit = {
+                "tracks":      list(asp_data["tracks"]),
+                "scan_count":  asp_data["scan_count"],
+                "last_update": asp_data["last_update"],
+                "drone":       {"lat": data["lat"], "lon": data["lon"],
+                                "alt": data["alt"], "heading": data["heading"]},
+            }
+    if _asp_emit:
+        socketio.emit("asp", _asp_emit)
 
     # 3D map stats piggybacked on the lidar_update payload
     if "map_stats" in payload:
@@ -345,6 +366,8 @@ def map_stats_endpoint():
 # ── PID tune endpoint ──────────────────────────────────────────────
 @app.route("/pid_tune", methods=["POST"])
 def pid_tune():
+    auth_err = _check_auth()
+    if auth_err: return auth_err
     payload = request.get_json(silent=True) or {}
     controller = payload.get("controller")
     if controller not in pid_gains:
@@ -454,6 +477,8 @@ def add_nfz():
 
     Body: {"lat": float, "lon": float, "radius_m": float, "name": str, "reason": str}
     """
+    auth_err = _check_auth()
+    if auth_err: return auth_err
     payload = request.get_json(silent=True) or {}
     if "lat" not in payload or "lon" not in payload:
         return jsonify({"ok": False, "error": "lat and lon required"}), 400
@@ -483,6 +508,8 @@ def add_target():
            "orbit_speed_ms": float, "orbit_altitude_m": float,
            "orbit_duration_s": int, "priority": int}
     """
+    auth_err = _check_auth()
+    if auth_err: return auth_err
     payload = request.get_json(silent=True) or {}
     if "lat" not in payload or "lon" not in payload:
         return jsonify({"ok": False, "error": "lat and lon required"}), 400
@@ -513,6 +540,8 @@ def config_update():
     Allowed keys: LIDAR_WARN_DIST, LIDAR_AVOID_DIST, AVOIDANCE_OFFSET, SAFE_RESUME_DIST
     Body: {"LIDAR_WARN_DIST": 30.0, "LIDAR_AVOID_DIST": 20.0}
     """
+    auth_err = _check_auth()
+    if auth_err: return auth_err
     payload = request.get_json(silent=True) or {}
     allowed = {"LIDAR_WARN_DIST", "LIDAR_AVOID_DIST", "AVOIDANCE_OFFSET", "SAFE_RESUME_DIST"}
     updates = {k: float(v) for k, v in payload.items() if k in allowed}
@@ -545,6 +574,8 @@ def inject_event():
     wrong sector.  Added optional frame param; "world" converts to sensor frame
     using current drone heading from data["heading"].
     """
+    auth_err = _check_auth()
+    if auth_err: return auth_err
     payload = request.get_json(silent=True) or {}
     bearing = float(payload.get("bearing_deg", 0.0))
     frame   = payload.get("frame", "sensor")
@@ -681,22 +712,32 @@ def start_telemetry():
 def emit_loop():
     while True:
         try:
-            elapsed = datetime.now() - start_time
-            data["elapsed"] = str(elapsed).split(".")[0]
+            now = datetime.now()
+            elapsed = now - start_time
+
+            # Atomic snapshot — prevents torn reads when lidar_update() is
+            # writing from the Flask thread concurrently.
+            with _shared_lock:
+                data["elapsed"] = str(elapsed).split(".")[0]
+                data_snap  = dict(data)
+                lidar_snap = dict(lidar_data)
+
+            data_age_s   = time.time() - _mission_alive["last_push"]
+            mission_alive = _mission_alive["last_push"] > 0 and data_age_s < 10.0
 
             flight_log.append((
-                datetime.now().strftime("%H:%M:%S"),
-                round(data["lat"], 6), round(data["lon"], 6),
-                data["alt"], data["groundspeed"], data["heading"],
-                data["battery"], data["flight_mode"], data["armed"],
-                round(min(lidar_data["nearest_dist"], 9999.0), 1),
-                round(min(lidar_data["nearest_bearing"], 9999.0) if math.isfinite(lidar_data["nearest_bearing"]) else 0.0, 1),
-                lidar_data["avoidance_count"],
+                now.strftime("%H:%M:%S"),
+                round(data_snap["lat"], 6), round(data_snap["lon"], 6),
+                data_snap["alt"], data_snap["groundspeed"], data_snap["heading"],
+                data_snap["battery"], data_snap["flight_mode"], data_snap["armed"],
+                round(min(lidar_snap["nearest_dist"], 9999.0), 1),
+                round(min(lidar_snap["nearest_bearing"], 9999.0) if math.isfinite(lidar_snap["nearest_bearing"]) else 0.0, 1),
+                lidar_snap["avoidance_count"],
             ))
 
-            payload = dict(data)
+            payload = data_snap
             payload["trail"]              = list(trail)[-150:]
-            payload["lidar"]              = dict(lidar_data)
+            payload["lidar"]              = lidar_snap
             payload["survey_waypoints"]   = SURVEY_WAYPOINTS
             payload["home_lat"]           = HOME_LAT
             payload["home_lon"]           = HOME_LON
@@ -707,6 +748,8 @@ def emit_loop():
             payload["secondary_targets"]  = SECONDARY_TARGETS
             payload["nfz_zones"]          = NO_FLY_ZONES
             payload["loiter_waypoints"]   = LOITER_WAYPOINTS
+            payload["mission_alive"]      = mission_alive
+            payload["data_age_s"]         = round(data_age_s, 1) if _mission_alive["last_push"] > 0 else None
             payload["map"] = {
                 "voxel_count":   map_data["voxel_count"],
                 "resolution_m":  map_data["resolution_m"],
@@ -972,6 +1015,7 @@ body::after {
     <span>PHASE: <b id="hdr-phase" style="color:var(--warn)">STANDBY</b></span>
     <span id="lidar-hdr" style="color:var(--textdim)">360&#176; LiDAR: --</span>
     <span class="nfz-breach-badge" id="nfz-breach-hdr">&#9888; NFZ BREACH</span>
+    <span class="nfz-breach-badge" id="mission-stale-badge" style="display:none;background:rgba(255,100,0,0.15);border-color:#ff6400;color:#ff6400">&#9888; MISSION STALE</span>
     <span style="color:var(--accent2)">OSM &#183; LEAFLET</span>
   </div>
 </div>
@@ -1668,7 +1712,10 @@ function updateSectorPanel(sectors){
 function updateMap(d){
   const lat=d.lat, lon=d.lon, lidar=d.lidar;
 
-  if(!droneOnMap && d.connected){
+  // Show drone marker when connected OR when isr_lidar_mpc is pushing position
+  // (alt > 0.5 means drone is airborne even if GCS MAVSDK stream is down).
+  const hasPosData = d.connected || d.alt > 0.5 || d.mission_alive;
+  if(!droneOnMap && hasPosData){
     droneMarker.setOpacity(1).addTo(map);
     lidarWarnRing.setStyle({fillOpacity:0.03,opacity:1}).addTo(map);
     lidarAvoidRing.setStyle({fillOpacity:0.06,opacity:1}).addTo(map);
@@ -1851,6 +1898,18 @@ socket.on('telemetry', d => {
   const dot=document.getElementById('conn-dot'), txt=document.getElementById('conn-txt');
   if(d.connected){ dot.classList.add('on'); txt.textContent='ONLINE'; }
   else { dot.classList.remove('on'); txt.textContent='OFFLINE'; }
+
+  // Mission-script watchdog: show STALE banner if last /lidar_update > 10s ago
+  const staleEl = document.getElementById('mission-stale-badge');
+  if(staleEl){
+    if(d.mission_alive === false){
+      const age = d.data_age_s != null ? ` (${d.data_age_s}s)` : '';
+      staleEl.textContent = 'MISSION STALE'+age;
+      staleEl.style.display='inline';
+    } else {
+      staleEl.style.display='none';
+    }
+  }
 
   const gpsDot=document.getElementById('gps-dot');
   // BUG FIX: HTML header element is id="gps-txt" but code was looking up
