@@ -212,7 +212,7 @@ cat << 'EOF'
   +══════════════════════════════════════════════════════+
   ║   ARAN TECHNOLOGIES — ISR MISSION LAUNCH SCRIPT     ║
   ║   v13-RACE  |  PX4 SITL + Gazebo Harmonic + MAVSDK ║
-  ║   Nirmaan Incubation — IIT Hyderabad Demo Build     ║
+  ║   Aran Technologies — IAF MBC-3 Phase I             ║
   +══════════════════════════════════════════════════════+
 EOF
 echo -e "${RST}"

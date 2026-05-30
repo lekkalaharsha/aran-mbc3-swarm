@@ -16,8 +16,8 @@ setup(
     ],
     install_requires=['setuptools', 'numpy', 'scikit-learn', 'joblib'],
     zip_safe=True,
-    maintainer='Boson Motors',
-    maintainer_email='eeindia@bosonmotors.com',
+    maintainer='Aran Technologies',
+    maintainer_email='aranrobotics@gmail.com',
     description='MBC-3 radar detection and swarm fusion',
     license='MIT',
     entry_points={

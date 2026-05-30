@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # record_demo.sh — MBC-3 Phase 0 Swarm Demo Video Recorder
-# Boson Motors | eeindia@bosonmotors.com
+# Aran Technologies | aranrobotics@gmail.com
 #
 # Produces: ~/mbc3_phase0_demo.mp4  (~4 minutes)
 #
@@ -29,7 +29,7 @@ err()  { echo -e "${RED}[record] ✗${RST} $*"; exit 1; }
 echo ""
 echo -e "${CYN}╔══════════════════════════════════════════════════════╗"
 echo    "║   MBC-3 Phase 0 Demo — Swarm Video Recorder          ║"
-echo    "║   Boson Motors | eeindia@bosonmotors.com              ║"
+echo    "║   Aran Technologies | aranrobotics@gmail.com              ║"
 echo -e "╚══════════════════════════════════════════════════════╝${RST}"
 echo ""
 

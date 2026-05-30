@@ -3,7 +3,7 @@
   <name>aeris10_driver</name>
   <version>0.1.0</version>
   <description>ROS2 driver for AERIS-10 FMCW phased-array radar (USB, ADAR1000 beamsteering)</description>
-  <maintainer email="eeindia@bosonmotors.com">Boson Motors</maintainer>
+  <maintainer email="aranrobotics@gmail.com">Aran Technologies</maintainer>
   <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>

@@ -16,8 +16,8 @@ setup(
     ],
     install_requires=['setuptools', 'numpy', 'pyusb'],
     zip_safe=True,
-    maintainer='Boson Motors',
-    maintainer_email='eeindia@bosonmotors.com',
+    maintainer='Aran Technologies',
+    maintainer_email='aranrobotics@gmail.com',
     description='ROS2 driver for AERIS-10 FMCW phased-array radar',
     license='MIT',
     entry_points={

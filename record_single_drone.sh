@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # record_single_drone.sh — MBC-3 Single-Drone ISR Demo Video Recorder
-# Boson Motors | eeindia@bosonmotors.com
+# Aran Technologies | aranrobotics@gmail.com
 #
 # Produces: ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4  (~4 minutes)
 #
@@ -36,7 +36,7 @@ err()  { echo -e "${RED}[record] ✗${RST} $*"; exit 1; }
 echo ""
 echo -e "${CYN}╔══════════════════════════════════════════════════════╗"
 echo    "║   MBC-3 Single-Drone ISR Demo — Video Recorder       ║"
-echo    "║   Boson Motors | eeindia@bosonmotors.com              ║"
+echo    "║   Aran Technologies | aranrobotics@gmail.com              ║"
 echo -e "╚══════════════════════════════════════════════════════╝${RST}"
 echo ""
 

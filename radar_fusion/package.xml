@@ -3,7 +3,7 @@
   <name>radar_fusion</name>
   <version>0.1.0</version>
   <description>MBC-3 radar detection, clustering and swarm fusion pipeline</description>
-  <maintainer email="eeindia@bosonmotors.com">Boson Motors</maintainer>
+  <maintainer email="aranrobotics@gmail.com">Aran Technologies</maintainer>
   <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>

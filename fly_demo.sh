@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # MBC-3 Radar Drone — Phase 0 Demo Script
-# Boson Motors | eeindia@bosonmotors.com
+# Aran Technologies | aranrobotics@gmail.com
 #
 # USAGE:
 #   Terminal 1: gz sim ~/aran_mbc/worlds/mbc3_radar_targets.sdf
@@ -27,7 +27,7 @@ echo ""
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║   MBC-3 RADAR DRONE — Phase 0 Simulation Demo        ║"
 echo "║   AERIS-10 FMCW Phased-Array Radar + ROS2 Fusion     ║"
-echo "║   Boson Motors | eeindia@bosonmotors.com              ║"
+echo "║   Aran Technologies | aranrobotics@gmail.com              ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo "  Date: $(date)"
 echo "  Stack: ROS2 Jazzy + Gazebo Harmonic + PX4 SITL"

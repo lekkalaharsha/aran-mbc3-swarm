@@ -9,7 +9,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)
 
 > **Mehar Baba Competition-3 (MBC-3) — Indian Air Force**
-> Nirmaan Incubation · IIT Madras · 2026
+> Aran Technologies | aranrobotics@gmail.com | Phase I — New Delhi, July 2026
 
 ---
 
