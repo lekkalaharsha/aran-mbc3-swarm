@@ -64,25 +64,19 @@ ros2 run aeris10_driver driver_node \
     2>/dev/null &
 DRIVER_PID=$!
 
-sleep 3
-
-# Check at least one panel topic is publishing
+# Poll until /radar_A/scan/points appears (up to 10 s)
 TOPIC_FOUND=0
-for panel in A B C D E F; do
-    if ros2 topic hz /radar_${panel}/scan/points --window 5 2>/dev/null | \
-       grep -q "average rate"; then
+for i in $(seq 1 20); do
+    if ros2 topic list 2>/dev/null | grep -q "/radar_A/scan/points"; then
         TOPIC_FOUND=1; break
     fi
+    sleep 0.5
 done
 
-# Faster check: just list topics
-if ros2 topic list 2>/dev/null | grep -q "/radar_A/scan/points"; then
+if [[ "$TOPIC_FOUND" -eq 1 ]]; then
     ok "Panel topics publishing (/radar_{A-F}/scan/points)"
-    TOPIC_FOUND=1
-fi
-
-if [[ "$TOPIC_FOUND" -eq 0 ]]; then
-    fail "No radar panel topics found"
+else
+    fail "No radar panel topics found after 10 s"
 fi
 
 # ── Step 3: Start detection_node ──────────────────────────────────────────────
@@ -91,13 +85,19 @@ section "3. detection_node"
 ros2 run radar_fusion detection_node 2>/dev/null &
 DET_PID=$!
 
-sleep 4
+# Poll until /radar/targets appears (up to 12 s)
+TARGETS_FOUND=0
+for i in $(seq 1 24); do
+    if ros2 topic list 2>/dev/null | grep -q "^/radar/targets$"; then
+        TARGETS_FOUND=1; break
+    fi
+    sleep 0.5
+done
 
-# Check /radar/targets is being published
-if ros2 topic list 2>/dev/null | grep -q "^/radar/targets$"; then
+if [[ "$TARGETS_FOUND" -eq 1 ]]; then
     ok "/radar/targets topic exists"
 else
-    fail "/radar/targets not found (detection_node may have crashed)"
+    fail "/radar/targets not found after 12 s (detection_node may have crashed)"
 fi
 
 # ── Step 4: Read detections — sample with --once loop (continuous echo exits early) ─

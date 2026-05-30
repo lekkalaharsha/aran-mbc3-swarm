@@ -240,11 +240,25 @@ def main() -> None:
     print(f"[SIM] Polling Gazebo poses → 6-panel FOV check → ASP at {GCS_URL}", flush=True)
 
     scan = 0
+    _empty_streak = 0
     while True:
         t0 = time.time()
 
         _refresh_leader()
         poses      = get_poses()
+        if not poses:
+            _empty_streak += 1
+            if _empty_streak == 5:
+                print("[SIM] WARNING: Gazebo returned empty poses 5 times — "
+                      "Gazebo running?", flush=True)
+            elif _empty_streak % 50 == 0:
+                print(f"[SIM] WARNING: Gazebo still empty ({_empty_streak} polls, "
+                      f"~{_empty_streak//5}s)", flush=True)
+        else:
+            if _empty_streak >= 5:
+                print(f"[SIM] Gazebo poses restored after {_empty_streak} empty polls",
+                      flush=True)
+            _empty_streak = 0
         # G4: fuse detections from all 5 drone radars (not just leader)
         detections = compute_all_drones(poses) if poses else []
         push_asp(detections, scan)

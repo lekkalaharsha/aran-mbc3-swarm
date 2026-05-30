@@ -1,43 +1,40 @@
 #!/usr/bin/env bash
-# record_demo.sh — MBC-3 Phase 0 Demo Video Recorder
+# record_demo.sh — MBC-3 Phase 0 Swarm Demo Video Recorder
 # Boson Motors | eeindia@bosonmotors.com
 #
-# Produces: ~/mbc3_phase0_demo.mp4  (~70 seconds)
+# Produces: ~/mbc3_phase0_demo.mp4  (~4 minutes)
 #
 # USAGE (run from your desktop terminal):
 #   bash ~/Documents/aran_mbc/record_demo.sh
 #
 # Layout:
-#   Left window  — radar_fusion detection_node  (live detections 5 Hz)
-#   Right window — fly_demo.sh                  (mission + live targets)
+#   Full-screen GCS dashboard at http://localhost:5000 (Firefox)
+#   + swarm terminal visible on left half of screen
+#   At T+120s: kill DRONE-2 to demonstrate leader failover / redistribution
 set -eo pipefail
 
 ARAN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WS_SETUP="$HOME/ros2_ws/install/setup.bash"
 OUT="$HOME/mbc3_phase0_demo.mp4"
 DISPLAY_VAR="${DISPLAY:-:1}"
-DURATION=70
+DURATION=300   # 5 minutes — startup(90s) + mission(120s) + failover+redistrib(90s)
 
 export PATH="$HOME/.local/bin:$PATH"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[0;33m'; CYN='\033[0;36m'; RST='\033[0m'
 log()  { echo -e "${CYN}[record]${RST} $*"; }
 ok()   { echo -e "${GRN}[record] ✓${RST} $*"; }
+warn() { echo -e "${YLW}[record] ⚠${RST} $*"; }
 err()  { echo -e "${RED}[record] ✗${RST} $*"; exit 1; }
 
 echo ""
 echo -e "${CYN}╔══════════════════════════════════════════════════════╗"
-echo    "║   MBC-3 Phase 0 Demo — Video Recorder                ║"
+echo    "║   MBC-3 Phase 0 Demo — Swarm Video Recorder          ║"
 echo    "║   Boson Motors | eeindia@bosonmotors.com              ║"
 echo -e "╚══════════════════════════════════════════════════════╝${RST}"
 echo ""
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
-source /opt/ros/jazzy/setup.bash
-[[ -f "$WS_SETUP" ]] || err "ros2_ws not built. Run: bash $ARAN/setup_ws.sh"
-source "$WS_SETUP"
-
-command -v ffmpeg &>/dev/null || err "ffmpeg not found at $HOME/.local/bin/ffmpeg — already downloaded, check PATH"
+command -v ffmpeg &>/dev/null || err "ffmpeg not found — check PATH"
 
 SCREEN=$(xrandr 2>/dev/null | grep " connected primary" | grep -oP '\d+x\d+' | head -1)
 SCREEN="${SCREEN:-1920x1080}"
@@ -45,50 +42,89 @@ W=$(echo "$SCREEN" | cut -dx -f1)
 H=$(echo "$SCREEN" | cut -dx -f2)
 log "Display: $DISPLAY_VAR  Resolution: ${W}x${H}"
 
-# ── Window 1 — detection_node (left half) ────────────────────────────────────
-log "Opening detection_node window (left)..."
+# ── Kill any stale swarm processes ────────────────────────────────────────────
+log "Clearing stale processes..."
+pkill -9 -f "bin/px4"       2>/dev/null || true
+pkill -9 -f "gz sim"        2>/dev/null || true
+pkill -9 -f "telemetry_web" 2>/dev/null || true
+pkill -9 -f "swarm_mission" 2>/dev/null || true
+pkill -9 -f "leader_election" 2>/dev/null || true
+pkill -9 -f "radar_sim"     2>/dev/null || true
+pkill -9 -f "mavsdk_server" 2>/dev/null || true
+rm -f /tmp/px4_swarm_pid_*
+rm -rf /tmp/px4_swarm_1 /tmp/px4_swarm_2 /tmp/px4_swarm_3 /tmp/px4_swarm_4
+sleep 2
+ok "Clean"
 
-DETECT_CMD="bash -c '\
-source /opt/ros/jazzy/setup.bash; \
-source $WS_SETUP; \
+# ── Window 1 (left) — swarm_launch.sh ────────────────────────────────────────
+log "Opening swarm launch terminal (left half)..."
+
+SWARM_CMD="bash -c '\
+export DISPLAY=${DISPLAY_VAR}; \
+export PATH=$HOME/.local/bin:\$PATH; \
+bash ${ARAN}/swarm_launch.sh; \
+echo \"\"; echo \" Swarm stopped — window closes in 30s\"; sleep 30'"
+
+gnome-terminal \
+    --title="T1: MBC-3 Swarm Launch" \
+    --geometry="120x40+0+0" \
+    -- bash -c "$SWARM_CMD" &
+
+log "Waiting 15s for swarm to start GCS (flask needs PX4 instance 0 + Gazebo up)..."
+sleep 15
+
+# ── Window 2 (right) — kill DRONE-2 after 120s ───────────────────────────────
+log "Scheduling DRONE-2 kill at T+120s (leader failover demo)..."
+
+KILL_CMD="bash -c '\
+export DISPLAY=${DISPLAY_VAR}; \
 echo \"\"; \
 echo \" ╔══════════════════════════════════════════════════════╗\"; \
-echo \" ║  AERIS-10 FMCW Radar — detection_node               ║\"; \
-echo \" ║  MBC-3 | Boson Motors | eeindia@bosonmotors.com      ║\"; \
+echo \" ║  Leader Failover Demo — DRONE-2 will be killed       ║\"; \
+echo \" ║  Watch GCS for redistribution + new leader election  ║\"; \
 echo \" ╚══════════════════════════════════════════════════════╝\"; \
 echo \"\"; \
-ros2 run radar_fusion detection_node; \
-exec bash'"
+echo \" Waiting 150s for swarm to reach cruise altitude...\"; \
+bash ${ARAN}/tools/kill_drone_sim.sh 2 150; \
+echo \"\"; echo \" Failover demo complete.\"; sleep 60'"
 
 gnome-terminal \
-    --title="T1: detection_node" \
-    --geometry="100x35+0+0" \
-    -- bash -c "$DETECT_CMD" &
+    --title="T2: Leader Failover Demo" \
+    --geometry="90x20+960+600" \
+    -- bash -c "$KILL_CMD" &
 
-sleep 2
+# ── Wait for GCS to be reachable ─────────────────────────────────────────────
+log "Polling http://localhost:5000 (up to 300s — swarm needs ~90s to start)..."
+GCS_UP=0
+for i in $(seq 1 150); do
+    sleep 2
+    if curl -sf http://localhost:5000/ -o /dev/null 2>/dev/null; then
+        GCS_UP=1
+        ok "GCS reachable at T+$((i*2))s"
+        break
+    fi
+    if (( i % 15 == 0 )); then
+        log "  Still waiting for GCS... ($((i*2))s)"
+    fi
+done
 
-# ── Window 2 — fly_demo.sh (right half) ──────────────────────────────────────
-log "Opening fly_demo.sh window (right)..."
+if [[ "$GCS_UP" -eq 0 ]]; then
+    warn "GCS not reachable after 300s — opening browser anyway (may show loading)"
+fi
 
-DEMO_CMD="bash -c '\
-sleep 3; \
-bash $ARAN/fly_demo.sh; \
-echo \"\"; \
-echo \" Demo complete — window closes in 10s\"; \
-sleep 10'"
+# ── Open Firefox to GCS dashboard ────────────────────────────────────────────
+log "Opening GCS dashboard in Firefox..."
+firefox --new-window "http://localhost:5000" &
+sleep 5
 
-gnome-terminal \
-    --title="T2: fly_demo.sh" \
-    --geometry="100x35+960+0" \
-    -- bash -c "$DEMO_CMD" &
-
-log "Waiting 8s for windows + pipeline to settle..."
-sleep 8
+# ── Brief settle before recording ────────────────────────────────────────────
+log "Settling 5s before recording starts..."
+sleep 5
 
 # ── Start ffmpeg recording ────────────────────────────────────────────────────
 log "Recording ${DURATION}s → $OUT"
 echo ""
-echo -e "${YLW}  ► RECORDING — do not move or cover the terminal windows${RST}"
+echo -e "${YLW}  ► RECORDING ${DURATION}s — do not move or cover windows${RST}"
 echo ""
 
 ffmpeg -y \
@@ -119,7 +155,7 @@ wait $FFMPEG_PID 2>/dev/null || true
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
-if [[ -f "$OUT" ]] && [[ $(stat -c%s "$OUT") -gt 100000 ]]; then
+if [[ -f "$OUT" ]] && [[ $(stat -c%s "$OUT") -gt 500000 ]]; then
     SIZE=$(du -h "$OUT" | cut -f1)
     ok "Saved: $OUT  ($SIZE)"
     echo ""

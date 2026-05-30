@@ -286,7 +286,7 @@ class MPCEngine:
             args=(x0,),
             method="L-BFGS-B",
             bounds=bounds,
-            options={"maxiter": 80, "ftol": 1e-5, "gtol": 1e-4},
+            options={"maxiter": 50, "ftol": 1e-5, "gtol": 1e-4},
         )
 
         U_opt = result.x.reshape(self.N, 3)

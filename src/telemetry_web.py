@@ -680,47 +680,43 @@ def start_telemetry():
 
 def emit_loop():
     while True:
-        elapsed = datetime.now() - start_time
-        data["elapsed"] = str(elapsed).split(".")[0]
+        try:
+            elapsed = datetime.now() - start_time
+            data["elapsed"] = str(elapsed).split(".")[0]
 
-        flight_log.append((
-            datetime.now().strftime("%H:%M:%S"),
-            round(data["lat"], 6), round(data["lon"], 6),
-            data["alt"], data["groundspeed"], data["heading"],
-            data["battery"], data["flight_mode"], data["armed"],
-            # BUG FIX: nearest_dist can be float('inf') when no obstacle is
-            # detected from a real LiDAR scan. round(float('inf'), 1) raises
-            # OverflowError in some Python versions, crashing emit_loop and
-            # freezing the entire GCS. Clamp to a sentinel value first.
-            round(min(lidar_data["nearest_dist"], 9999.0), 1),
-            # BUG FIX: nearest_bearing can also be inf/nan if the LiDAR driver
-            # sends a degenerate value when no obstacle is in range. Apply the
-            # same sentinel clamp to avoid OverflowError / ValueError from round().
-            round(min(lidar_data["nearest_bearing"], 9999.0) if math.isfinite(lidar_data["nearest_bearing"]) else 0.0, 1),
-            lidar_data["avoidance_count"],
-        ))
+            flight_log.append((
+                datetime.now().strftime("%H:%M:%S"),
+                round(data["lat"], 6), round(data["lon"], 6),
+                data["alt"], data["groundspeed"], data["heading"],
+                data["battery"], data["flight_mode"], data["armed"],
+                round(min(lidar_data["nearest_dist"], 9999.0), 1),
+                round(min(lidar_data["nearest_bearing"], 9999.0) if math.isfinite(lidar_data["nearest_bearing"]) else 0.0, 1),
+                lidar_data["avoidance_count"],
+            ))
 
-        payload = dict(data)
-        payload["trail"]              = list(trail)[-150:]
-        payload["lidar"]              = dict(lidar_data)
-        payload["survey_waypoints"]   = SURVEY_WAYPOINTS
-        payload["home_lat"]           = HOME_LAT
-        payload["home_lon"]           = HOME_LON
-        payload["target_lat"]         = TARGET_LAT
-        payload["target_lon"]         = TARGET_LON
-        payload["orbit_radius"]       = ORBIT_RADIUS
-        payload["pid_gains"]          = pid_gains
-        payload["secondary_targets"]  = SECONDARY_TARGETS
-        payload["nfz_zones"]          = NO_FLY_ZONES
-        payload["loiter_waypoints"]   = LOITER_WAYPOINTS
-        payload["map"] = {
-            "voxel_count":   map_data["voxel_count"],
-            "resolution_m":  map_data["resolution_m"],
-            "point_count":   map_data["raw_point_count"],
-            "scan_count":    map_data["scan_count"],
-            "alt_range_m":   map_data["alt_range_m"],
-        }
-        socketio.emit("telemetry", payload)
+            payload = dict(data)
+            payload["trail"]              = list(trail)[-150:]
+            payload["lidar"]              = dict(lidar_data)
+            payload["survey_waypoints"]   = SURVEY_WAYPOINTS
+            payload["home_lat"]           = HOME_LAT
+            payload["home_lon"]           = HOME_LON
+            payload["target_lat"]         = TARGET_LAT
+            payload["target_lon"]         = TARGET_LON
+            payload["orbit_radius"]       = ORBIT_RADIUS
+            payload["pid_gains"]          = pid_gains
+            payload["secondary_targets"]  = SECONDARY_TARGETS
+            payload["nfz_zones"]          = NO_FLY_ZONES
+            payload["loiter_waypoints"]   = LOITER_WAYPOINTS
+            payload["map"] = {
+                "voxel_count":   map_data["voxel_count"],
+                "resolution_m":  map_data["resolution_m"],
+                "point_count":   map_data["raw_point_count"],
+                "scan_count":    map_data["scan_count"],
+                "alt_range_m":   map_data["alt_range_m"],
+            }
+            socketio.emit("telemetry", payload)
+        except Exception as e:
+            _gcs_print(f"emit_loop error — {e}")
         time.sleep(0.4)
 
 
@@ -731,10 +727,10 @@ HTML = r"""
 <meta charset="UTF-8">
 <title>Aran Technologies — ISR GCS v13</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/socket.io.min.js"></script>
+<script src="/static/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/leaflet.css"/>
+<script src="/static/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
@@ -2018,9 +2014,9 @@ ASP_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <title>Aran Technologies — ASP v1 | MBC-3</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<link rel="stylesheet" href="/static/leaflet.css"/>
+<script src="/static/leaflet.js"></script>
+<script src="/static/socket.io.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#060b14;color:#c8dff0;font-family:'Courier New',monospace;height:100vh;display:flex;flex-direction:column}

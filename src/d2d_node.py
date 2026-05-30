@@ -345,6 +345,18 @@ class D2DNode:
                             flush=True,
                         )
 
+    async def _ack_cleanup_loop(self) -> None:
+        """Remove stale pending_acks entries to prevent unbounded growth."""
+        while self._running:
+            await asyncio.sleep(10)
+            now = time.time()
+            stale = [mid for mid, a in list(self.pending_acks.items())
+                     if now - a["sent_at"] > 5.0]
+            for mid in stale:
+                del self.pending_acks[mid]
+            if stale:
+                print(f"[D2D-{self.idx}] Cleaned {len(stale)} stale ACK entries", flush=True)
+
     # ── Entry point ───────────────────────────────────────────────────
 
     async def run(self) -> None:
@@ -369,6 +381,7 @@ class D2DNode:
                 self._hb_loop(),
                 self._lead_loop(),
                 self._election_watch(),
+                self._ack_cleanup_loop(),
                 return_exceptions=True,
             )
         finally:

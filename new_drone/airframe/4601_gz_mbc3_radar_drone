@@ -117,3 +117,12 @@ param set-default BAT1_N_CELLS   6
 param set-default BAT1_CAPACITY  10000
 param set-default BAT1_V_CHARGED 4.20
 param set-default BAT1_V_EMPTY   3.50
+
+# ── SITL circuit breakers (disable checks that require physical hardware) ─────
+# gz-sim-linearbattery-plugin-system not installed → PX4 sees no supply voltage
+# CBRK_SUPPLY_CHK 894281 disables the "system power unavailable" pre-arm block
+param set-default CBRK_SUPPLY_CHK 894281
+# EKF2 accel bias learning limit: raise to max (0.8 m/s²) so SITL startup
+# bias transients do not trigger "High Accelerometer Bias" pre-arm block.
+# Arm check uses 0.75 × EKF2_ABL_LIM; default 0.4 → limit 0.3 m/s² too tight.
+param set-default EKF2_ABL_LIM 0.8

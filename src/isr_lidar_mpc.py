@@ -1286,8 +1286,10 @@ async def run():
         if elapsed > TAKEOFF_ACCEPT_TIMEOUT:
             log_warn(f"PX4 did not begin takeoff within {TAKEOFF_ACCEPT_TIMEOUT:.0f}s")
             log_warn(f"Last state={state} — attempting direct goto_location climb")
-            # Fallback: use goto_location directly
-            await drone.action.goto_location(HOME_LAT, HOME_LON, home_abs_alt + ALTITUDE, float("nan"))
+            # Fallback: use goto_location with a 50m north offset so PX4 does not
+            # declare the waypoint reached instantly (drone is already at HOME lat/lon).
+            _fb_lat = drone_state["lat"] + 0.00045
+            await drone.action.goto_location(_fb_lat, drone_state["lon"], home_abs_alt + ALTITUDE, float("nan"))
             break
         await asyncio.sleep(0.1)
 
@@ -1302,6 +1304,7 @@ async def run():
     last_alt        = 0.0
     stall_warned    = False
     force_goto_used = False
+    low_rate_since  = 0.0   # timestamp when climb_rate first dropped below stall threshold
 
     log(f"Climbing to {target_alt:.0f} m (threshold: within {ALT_THRESHOLD:.0f} m)...")
 
@@ -1311,13 +1314,23 @@ async def run():
         alt = drone_state["alt"]
         
         # Progress indicator every 3 seconds
-        if asyncio.get_running_loop().time() - last_print >= 3.0:
-            last_print = asyncio.get_running_loop().time()
+        now = asyncio.get_running_loop().time()
+        if now - last_print >= 3.0:
+            last_print = now
             climb_rate = (alt - last_alt) / 3.0 if last_alt > 0 else 0
             log(f"  alt={alt:.1f}m / {target_alt:.0f}m  ({elapsed_climb:.1f}s)  climb_rate={climb_rate:.2f}m/s")
+            # Track how long climb_rate has been near-zero (actual stall)
+            if elapsed_climb > 10.0:
+                if climb_rate < 0.05:
+                    if low_rate_since == 0.0:
+                        low_rate_since = now
+                else:
+                    low_rate_since = 0.0
             last_alt = alt
-        
-        # Check for climb stall
+        else:
+            climb_rate = (alt - last_alt) / max(now - last_print, 0.1) if last_alt > 0 else 0
+
+        # Check for climb stall (only fire if altitude is truly stuck, not just slow)
         if not stall_warned and elapsed_climb > CLIMB_STALL_CHECK and alt < 15.0:
             stall_warned = True
             log_warn(f"Climb stalled at {alt:.1f}m after {elapsed_climb:.1f}s — low climb rate")
@@ -1327,16 +1340,21 @@ async def run():
                 await asyncio.sleep(2.0)
             except Exception as e:
                 log_warn(f"Force takeoff failed: {e}")
-        
-        # If still low after 30 seconds, use goto_location as backup
-        if not force_goto_used and elapsed_climb > 30.0 and alt < 20.0:
+
+        # goto_location fallback: only trigger on genuine stall (rate < 0.05 m/s for 12+s)
+        # NOT on a time+altitude threshold — that fires when the drone is still climbing fine.
+        # Use a 50m north offset so PX4 doesn't instantly declare waypoint reached
+        # (drone is near HOME horizontal position; goto_location to HOME = zero travel = hover).
+        stall_duration = (now - low_rate_since) if low_rate_since > 0 else 0.0
+        if not force_goto_used and stall_duration >= 12.0 and alt < target_alt - ALT_THRESHOLD:
             force_goto_used = True
-            log_warn(f"Still low at {alt:.1f}m after 30s — switching to goto_location climb")
+            log_warn(f"Climb stalled at {alt:.1f}m ({stall_duration:.0f}s near-zero rate) — goto_location rescue")
             try:
-                await drone.action.goto_location(HOME_LAT, HOME_LON, home_abs_alt + target_alt, float("nan"))
-                log("  goto_location command sent")
+                _rescue_lat = drone_state["lat"] + 0.00045  # ~50m north offset
+                await drone.action.goto_location(_rescue_lat, drone_state["lon"], home_abs_alt + target_alt, float("nan"))
+                log("  goto_location rescue sent")
             except Exception as e:
-                log_warn(f"goto_location fallback failed: {e}")
+                log_warn(f"goto_location rescue failed: {e}")
         
         # Success condition
         if alt >= target_alt - ALT_THRESHOLD:

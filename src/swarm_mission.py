@@ -17,6 +17,7 @@ Mission redistribution (G3/G5):
 """
 
 import asyncio
+import atexit
 import os
 import subprocess
 import sys
@@ -46,6 +47,18 @@ MAVSDK_SERVER = os.path.expanduser(
 NUM_DRONES    = SWARM_NUM_DRONES
 BASE_UDP      = 14540
 BASE_GRPC     = 50050
+
+# ── Process registry — cleaned up on any exit (normal, crash, Ctrl+C) ─────────
+_mavsdk_procs: list = []
+
+def _kill_mavsdk_servers() -> None:
+    for p in _mavsdk_procs:
+        try:
+            p.terminate()
+        except Exception:
+            pass
+
+atexit.register(_kill_mavsdk_servers)
 MISSION_SPEED = 15.0    # m/s waypoint speed
 CLIMB_SPEED   = 2.0     # m/s MPC_TKO_SPEED
 ARM_TIMEOUT   = 90.0
@@ -53,10 +66,13 @@ GCS_URL       = "http://localhost:5000/asp_update"
 EVENT_URL     = "http://localhost:5000/event_push"
 
 # ── Shared state ──────────────────────────────────────────────────────────────
+GCS_TRACK_URL = "http://localhost:5000/api/track_state"
+
 drone_states: dict[int, dict] = {
     i: {
         "id":          f"DRONE-{i}",
         "lat":         0.0, "lon": 0.0, "alt": 0.0,
+        "alt_amsl":    0.0,
         "heading":     0.0, "groundspeed": 0.0,
         "connected":   False, "armed": False,
         "flight_mode": "---", "phase": "INIT",
@@ -84,6 +100,7 @@ def banner(msg):    print(f"\n{'='*55}\n  {msg}\n{'='*55}", flush=True)
 # ── GCS push ──────────────────────────────────────────────────────────────────
 def _push_loop():
     scan = 0
+    _fail_count = 0
     while True:
         time.sleep(0.5)
         scan += 1
@@ -94,8 +111,15 @@ def _push_loop():
                 "scan_count":   scan,
                 "asp_drone_id": "SWARM_MISSION",
             }, timeout=0.3)
-        except Exception:
-            pass
+            if _fail_count > 0:
+                print(f"[PUSH] GCS reconnected after {_fail_count} failures", flush=True)
+            _fail_count = 0
+        except Exception as e:
+            _fail_count += 1
+            if _fail_count == 1:
+                print(f"[PUSH] GCS unreachable — {e}", flush=True)
+            elif _fail_count % 60 == 0:
+                print(f"[PUSH] GCS still unreachable ({_fail_count} misses, ~{_fail_count//2}s)", flush=True)
         if scan % 30 == 0:
             info = [(s["id"], f"{s['alt']:.0f}m", s["phase"]) for s in drone_states.values()]
             print(f"[PUSH] #{scan}: {info}", flush=True)
@@ -103,6 +127,7 @@ def _push_loop():
 
 # ── mavsdk servers ────────────────────────────────────────────────────────────
 def start_mavsdk_servers() -> list:
+    global _mavsdk_procs
     procs = []
     for i in range(NUM_DRONES):
         p = subprocess.Popen(
@@ -111,6 +136,7 @@ def start_mavsdk_servers() -> list:
         )
         print(f"[SWARM] mavsdk_server drone {i}: grpc={BASE_GRPC+i} udp={BASE_UDP+i} pid={p.pid}", flush=True)
         procs.append(p)
+    _mavsdk_procs = procs  # register for atexit cleanup
     time.sleep(2)
     return procs
 
@@ -179,9 +205,10 @@ def build_extra_plan(idx: int, extra_wps: list[tuple]) -> MissionPlan:
 async def _stream_position(drone, idx):
     async for pos in drone.telemetry.position():
         drone_states[idx].update({
-            "lat": pos.latitude_deg,
-            "lon": pos.longitude_deg,
-            "alt": round(pos.relative_altitude_m, 1),
+            "lat":      pos.latitude_deg,
+            "lon":      pos.longitude_deg,
+            "alt":      round(pos.relative_altitude_m, 1),
+            "alt_amsl": round(pos.absolute_altitude_m, 1),
             "connected": True,
         })
 
@@ -367,6 +394,52 @@ async def run_mission(
         drone_states[idx]["phase"] = "LANDED"
 
 
+# ── Follow loop ───────────────────────────────────────────────────────────────
+
+async def _follow_loop(drone, idx: int) -> None:
+    """Poll GCS /api/track_state every 1 s.
+    When this drone is assigned, override nav with repeated goto_location calls.
+    goto_location takes absolute (AMSL) altitude — use alt_amsl from telemetry.
+    """
+    loop = asyncio.get_event_loop()
+    _prev_phase = "INIT"
+    while True:
+        await asyncio.sleep(1.0)
+        try:
+            data = await loop.run_in_executor(
+                None,
+                lambda: requests.get(GCS_TRACK_URL, timeout=0.5).json(),
+            )
+        except Exception:
+            continue
+
+        if not data.get("active") or data.get("drone_idx") != idx:
+            if drone_states[idx]["phase"] == "FOLLOW":
+                drone_states[idx]["phase"] = _prev_phase
+            continue
+
+        if data.get("stale"):
+            # Target disappeared — hover, don't chase ghost position
+            continue
+
+        lat  = data["lat"]
+        lon  = data["lon"]
+        amsl = drone_states[idx].get("alt_amsl", 0.0)
+        if amsl < 5.0:
+            # Drone not airborne yet — skip
+            continue
+
+        if drone_states[idx]["phase"] != "FOLLOW":
+            _prev_phase = drone_states[idx]["phase"]
+            drone_states[idx]["phase"] = "FOLLOW"
+            log(idx, f"FOLLOW mode → {data['target_id']}  {lat:.6f},{lon:.6f}")
+
+        try:
+            await drone.action.goto_location(lat, lon, amsl, float("nan"))
+        except Exception as e:
+            log(idx, f"goto_location failed — {e}")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 async def main():
     banner("ARAN MBC-3 — 5-DRONE SWARM MISSION WITH REDISTRIBUTION")
@@ -419,6 +492,11 @@ async def main():
         asyncio.create_task(_stream_position(drones[i], i))
         asyncio.create_task(_stream_velocity(drones[i], i))
         asyncio.create_task(_stream_armed(drones[i], i))
+
+    # Follow loops — poll GCS track_state, execute goto_location when assigned
+    for i in range(NUM_DRONES):
+        asyncio.create_task(_follow_loop(drones[i], i))
+    print("[SWARM] Follow loops started — poll GCS /api/track_state @ 1 Hz", flush=True)
 
     # D2D nodes — one per drone
     d2d_nodes = [D2DNode(i, drone_states[i]) for i in range(NUM_DRONES)]
