@@ -1485,32 +1485,47 @@ async def run():
         # descent per orbit. Cap to cruise altitude so we never descend below survey alt.
         goto_alt = home_abs_alt + max(t_alt, ALTITUDE)
 
-        # set_maximum_speed removed — not available in this MAVSDK version.
-        # PX4 SITL uses MPC_XY_VEL_MAX (15 m/s) set in airframe.
-
-        # FIX-2: fly to orbit entry point (North of target at orbit radius) instead
-        # of target centre.  When goto_location goes to the centre, do_orbit starts
-        # at radius=0 and spirals outward — the drone never reaches the commanded
-        # radius during the dwell window.  Starting at the orbit circle edge means
-        # do_orbit locks onto the correct radius immediately.
+        # BUG-E1 FIX v2: upload a 1-WP mission to orbit entry point and execute it.
+        # goto_location (DO_REPOSITION) was unreliable post-survey — PX4 would comply
+        # briefly then revert to loiter/RTL. A mission waypoint uses the same AUTO.MISSION
+        # path that worked for the survey, so PX4 commits fully.
         from mpc_controller import project_waypoint as _project_wp
         entry_lat, entry_lon = _project_wp(t_lat, t_lon, 0.0, t_r)
-        await drone.action.goto_location(entry_lat, entry_lon, goto_alt, float("nan"))
-        log(f"Flying to orbit entry point ({t_r:.0f}m North of target)...")
+        log(f"Flying to orbit entry point ({t_r:.0f}m North of target) via 1-WP mission...")
+        log(f"  entry=({entry_lat:.6f},{entry_lon:.6f})  goto_alt={goto_alt:.1f}m")
+
+        approach_mission = MissionPlan([
+            MissionItem(
+                latitude_deg=entry_lat,
+                longitude_deg=entry_lon,
+                relative_altitude_m=max(t_alt, ALTITUDE),
+                speed_m_s=SPEED,
+                is_fly_through=False,
+                gimbal_pitch_deg=-90.0, gimbal_yaw_deg=0.0,
+                camera_action=MissionItem.CameraAction.NONE,
+                loiter_time_s=0.0, camera_photo_interval_s=1.0,
+                acceptance_radius_m=15.0, yaw_deg=float("nan"),
+                camera_photo_distance_m=0.0,
+                vehicle_action=MissionItem.VehicleAction.NONE,
+            )
+        ])
+        try:
+            await drone.mission.set_return_to_launch_after_mission(False)
+            await drone.mission.upload_mission(approach_mission)
+            await drone.mission.set_current_mission_item(0)
+            await drone.mission.start_mission()
+            log("  Approach mission started")
+        except Exception as e:
+            log_warn(f"  Approach mission upload/start failed: {e} — falling back to goto_location")
+            await drone.action.goto_location(entry_lat, entry_lon, goto_alt, float("nan"))
 
         t_approach = asyncio.get_running_loop().time()
-        APPROACH_TIMEOUT_S = 180.0   # raised: 40 m/s × 180s = 7.2 km max range
-        _last_goto_t = t_approach
-        # BUG-E1 FIX: use drone_state lat/lon (background telemetry, always current)
-        # instead of async-for on drone.telemetry.position() which backs up under load
-        # (MAVSDK callback queue lag causes stale position reads → arrival never fires).
-        # Re-issue goto_location every 10 s so PX4 stays committed after mission-HOLD.
+        APPROACH_TIMEOUT_S = 90.0    # 90s: entry is <200m from last survey WP at 15 m/s
         while True:
             await asyncio.sleep(0.5)
             dist = haversine(drone_state["lat"], drone_state["lon"], t_lat, t_lon)
             print(f"\r  Distance to {t_name}: {dist:.1f}m  "
                   f"(entry at {t_r:.0f}m)     ", end="", flush=True)
-            # Arrived when within 1.3× orbit radius — on or near the orbit circle
             if dist <= t_r * 1.3:
                 print()
                 log(f"At orbit entry — dist={dist:.1f}m  target_r={t_r:.0f}m")
@@ -1521,12 +1536,6 @@ async def run():
                 log_warn(f"Approach timeout ({APPROACH_TIMEOUT_S:.0f}s) — "
                          f"still {dist:.0f}m from {t_name}, proceeding to orbit")
                 break
-            if now - _last_goto_t >= 10.0:
-                _last_goto_t = now
-                try:
-                    await drone.action.goto_location(entry_lat, entry_lon, goto_alt, float("nan"))
-                except Exception:
-                    pass
 
         # In-flight NFZ check before committing to orbit
         nfz_inside, nfz_name, _ = get_nfz_exclusion_check(t_lat, t_lon)
@@ -1560,6 +1569,16 @@ async def run():
         log(f"Orbit complete — {t_name}")
 
     # ── PHASE 3: Primary target orbit ─────────────────────
+    # BUG-E1 FIX: put PX4 in HOLD before goto_location so it exits MISSION mode.
+    # Without this, PX4 stays in AUTO.MISSION after survey complete and overrides
+    # goto_location after brief compliance, causing the drone to fly away.
+    log("Switching to HOLD before orbit approach...")
+    try:
+        await drone.action.hold()
+        await asyncio.sleep(2.0)
+    except Exception as e:
+        log_warn(f"hold() failed (non-critical): {e}")
+
     mission_state["mission_phase"] = "LOITER"
     primary_target = {
         "name":             "PRIMARY TARGET",
