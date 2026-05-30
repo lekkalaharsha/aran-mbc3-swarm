@@ -6,6 +6,8 @@
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 set -euo pipefail
+set -m   # job control: each background job gets its own process group (PGID = PID)
+         # enables "kill -- -PID" to terminate the entire child subtree in cleanup()
 
 # ══════════════════════════════════════════════════════════
 #  COLOURS & LOGGING
@@ -172,25 +174,27 @@ cleanup() {
         local name="${names[$i]}"
         if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
             log "Stopping ${name} (PID ${pid})…"
-            kill -SIGTERM "${pid}" 2>/dev/null || true
+            # Kill entire process group (set -m ensures PID == PGID for background jobs)
+            kill -SIGTERM -- "-${pid}" 2>/dev/null || kill -SIGTERM "${pid}" 2>/dev/null || true
             local w=0
             while kill -0 "${pid}" 2>/dev/null && (( w < 8 )); do
                 sleep 0.5; (( w++ )) || true
             done
             if kill -0 "${pid}" 2>/dev/null; then
                 log_warn "${name} ignored SIGTERM — sending SIGKILL"
-                kill -SIGKILL "${pid}" 2>/dev/null || true
+                kill -SIGKILL -- "-${pid}" 2>/dev/null || kill -SIGKILL "${pid}" 2>/dev/null || true
             else
                 log_ok "${name} stopped"
             fi
         fi
     done
-    # Kill any stray Gazebo / PX4 child processes not caught above
-    pkill -f "gz sim"        2>/dev/null || true
-    pkill -f "gzserver"      2>/dev/null || true
-    pkill -f "px4.*sitl"     2>/dev/null || true
+    # Kill any stray Gazebo / PX4 child processes not caught by PGID kill above.
+    # PX4 pattern scoped to PX4_DIR to avoid hitting other users' instances.
+    pkill -f "${PX4_DIR}.*px4" 2>/dev/null || pkill -f "px4.*sitl" 2>/dev/null || true
+    pkill -f "gz sim"          2>/dev/null || true
+    pkill -f "gzserver"        2>/dev/null || true
     # Kill stale MAVSDK server — holds UDP :14540 and causes upload failures on re-launch
-    pkill -f "mavsdk_server" 2>/dev/null || true
+    pkill -f "mavsdk_server"   2>/dev/null || true
     log_info "All logs saved to: ${SESSION_DIR}/"
     log_ok   "Shutdown complete"
 }

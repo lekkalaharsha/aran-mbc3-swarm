@@ -63,7 +63,9 @@ from mission_config import (
 )
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+socketio = SocketIO(app,
+    cors_allowed_origins=["http://localhost:5000", "http://127.0.0.1:5000"],
+    async_mode="threading")
 
 SURVEY_WAYPOINTS = generate_survey_grid()
 
@@ -258,40 +260,40 @@ def asp_update():
     payload = request.get_json(silent=True) or {}
     # Only update tracks if caller explicitly sent the key — guards against
     # swarm_monitor and other payloads that omit radar data clearing real tracks.
-    if "asp_tracks" in payload or "tracks" in payload:
-        tracks = payload["asp_tracks"] if "asp_tracks" in payload else payload.get("tracks", [])
-        asp_data["tracks"] = tracks
-        asp_data["scan_count"] += 1
-        asp_data["last_update"] = time.time()
-        # Log each track to history for CSV download
-        for t in tracks:
-            asp_data["track_log"].append({
-                "time":        datetime.now().strftime("%H:%M:%S.%f")[:-3],
-                "id":          t.get("id", "?"),
-                "lat":         t.get("lat", 0),
-                "lon":         t.get("lon", 0),
-                "range_m":     t.get("range_m", 0),
-                "bearing_deg": t.get("bearing_deg", 0),
-                "alt_m":       t.get("alt_m", 0),
-                "velocity_ms": t.get("velocity_ms", 0),
-                "confidence":  t.get("confidence", 0),
-                "drone_id":    payload.get("asp_drone_id", "DRONE-L"),
-            })
-    drone_id = payload.get("asp_drone_id")
-    if drone_id and drone_id not in asp_data["drone_ids"]:
-        asp_data["drone_ids"].append(drone_id)
-    # Swarm drone positions from swarm_monitor.py
-    if "swarm_drones" in payload:
-        asp_data["swarm_drones"] = payload["swarm_drones"]
-    socketio.emit("asp", {
-        "tracks":        asp_data["tracks"],
-        "swarm_drones":  asp_data["swarm_drones"],
-        "scan_count":    asp_data["scan_count"],
-        "last_update":   asp_data["last_update"],
-        "drone":         {"lat": data["lat"], "lon": data["lon"],
-                          "alt": data["alt"], "heading": data["heading"]},
-        "drone_ids":     asp_data["drone_ids"],
-    })
+    with _shared_lock:
+        if "asp_tracks" in payload or "tracks" in payload:
+            tracks = payload["asp_tracks"] if "asp_tracks" in payload else payload.get("tracks", [])
+            asp_data["tracks"] = tracks
+            asp_data["scan_count"] += 1
+            asp_data["last_update"] = time.time()
+            for t in tracks:
+                asp_data["track_log"].append({
+                    "time":        datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                    "id":          t.get("id", "?"),
+                    "lat":         t.get("lat", 0),
+                    "lon":         t.get("lon", 0),
+                    "range_m":     t.get("range_m", 0),
+                    "bearing_deg": t.get("bearing_deg", 0),
+                    "alt_m":       t.get("alt_m", 0),
+                    "velocity_ms": t.get("velocity_ms", 0),
+                    "confidence":  t.get("confidence", 0),
+                    "drone_id":    payload.get("asp_drone_id", "DRONE-L"),
+                })
+        drone_id = payload.get("asp_drone_id")
+        if drone_id and drone_id not in asp_data["drone_ids"]:
+            asp_data["drone_ids"].append(drone_id)
+        if "swarm_drones" in payload:
+            asp_data["swarm_drones"] = payload["swarm_drones"]
+        _asp_snap = {
+            "tracks":       list(asp_data["tracks"]),
+            "swarm_drones": list(asp_data["swarm_drones"]),
+            "scan_count":   asp_data["scan_count"],
+            "last_update":  asp_data["last_update"],
+            "drone":        {"lat": data["lat"], "lon": data["lon"],
+                             "alt": data["alt"], "heading": data["heading"]},
+            "drone_ids":    list(asp_data["drone_ids"]),
+        }
+    socketio.emit("asp", _asp_snap)
     return jsonify({"ok": True})
 
 
@@ -374,7 +376,10 @@ def pid_tune():
         return jsonify({"ok": False, "error": f"Unknown controller: {controller}"}), 400
     for key in ("kp", "ki", "kd", "output_limit"):
         if key in payload:
-            pid_gains[controller][key] = float(payload[key])
+            try:
+                pid_gains[controller][key] = float(payload[key])
+            except (ValueError, TypeError):
+                return jsonify({"ok": False, "error": f"{key} must be numeric"}), 400
     socketio.emit("pid_gains", pid_gains)
     return jsonify({"ok": True, "gains": pid_gains[controller]})
 
@@ -482,13 +487,16 @@ def add_nfz():
     payload = request.get_json(silent=True) or {}
     if "lat" not in payload or "lon" not in payload:
         return jsonify({"ok": False, "error": "lat and lon required"}), 400
-    nfz = {
-        "name":     payload.get("name",     f"DYN-NFZ-{int(time.time())}"),
-        "lat":      float(payload["lat"]),
-        "lon":      float(payload["lon"]),
-        "radius_m": float(payload.get("radius_m", 50.0)),
-        "reason":   payload.get("reason",   "Dynamic GCS injection"),
-    }
+    try:
+        nfz = {
+            "name":     payload.get("name",     f"DYN-NFZ-{int(time.time())}"),
+            "lat":      float(payload["lat"]),
+            "lon":      float(payload["lon"]),
+            "radius_m": float(payload.get("radius_m", 50.0)),
+            "reason":   payload.get("reason",   "Dynamic GCS injection"),
+        }
+    except (ValueError, TypeError) as e:
+        return jsonify({"ok": False, "error": f"Invalid numeric field: {e}"}), 400
     # BUG-1 FIX: append to GCS-process list so emit_loop reflects new NFZ on map.
     # GCS and mission script are separate OS processes with separate NO_FLY_ZONES
     # copies — queuing for mission script only left GCS map showing stale zones.
@@ -513,16 +521,19 @@ def add_target():
     payload = request.get_json(silent=True) or {}
     if "lat" not in payload or "lon" not in payload:
         return jsonify({"ok": False, "error": "lat and lon required"}), 400
-    target = {
-        "name":             payload.get("name",             f"DYN-TGT-{int(time.time())}"),
-        "lat":              float(payload["lat"]),
-        "lon":              float(payload["lon"]),
-        "orbit_radius_m":   float(payload.get("orbit_radius_m",   50.0)),
-        "orbit_speed_ms":   float(payload.get("orbit_speed_ms",   12.0)),
-        "orbit_altitude_m": float(payload.get("orbit_altitude_m", 50.0)),
-        "orbit_duration_s": int(payload.get("orbit_duration_s",   15)),
-        "priority":         int(payload.get("priority",           99)),
-    }
+    try:
+        target = {
+            "name":             payload.get("name",             f"DYN-TGT-{int(time.time())}"),
+            "lat":              float(payload["lat"]),
+            "lon":              float(payload["lon"]),
+            "orbit_radius_m":   float(payload.get("orbit_radius_m",   50.0)),
+            "orbit_speed_ms":   float(payload.get("orbit_speed_ms",   12.0)),
+            "orbit_altitude_m": float(payload.get("orbit_altitude_m", 50.0)),
+            "orbit_duration_s": int(payload.get("orbit_duration_s",   15)),
+            "priority":         int(payload.get("priority",           99)),
+        }
+    except (ValueError, TypeError) as e:
+        return jsonify({"ok": False, "error": f"Invalid numeric field: {e}"}), 400
     # BUG-2 FIX: append to GCS-process list so emit_loop shows new target on map.
     # Same process-isolation issue as BUG-1 for NO_FLY_ZONES.
     SECONDARY_TARGETS.append(target)
