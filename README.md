@@ -21,9 +21,8 @@
 11. [Single-Drone ISR Mode](#11-single-drone-isr-mode)
 12. [Mission Phases](#12-mission-phases)
 13. [Configuration Reference](#13-configuration-reference)
-14. [Bug Fixes — This Release](#14-bug-fixes--this-release)
-15. [Dependencies](#15-dependencies)
-16. [Troubleshooting](#16-troubleshooting)
+14. [Dependencies](#14-dependencies)
+15. [Troubleshooting](#15-troubleshooting)
 
 ---
 
@@ -538,51 +537,7 @@ LiDAR constants (local to `isr_lidar_mpc.py`):
 
 ---
 
-## 14. Bug Fixes — This Release
-
-### SITL Pre-arm (2026-05-29)
-
-**CBRK_SUPPLY_CHK / EKF2_ABL_LIM** — `gz-sim-linearbattery-plugin-system` not installed caused "system power unavailable" arm block. `EKF2_ABL_LIM` default 0.4 too tight at SITL startup. Both fixed in airframe `4601_gz_mbc3_radar_drone`.
-
-### Climb Stall (`isr_lidar_mpc.py`, 2026-05-29)
-
-**Root cause:** `goto_location(HOME_LAT, HOME_LON, ...)` fallback fired at 30s when drone was already at HOME horizontal position → PX4 declared waypoint reached instantly → hover at 19.8m instead of 30m.
-
-**Fix:** Replaced time-based trigger with rate-based stall detection (`climb_rate < 0.05 m/s` for 12+ s). Fallback now uses `drone_state["lat"] + 0.00045` (50m north offset) so PX4 navigates to a distinct point.
-
-### emit_loop crash guard (2026-05-30)
-
-`emit_loop` (telemetry_web.py) and `_emit_loop` (swarm_telemetry_web.py) now wrapped in `try/except Exception` — one malformed payload can no longer freeze the GCS frontend.
-
-### Radar panel count reset (2026-05-30)
-
-`panel_state[i][p]["count"]` was a lifetime accumulator — showed `847` after a long run. Now resets to 0 at the start of each `asp_update` call. Count now means hits-in-this-scan (0–N).
-
-### Local static assets (2026-05-30)
-
-Leaflet, Socket.IO, Chart.js previously loaded from CDN. Now served from `src/static/` (405 KB total). GCS works offline / on degraded wifi.
-
-### Swarm GCS military theme (2026-05-30)
-
-`swarm_telemetry_web.py` CSS replaced with full mil-grade theme matching `telemetry_web.py` v13 — CSS variables (`--bg`, `--accent`, `--danger`), scan-line overlay, Share Tech Mono font, glowing drone cards.
-
-### Previously fixed (v10–v13)
-
-| ID | File | Fix |
-|----|------|-----|
-| BUG-01 | `isr_lidar_mpc.py` | `ISR_SIM_SCENARIO` env var ignored |
-| BUG-02 | `isr_lidar_mpc.py` | Scenario PID override async race |
-| BUG-03 | `telemetry_web.py` | `mission_phase` never written to GCS data dict |
-| BUG-04 | `telemetry_web.py` | `wp_current/total` not updated from mission push |
-| BUG-05 | `mpc_controller.py` | `predict_trajectory` used stale `_u_prev` |
-| v13-A | `telemetry_web.py` | Jinja2 escaping broke 3 server-injected JSON blobs |
-| v13-B | `telemetry_web.py` | NFZ / targets map buttons had inverted initial state |
-| v13-C | `telemetry_web.py` | `nearest_bearing` inf/nan crashed emit_loop |
-| v13-D | `telemetry_web.py` | `scenario_list()` FileNotFoundError on relative `__file__` |
-
----
-
-## 15. Dependencies
+## 14. Dependencies
 
 ### Python
 
@@ -617,7 +572,7 @@ sudo apt install python3-gz-transport13 python3-gz-msgs10
 
 ---
 
-## 16. Troubleshooting
+## 15. Troubleshooting
 
 **DRONE-N fails to arm — "prearm: EKF not ready"**
 → Wait 5–10s after Gazebo spawns. EKF2 needs GPS lock. If persistent: confirm `EKF2_ABL_LIM=0.8` in airframe file and EEPROM cleared.
@@ -641,7 +596,4 @@ sudo apt install python3-gz-transport13 python3-gz-msgs10
 → Confirm `~/.local/bin/ffmpeg` exists (static binary). Confirm display is `:1` — check with `echo $DISPLAY`. Confirm swarm_launch.sh completes without error before recorder polls GCS.
 
 **GCS phase panel stuck at LOITER (single-drone)**
-→ Confirm patched `telemetry_web.py` (v13, BUG-03 fixed). `mission_phase` must be written into `data[]` in `lidar_update()`.
-
-**`nearest_bearing` OverflowError in logs**
-→ Fixed in v13 — `isfinite()` guard in `emit_loop`. Confirm running current version.
+→ Confirm `mission_phase` is written into `data[]` in `lidar_update()`. Ensure latest `telemetry_web.py` is running.
