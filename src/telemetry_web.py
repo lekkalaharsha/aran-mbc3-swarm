@@ -193,6 +193,7 @@ def lidar_update():
         if "drone_armed"       in payload: data["armed"]        = payload["drone_armed"]
         if "drone_flight_mode" in payload: data["flight_mode"]  = payload["drone_flight_mode"]
         if "drone_battery"     in payload: data["battery"]      = payload["drone_battery"]
+        if "drone_vspeed"     in payload: data["vspeed"]      = payload["drone_vspeed"]
         if "mission_phase" in payload:
             data["mission_phase"] = payload["mission_phase"]
             _phase_state["push_time"] = datetime.now().timestamp()
@@ -1213,7 +1214,8 @@ body::after {
     <div class="ctitle">&#9656; Navigation</div>
     <div class="metric"><span class="mlabel">LATITUDE</span>  <span class="mval" id="lat" style="font-size:0.72rem">---</span></div>
     <div class="metric"><span class="mlabel">LONGITUDE</span> <span class="mval" id="lon" style="font-size:0.72rem">---</span></div>
-    <div class="metric"><span class="mlabel">V/SPEED</span>   <span><span class="mval" id="vspd">0.0</span><span class="munit">m/s</span></span></div>
+    <div class="metric"><span class="mlabel">ALTITUDE</span>  <span><span class="mval" id="nav-alt">0.0</span><span class="munit">m AGL</span></span></div>
+    <div class="metric"><span class="mlabel">CLIMB RATE</span><span><span class="mval" id="vspd">0.0</span><span class="munit">m/s</span></span></div>
   </div>
 
   <div class="card">
@@ -1943,7 +1945,8 @@ socket.on('telemetry', d => {
   document.getElementById('hdg').textContent=d.heading.toFixed(1);
   document.getElementById('lat').textContent=d.lat.toFixed(6)+'\u00b0';
   document.getElementById('lon').textContent=d.lon.toFixed(6)+'\u00b0';
-  document.getElementById('vspd').textContent=d.vspeed.toFixed(1);
+  document.getElementById('nav-alt').textContent=(d.alt||0).toFixed(1);
+  document.getElementById('vspd').textContent=(d.vspeed||0).toFixed(1);
   document.getElementById('flight-mode').textContent=d.flight_mode;
 
   const etaEl=document.getElementById('eta-display');

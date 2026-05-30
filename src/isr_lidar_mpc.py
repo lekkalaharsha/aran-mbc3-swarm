@@ -137,6 +137,7 @@ drone_state = {
     "groundspeed": 0.0,
     "vn_ms":       0.0,
     "ve_ms":       0.0,
+    "vspeed":      0.0,
     "gps_ok":      False,
     "reconnects":  0,
     "armed":       False,
@@ -238,6 +239,7 @@ def push_to_gcs():
             "drone_armed":       drone_state["armed"],
             "drone_flight_mode": drone_state["flight_mode"],
             "drone_battery":     _safe_float(drone_state["battery"], 0.0),
+            "drone_vspeed":      _safe_float(drone_state["vspeed"],  0.0),
         }
         resp = requests.post(GCS_URL, json=payload, timeout=0.2)
         if resp.ok:
@@ -714,8 +716,9 @@ async def telemetry_tracker(drone):
             drone_state["groundspeed"] = math.sqrt(vn ** 2 + ve ** 2)
             # BUG-5 FIX (propagated): store individual NED velocity components so
             # AltitudeMPC and AvoidanceMPC can build accurate initial states.
-            drone_state["vn_ms"] = vn
-            drone_state["ve_ms"] = ve
+            drone_state["vn_ms"]  = vn
+            drone_state["ve_ms"]  = ve
+            drone_state["vspeed"] = round(-v.down_m_s, 2)  # NED: down+ → climb+
 
     async def _health():
         async for h in drone.telemetry.health():
