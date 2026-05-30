@@ -9,7 +9,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)
 
 > **Mehar Baba Competition-3 (MBC-3) — Indian Air Force**
-> Nirmaan Incubation · IIT Hyderabad · 2026
+> Nirmaan Incubation · IIT Madras · 2026
 
 ---
 
@@ -76,7 +76,7 @@ Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system bu
 
 **Swarm mode (Phase 0 demo)** — 5 hexacopter drones execute parallel sector survey with FMCW radar, leader election, and failure redistribution.
 
-**Single-drone ISR mode** — One drone with 360° LiDAR MPC avoidance, multi-target orbit, NFZ hard fences, and 24 simulation scenarios.
+**Single-drone ISR mode** — One drone with 360° LiDAR MPC avoidance, multi-target orbit, NFZ hard fences, and SDF-defined ISR targets.
 
 ```
   [PX4 SITL ×5 + Gazebo Harmonic]
@@ -123,7 +123,7 @@ Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system bu
 │   ├── d2d_node.py              Drone-to-drone messaging (REASSIGN, status)
 │   ├── mpc_controller.py        MPC engine (AvoidanceMPC / OrbitMPC / AltitudeMPC)
 │   ├── pid_controller.py        Legacy PID (reference / fallback)
-│   ├── scenarios.json           24 named LiDAR simulation scenarios
+│   ├── scenarios.json           LiDAR scenario registry (real ISR targets in worlds/*.sdf)
 │   └── static/                  Locally-served JS/CSS (no CDN on demo day)
 │       ├── leaflet.js / .css
 │       ├── socket.io.min.js
@@ -298,7 +298,6 @@ Custom 6-arm hexacopter `mbc3_radar_drone`.
 
 ### Assembly reference
 
-![MBC3 Radar Drone — Assembly Sheet](images/assembly_reference/ChatGPT%20Image%20May%2027%2C%202026%2C%2009_42_48%20AM.png)
 
 | Top (orthographic) | Front |
 |---|---|
@@ -513,7 +512,7 @@ J = Σ_k [ Q_track·‖pos_err‖² + Q_vel·‖vel_err‖² + obs_penalty ]
 
 ### Scenario system
 
-24 named scenarios in `scenarios.json`. Each injects timed LiDAR obstacles.
+Scenarios in `scenarios.json` are inactive — real ISR targets defined in `worlds/mbc3_isr_targets.sdf`.
 
 ```json
 {
