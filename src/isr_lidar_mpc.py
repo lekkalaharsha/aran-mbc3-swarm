@@ -135,10 +135,13 @@ drone_state = {
     "abs_alt":     0.0,
     "heading":     0.0,
     "groundspeed": 0.0,
-    "vn_ms":       0.0,   # NED north velocity component (m/s)
-    "ve_ms":       0.0,   # NED east velocity component (m/s)
+    "vn_ms":       0.0,
+    "ve_ms":       0.0,
     "gps_ok":      False,
     "reconnects":  0,
+    "armed":       False,
+    "flight_mode": "UNKNOWN",
+    "battery":     0.0,
 }
 
 mission_state = {
@@ -242,8 +245,10 @@ def push_to_gcs():
             if any(cmds.get(k) for k in ("nfz_queue", "target_queue",
                                           "config_updates", "event_queue")):
                 _apply_dynamic_commands(cmds)
-    except Exception:
-        pass
+    except requests.exceptions.RequestException:
+        pass  # GCS unreachable — transient, retry next cycle
+    except Exception as _push_err:
+        log_warn(f"push_to_gcs error: {_push_err}")
 
 
 def _apply_dynamic_commands(cmds):
@@ -716,11 +721,27 @@ async def telemetry_tracker(drone):
         async for h in drone.telemetry.health():
             drone_state["gps_ok"] = h.is_global_position_ok
 
+    async def _armed():
+        async for a in drone.telemetry.armed():
+            drone_state["armed"] = a
+
+    async def _battery():
+        async for b in drone.telemetry.battery():
+            drone_state["battery"] = round(b.remaining_percent * 100, 1)
+
+    async def _fmode():
+        from mavsdk.telemetry import FlightMode
+        async for fm in drone.telemetry.flight_mode():
+            drone_state["flight_mode"] = fm.name
+
     await asyncio.gather(
         _resilient("position", _pos),
         _resilient("heading",  _hdg),
         _resilient("velocity", _vel),
         _resilient("health",   _health),
+        _resilient("armed",    _armed),
+        _resilient("battery",  _battery),
+        _resilient("fmode",    _fmode),
     )
 
 
