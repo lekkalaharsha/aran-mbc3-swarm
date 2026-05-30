@@ -69,3 +69,10 @@ logs/
 *.tmp
 *.bak
 *.orig
+
+# Internal competition tooling — not submission deliverables
+competition/generate_proposal_pdf.py
+competition/SUBMISSION_CHECKLIST.md
+
+# Demo video recordings — large binaries, store locally only
+*.mp4
