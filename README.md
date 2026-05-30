@@ -23,7 +23,7 @@
 13. [Mission Phases](#13-mission-phases)
 14. [Configuration Reference](#14-configuration-reference)
 15. [Dependencies](#15-dependencies)
-16. [Troubleshooting](#16-troubleshooting)
+16. [Demo Videos](#16-demo-videos)
 
 ---
 
@@ -637,28 +637,49 @@ sudo apt install python3-gz-transport13 python3-gz-msgs10
 
 ---
 
-## 16. Troubleshooting
+## 16. Demo Videos
 
-**DRONE-N fails to arm — "prearm: EKF not ready"**
-→ Wait 5–10s after Gazebo spawns. EKF2 needs GPS lock. If persistent: confirm `EKF2_ABL_LIM=0.8` in airframe file and EEPROM cleared.
+Videos are **not tracked in git** (`.gitignore: *.mp4`) — stored locally only.
 
-**All 5 drones stay at 0m altitude**
-→ Confirm `mbc3_radar_drone` model is installed: `ls ~/PX4-Autopilot/Tools/simulation/gz/models/mbc3_radar_drone/`. If missing: `bash new_drone/install_px4_model.sh`.
+### Single-drone ISR demo (Phase I submission)
 
-**Swarm GCS blank or JS errors in browser console**
-→ Check `src/static/` exists and has 4 files. Flask serves them at `/static/*`. CDN not required.
+```bash
+# Requires wmctrl (one-time): sudo apt install -y wmctrl
+bash record_single_drone.sh
+```
 
-**`pre_demo_check.sh` fails check 5 (aeris10 sim)**
-→ Confirm `sim_mode: true` in `aeris10_driver/config/aeris10_driver.yaml`. Run `bash setup_ws.sh` to rebuild.
+| Property | Value |
+|----------|-------|
+| Output | `~/Documents/aran_mbc/mbc3_single_drone_demo.mp4` |
+| Duration | 240s (4 min) |
+| Resolution | 1920×1080 |
+| Layout | Gazebo 3D left (960px) \| GCS Firefox right (960px) |
+| Size | ~24 MB |
+| Phases covered | Survey → PRIMARY orbit → RTL (secondary orbits skipped) |
+| Verified | 2026-05-30, exit 0 |
 
-**Leader election not firing after kill**
-→ `leader_election.py` polls every 2s, `DEATH_TIMEOUT=15s`. Wait 15–20s after `kill_drone_sim.sh`. Check log for `[ELECTION]` lines.
+### Swarm demo (5 drones)
 
-**Radar panel shows 0 hits permanently**
-→ Confirm `radar_sim.py` is running and posting to `/asp_update`. Check event log in swarm GCS for scan count incrementing.
+```bash
+bash record_demo.sh
+```
 
-**record_demo.sh exits immediately**
-→ Confirm `~/.local/bin/ffmpeg` exists (static binary). Confirm display is `:1` — check with `echo $DISPLAY`. Confirm swarm_launch.sh completes without error before recorder polls GCS.
+| Property | Value |
+|----------|-------|
+| Output | `~/mbc3_phase0_demo.mp4` |
+| Duration | 300s (5 min) |
+| Resolution | 1920×1080 |
+| Phases covered | 5-drone parallel survey + drone kill + leader election + ASP |
 
-**GCS phase panel stuck at LOITER (single-drone)**
-→ Confirm `mission_phase` is written into `data[]` in `lidar_update()`. Ensure latest `telemetry_web.py` is running.
+### Re-record from scratch
+
+```bash
+# Kill everything first
+pkill -9 -f "bin/px4"; pkill -9 -f "gz sim"; pkill -9 -f "telemetry_web"
+pkill -9 -f "isr_lidar_mpc"; pkill -9 -f "mavsdk_server"; pkill -9 -f ffmpeg
+
+# Then record
+bash record_single_drone.sh   # single-drone ISR
+# or
+bash record_demo.sh           # swarm
+```
