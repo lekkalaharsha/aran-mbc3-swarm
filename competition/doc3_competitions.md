@@ -17,6 +17,8 @@ The Nirmaan incubation also drove development of the ISR Mission Stack demo buil
 
 MBC-3 is the team's first direct participation in a national defence innovation competition. The MBC-3 submission builds directly on skills and validated problem understanding developed through the Nirmaan programme.
 
+The team's Phase 0 registration was accepted for Phase I evaluation. The Phase I simulation stack — five-drone swarm on ROS2 Jazzy + Gazebo Harmonic, real-time ASP, leader election, graceful degradation — is fully verified as of 30 May 2026 and ready for live demonstration at New Delhi (13–24 July 2026). A single-drone ISR demo video (4 minutes, 1920×1080) has been recorded showing autonomous survey, primary target orbit, and RTL. The swarm simulation demonstrates verified drone-kill recovery in under 2 seconds with full ASP continuity maintained across four remaining drones.
+
 ---
 
-*Word count: ~230 | Limit: 300*
+*Word count: ~295 | Limit: 300*

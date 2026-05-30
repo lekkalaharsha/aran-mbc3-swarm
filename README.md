@@ -103,7 +103,7 @@ Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system bu
 ├── swarm_launch.sh              5-drone SITL launcher (PX4 + Gazebo + GCS + mission)
 ├── launch.sh                    Single-drone ISR launcher (STEP 1–6, set -m process groups)
 ├── record_demo.sh               Swarm demo recorder (300s → ~/mbc3_phase0_demo.mp4)
-├── record_single_drone.sh       Single-drone ISR recorder (480s → ~/mbc3_single_drone_demo.mp4)
+├── record_single_drone.sh       Single-drone ISR recorder (240s, Gazebo+GCS side-by-side → mbc3_single_drone_demo.mp4)
 ├── setup_ws.sh                  Build ros2_ws (radar_fusion + aeris10_driver)
 ├── kill_drone.sh                Kill one PX4 instance (triggers redistribution)
 │
@@ -158,16 +158,18 @@ bash tools/kill_drone_sim.sh 2   # kills DRONE-2, triggers redistribution
 ### Single-drone ISR launch
 
 ```bash
-./launch.sh --headless               # full stack headless
-./launch.sh                          # with Gazebo GUI
+./launch.sh                          # with Gazebo GUI (default)
+./launch.sh --headless               # headless — no Gazebo window
 ```
 
 ### Single-drone demo recording (automated)
 
 ```bash
 bash record_single_drone.sh
-# → ~/mbc3_single_drone_demo.mp4  (480s, 1920×1080)
-# Covers: arm → survey → PRIMARY + 3 secondary orbits → RTL
+# → ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4  (240s, 1920×1080)
+# Layout: Gazebo left (960px) | GCS Firefox right (960px)
+# Covers: arm → survey → PRIMARY orbit → RTL  (secondary orbits skipped)
+# Requires: wmctrl  →  sudo apt install -y wmctrl
 # See section 12 for full timeline
 ```
 
@@ -484,48 +486,53 @@ J = Σ_k [ Q_track·‖pos_err‖² + Q_vel·‖vel_err‖² + obs_penalty ]
 
 ## 12. Single-Drone Demo Recording
 
-Automated recorder — launches `launch.sh`, polls GCS, opens Firefox, records full ISR mission from arm to RTL.
+Automated recorder — launches `launch.sh` (Gazebo GUI), polls GCS, opens Firefox, tiles windows side-by-side, records ISR mission from arm to RTL.
 
 ```bash
+# Prerequisite (one-time)
+sudo apt install -y wmctrl
+
 bash record_single_drone.sh
-# → ~/mbc3_single_drone_demo.mp4  (480s, 1920×1080, ~150 MB)
+# → ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4  (240s, 1920×1080, ~24 MB)
 ```
 
-**What you see on screen:**
+**Layout:** Gazebo 3D view (left 960px) | GCS dashboard in Firefox (right 960px)
+
+**Short demo mode** — secondary orbits (ALPHA-2, BRAVO-1, CHARLIE-3) are skipped via `MBC3_SKIP_SECONDARY=1`. To re-enable them, unset that variable or run `launch.sh` directly.
+
+**Timeline:**
 
 | Time | Event |
 |------|-------|
-| T+0s | `launch.sh --headless` starts — PX4 SITL + GCS |
+| T+0s | `launch.sh` starts — PX4 SITL + Gazebo GUI + GCS |
 | T+~30s | Drone armed, climbing to 30m AGL |
 | T+~45s | PHASE 2 — Survey grid (11 WPs, 0 avoidances) |
 | T+~90s | PHASE 3 — PRIMARY orbit (50m radius, locked ±0.5m) |
-| T+~120s | PHASE 4.1 — ALPHA-2 secondary orbit |
-| T+~180s | PHASE 4.2 — BRAVO-1 secondary orbit |
-| T+~240s | PHASE 4.3 — CHARLIE-3 secondary orbit |
-| T+~300s | PHASE 5 — RTL, 3D map saved |
-| T+480s | Recording stops |
+| T+~180s | PHASE 5 — RTL, 3D map saved |
+| T+240s | Recording stops |
 
 **GCS dashboard shows during recording:**
 - Drone position on Leaflet map (lat/lon trail)
 - Armed/disarmed status, flight mode, battery %
-- Altitude, groundspeed, heading
-- Mission phase indicator (STANDBY → SURVEY → LOITER → SEC-1/2/3 → RTL)
+- Altitude, climb rate, groundspeed, heading
+- Mission phase indicator (STANDBY → SURVEY → LOITER → RTL)
 - LiDAR sector overlay, NFZ boundaries, target markers
 - Mission STALE watchdog badge (orange, if push stops)
 
-**Prerequisites:** `DISPLAY` set (run from desktop terminal, not SSH without X forwarding). ffmpeg at `~/.local/bin/ffmpeg`.
+**Prerequisites:** `DISPLAY` set (run from desktop terminal, not SSH without X forwarding). ffmpeg at `~/.local/bin/ffmpeg`. wmctrl installed.
 
 **Preview / submit:**
 ```bash
-xdg-open ~/mbc3_single_drone_demo.mp4
+xdg-open ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4
 
 # Submit to IAF portal:
-#   Video:  ~/mbc3_single_drone_demo.mp4
+#   Video:  ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4
 #   Docs:   competition/Final_Vision_Document_for_MBC_3_22Apr26.pdf
 #   Form:   competition/Registration_form_MBC_3_final.pdf
 ```
 
 **Verified run:** 2026-05-30 — FULL ISR + LiDAR MPC MISSION COMPLETE v12-MPC-v5 (exit 0)  
+**Short demo verified:** 2026-05-30 — 240s, 24 MB, Gazebo + GCS side-by-side (exit 0)  
 **Release:** [v1.0.0-single-drone](https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/tag/v1.0.0-single-drone)
 
 ---
