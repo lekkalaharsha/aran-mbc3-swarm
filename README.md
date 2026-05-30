@@ -36,7 +36,11 @@ Single-drone ISR simulation: autonomous survey grid → primary target orbit →
 | PHASE 3 — PRIMARY orbit | ✅ Pass | 50.0 m radius · locked ±0.5 m |
 | PHASE 5 — RTL + map save | ✅ Pass | Landed · 3D map saved |
 
-> **Demo video (4 min · 1920×1080 · ~24 MB)** — generated locally:
+> **Demo video (4 min · 1920×1080 · 24 MB)**
+
+https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/download/v1.0.0-single-drone/mbc3_single_drone_demo.mp4
+
+> Re-record locally:
 > ```bash
 > sudo apt install -y wmctrl
 > bash record_single_drone.sh
