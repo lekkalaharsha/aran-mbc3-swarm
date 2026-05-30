@@ -477,7 +477,7 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
     (
         cd "${PX4_DIR}"
         make "${PX4_MAKE_DIR}" "${PX4_MAKE_MODEL}"
-    ) >> "${PX4_LOG}" 2>&1 &
+    ) < /dev/null >> "${PX4_LOG}" 2>&1 &
     PID_PX4=$!
     log_info "PX4 PID: ${PID_PX4}  |  log: ${PX4_LOG}"
     log_info "Tail PX4 log: tail -f ${PX4_LOG}"
@@ -905,7 +905,7 @@ log "Launching isr_lidar_mpc.py…"
     ${SCENARIO_ENV:+env "${SCENARIO_ENV}"} \
         env "RACING_MODE=${RACING_MODE}" \
         env "MBC3_MODE=${MBC3_MODE}" \
-        "${PYTHON}" isr_lidar_mpc.py 2>&1 \
+        "${PYTHON}" -u isr_lidar_mpc.py 2>&1 \
         | tee -a "${MISSION_LOG}"
 ) &
 PID_MISSION=$!
