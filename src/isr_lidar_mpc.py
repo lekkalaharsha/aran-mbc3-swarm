@@ -1634,21 +1634,25 @@ async def run():
     # SECONDARY_TARGETS but not in the snapshot — never visited.
     # New code: re-reads SECONDARY_TARGETS after each orbit; visited set prevents
     # re-flying targets already completed.
-    visited_targets = set()
-    sec_idx = 0
-    while True:
-        remaining = sorted(
-            [t for t in SECONDARY_TARGETS if id(t) not in visited_targets],
-            key=lambda t: t.get("priority", 99)
-        )
-        if not remaining:
-            break
-        sec = remaining[0]
-        visited_targets.add(id(sec))
-        sec_idx += 1
-        mission_state["mission_phase"] = f"SEC-{sec_idx}"
-        label = f"PHASE 4.{sec_idx} — SECONDARY TARGET {sec_idx}"
-        await _do_orbit_phase(sec, label, home_abs_alt)
+    # MBC3_SKIP_SECONDARY=1 skips phase 4 entirely for short-demo recordings.
+    if not os.getenv("MBC3_SKIP_SECONDARY"):
+        visited_targets = set()
+        sec_idx = 0
+        while True:
+            remaining = sorted(
+                [t for t in SECONDARY_TARGETS if id(t) not in visited_targets],
+                key=lambda t: t.get("priority", 99)
+            )
+            if not remaining:
+                break
+            sec = remaining[0]
+            visited_targets.add(id(sec))
+            sec_idx += 1
+            mission_state["mission_phase"] = f"SEC-{sec_idx}"
+            label = f"PHASE 4.{sec_idx} — SECONDARY TARGET {sec_idx}"
+            await _do_orbit_phase(sec, label, home_abs_alt)
+    else:
+        log("MBC3_SKIP_SECONDARY set — skipping secondary orbits (short demo mode)")
 
     # ── PHASE 5: RTL ──────────────────────────────────────
     mission_state["mission_phase"] = "RTL"

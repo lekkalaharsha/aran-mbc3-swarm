@@ -222,7 +222,8 @@ def build():
         pdf.multi_cell(0, 5, ref)
         pdf.ln(1)
 
-    out = "/home/boson-229/ros2_ws/src/docs/competition/MBC3_Proposal.pdf"
+    import os
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MBC3_Proposal.pdf")
     pdf.output(out)
     print(f"PDF saved: {out}")
 

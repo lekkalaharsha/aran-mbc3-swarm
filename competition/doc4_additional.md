@@ -5,7 +5,9 @@
 
 ## Simulation Demonstration — Ready for Phase I
 
-A fully functional five-drone swarm simulation is complete and verified as of May 2026. The simulation runs on ROS2 Jazzy + Gazebo Harmonic on Ubuntu 24.04 and demonstrates all core MBC-3 requirements: real-time ASP generation, graceful degradation on drone loss, autonomous leader election, and sector reassignment. The full swarm test (including live drone kill and recovery) passes all checks with 344 radar tracks and 4/4 surviving drones operational. A demo video will be submitted with Phase I presentation materials.
+A fully functional five-drone swarm simulation is complete and verified as of 30 May 2026. The simulation runs on ROS2 Jazzy + Gazebo Harmonic on Ubuntu 24.04 and demonstrates all core MBC-3 requirements: real-time ASP generation, graceful degradation on drone loss, autonomous leader election, and sector reassignment. The full swarm test (including live drone kill and recovery) passes all checks with 344 radar tracks and 4/4 surviving drones operational.
+
+A single-drone ISR demo video is recorded and ready for Phase I submission: 4-minute recording (1920×1080), showing Gazebo 3D simulation and GCS dashboard side-by-side across survey grid (11 waypoints), primary target orbit (50 m radius, locked ±0.5 m), and RTL with 3D map save. Mission exit verified clean (v12-MPC-v5, 30 May 2026).
 
 ## Indigenisation Breakdown
 
