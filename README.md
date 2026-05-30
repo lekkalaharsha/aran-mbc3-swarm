@@ -19,10 +19,11 @@
 9. [AERIS-10 Radar + ROS2 Fusion](#9-aeris-10-radar--ros2-fusion)
 10. [GCS Dashboards](#10-gcs-dashboards)
 11. [Single-Drone ISR Mode](#11-single-drone-isr-mode)
-12. [Mission Phases](#12-mission-phases)
-13. [Configuration Reference](#13-configuration-reference)
-14. [Dependencies](#14-dependencies)
-15. [Troubleshooting](#15-troubleshooting)
+12. [Single-Drone Demo Recording](#12-single-drone-demo-recording)
+13. [Mission Phases](#13-mission-phases)
+14. [Configuration Reference](#14-configuration-reference)
+15. [Dependencies](#15-dependencies)
+16. [Troubleshooting](#16-troubleshooting)
 
 ---
 
@@ -100,8 +101,9 @@ Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system bu
 ├── worlds/                      4 SDF Gazebo worlds (copied to PX4)
 │
 ├── swarm_launch.sh              5-drone SITL launcher (PX4 + Gazebo + GCS + mission)
-├── launch.sh                    Single-drone ISR launcher (972 lines)
-├── record_demo.sh               Phase 0 video recorder (300s → ~/mbc3_phase0_demo.mp4)
+├── launch.sh                    Single-drone ISR launcher (STEP 1–6, set -m process groups)
+├── record_demo.sh               Swarm demo recorder (300s → ~/mbc3_phase0_demo.mp4)
+├── record_single_drone.sh       Single-drone ISR recorder (480s → ~/mbc3_single_drone_demo.mp4)
 ├── setup_ws.sh                  Build ros2_ws (radar_fusion + aeris10_driver)
 ├── kill_drone.sh                Kill one PX4 instance (triggers redistribution)
 │
@@ -156,9 +158,17 @@ bash tools/kill_drone_sim.sh 2   # kills DRONE-2, triggers redistribution
 ### Single-drone ISR launch
 
 ```bash
-./launch.sh                          # LiDAR sim mode
-./launch.sh --scenario urban_canyon  # named scenario
-./launch.sh --headless               # no Gazebo GUI
+./launch.sh --headless               # full stack headless
+./launch.sh                          # with Gazebo GUI
+```
+
+### Single-drone demo recording (automated)
+
+```bash
+bash record_single_drone.sh
+# → ~/mbc3_single_drone_demo.mp4  (480s, 1920×1080)
+# Covers: arm → survey → PRIMARY + 3 secondary orbits → RTL
+# See section 12 for full timeline
 ```
 
 ---
@@ -472,7 +482,55 @@ J = Σ_k [ Q_track·‖pos_err‖² + Q_vel·‖vel_err‖² + obs_penalty ]
 
 ---
 
-## 12. Mission Phases
+## 12. Single-Drone Demo Recording
+
+Automated recorder — launches `launch.sh`, polls GCS, opens Firefox, records full ISR mission from arm to RTL.
+
+```bash
+bash record_single_drone.sh
+# → ~/mbc3_single_drone_demo.mp4  (480s, 1920×1080, ~150 MB)
+```
+
+**What you see on screen:**
+
+| Time | Event |
+|------|-------|
+| T+0s | `launch.sh --headless` starts — PX4 SITL + GCS |
+| T+~30s | Drone armed, climbing to 30m AGL |
+| T+~45s | PHASE 2 — Survey grid (11 WPs, 0 avoidances) |
+| T+~90s | PHASE 3 — PRIMARY orbit (50m radius, locked ±0.5m) |
+| T+~120s | PHASE 4.1 — ALPHA-2 secondary orbit |
+| T+~180s | PHASE 4.2 — BRAVO-1 secondary orbit |
+| T+~240s | PHASE 4.3 — CHARLIE-3 secondary orbit |
+| T+~300s | PHASE 5 — RTL, 3D map saved |
+| T+480s | Recording stops |
+
+**GCS dashboard shows during recording:**
+- Drone position on Leaflet map (lat/lon trail)
+- Armed/disarmed status, flight mode, battery %
+- Altitude, groundspeed, heading
+- Mission phase indicator (STANDBY → SURVEY → LOITER → SEC-1/2/3 → RTL)
+- LiDAR sector overlay, NFZ boundaries, target markers
+- Mission STALE watchdog badge (orange, if push stops)
+
+**Prerequisites:** `DISPLAY` set (run from desktop terminal, not SSH without X forwarding). ffmpeg at `~/.local/bin/ffmpeg`.
+
+**Preview / submit:**
+```bash
+xdg-open ~/mbc3_single_drone_demo.mp4
+
+# Submit to IAF portal:
+#   Video:  ~/mbc3_single_drone_demo.mp4
+#   Docs:   competition/Final_Vision_Document_for_MBC_3_22Apr26.pdf
+#   Form:   competition/Registration_form_MBC_3_final.pdf
+```
+
+**Verified run:** 2026-05-30 — FULL ISR + LiDAR MPC MISSION COMPLETE v12-MPC-v5 (exit 0)  
+**Release:** [v1.0.0-single-drone](https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/tag/v1.0.0-single-drone)
+
+---
+
+## 13. Mission Phases
 
 ### Swarm
 
@@ -497,7 +555,7 @@ J = Σ_k [ Q_track·‖pos_err‖² + Q_vel·‖vel_err‖² + obs_penalty ]
 
 ---
 
-## 13. Configuration Reference
+## 14. Configuration Reference
 
 All mission constants in `src/mission_config.py`.
 
@@ -537,7 +595,7 @@ LiDAR constants (local to `isr_lidar_mpc.py`):
 
 ---
 
-## 14. Dependencies
+## 15. Dependencies
 
 ### Python
 
@@ -572,7 +630,7 @@ sudo apt install python3-gz-transport13 python3-gz-msgs10
 
 ---
 
-## 15. Troubleshooting
+## 16. Troubleshooting
 
 **DRONE-N fails to arm — "prearm: EKF not ready"**
 → Wait 5–10s after Gazebo spawns. EKF2 needs GPS lock. If persistent: confirm `EKF2_ABL_LIM=0.8` in airframe file and EEPROM cleared.
