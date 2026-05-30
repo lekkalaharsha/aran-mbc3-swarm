@@ -47,3 +47,25 @@ new_drone/*_full.urdf
 
 # Untracked working dirs
 drone_groudPlae/
+
+# Colcon / ROS2 build artifacts
+tools/log/
+install/
+build/
+colcon_build/
+
+# Large runtime outputs
+map_output/
+*.pcd
+*.bag
+*.db3
+
+# Simulation logs — PX4 writes multi-hundred-MB logs here
+logs/
+*.ulg
+*.ulog
+
+# Temp / scratch
+*.tmp
+*.bak
+*.orig
