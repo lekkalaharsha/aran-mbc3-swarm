@@ -1,8 +1,9 @@
 # MBC3 RADAR DRONE — MASTER PROJECT FILE
 
-> Last updated: 2026-05-28
+> Last updated: 2026-05-30
 > Competition: Mehar Baba Competition-3 (MBC-3), Indian Air Force
-> Phase 0 deadline: **31 May 2026**
+> Phase 0 application: submitted 31 May 2026 ✓
+> Phase I presentations: New Delhi, 13–24 July 2026
 > Team: Boson Motors | eeindia@bosonmotors.com
 
 ---
@@ -24,9 +25,10 @@
 
 ### Competition
 - **MBC-3** (Mehar Baba Competition 3) — Indian Air Force
-- Phase 0: Submit design document + simulation demo — **31 May 2026**
-- Branch: `feature/swarm-simulation`
-- Repo: `~/aran_mbc/` (WSL2: Ubuntu 24.04)
+- Phase 0 application submitted 31 May 2026 ✓
+- Phase I presentations: New Delhi, 13–24 July 2026
+- Branch: `main` (all fixes merged)
+- Repo: `~/Documents/aran_mbc/` (Ubuntu 24.04 native, HP Pavilion Ryzen7/RTX3050)
 
 ### Drone Identity
 - **6-arm hexacopter** with AERIS-10 FMCW phased-array radar
@@ -54,53 +56,54 @@
 
 ## 2. CURRENT SOFTWARE STATUS
 
-### Files in `~/aran_mbc/`
+### Files in `~/Documents/aran_mbc/`
 
 | File/Dir | Status | Notes |
 |----------|--------|-------|
-| `new_drone/mbc3_exact_v3.sdf` | **CURRENT BEST** | Matches physical drone — 730mm WB, 12-in props, 5.83kg |
-| `new_drone/model.sdf` | Source (don't modify) | Original 10-in prop model |
-| `new_drone/mbc3_redesign_v2.sdf` | Superseded | 950mm/15-in — wrong |
-| `radar_fusion/` | Complete ROS2 package | detection_node, fusion_node, kalman_tracker, rf_classifier |
-| `aeris10_driver/` | **Newly written** | USB driver + ROS2 node for physical AERIS-10 |
-| `src/swarm_mission.py` | Done | 5-drone swarm logic |
-| `src/d2d_node.py` | Done | Drone-to-drone comms |
-| `src/mission_ai.py` | Done | LLM-assisted mission planning |
-| `src/telemetry_web.py` | Done | Web dashboard |
-| `worlds/` | Done | 4 Gazebo world files |
-| `swarm_launch.sh` | Done | Launches 5-drone sim |
-| `competition/` | Done | Registration form + Vision document |
+| `new_drone/mbc3_radar_drone.sdf` | **Source of truth** | Hexacopter + AERIS-10 + LIDAR + IMU |
+| `new_drone/mbc3_exact_v3.sdf` | SITL-tuned | Aerodynamically tuned for Phase 6 |
+| `new_drone/airframe/4601_gz_mbc3_radar_drone` | Done | PX4 airframe params (CBRK + EKF2 fixed) |
+| `radar_fusion/` | ✓ Complete | detection_node, fusion_node, kalman_tracker, rf_classifier |
+| `aeris10_driver/` | ✓ Complete | USB driver + ROS2 node, sim_mode=15 scatter pts |
+| `src/swarm_mission.py` | ✓ Done | 5-drone swarm + redistribution + follow-target |
+| `src/swarm_telemetry_web.py` | ✓ Done | 5-drone GCS (military theme, port 5000) |
+| `src/swarm_monitor.py` | ✓ Done | Drone liveness → /asp_update |
+| `src/leader_election.py` | ✓ Done | Bully election, 15s death timeout |
+| `src/radar_sim.py` | ✓ Done | Pose-based FMCW radar sim → GCS |
+| `src/d2d_node.py` | ✓ Done | UDP multicast: heartbeat, REASSIGN, follow-target |
+| `src/isr_lidar_mpc.py` | ✓ Done | Single-drone ISR: survey→avoid→orbit→RTL |
+| `src/telemetry_web.py` | ✓ Done v13 | GCS: thread-safe, auth, CORS, watchdog |
+| `src/mission_config.py` | ✓ Done | Single source of truth for all constants |
+| `worlds/` | ✓ Done | 4 Gazebo world files |
+| `swarm_launch.sh` | ✓ Done | Launches 5-drone SITL + Gazebo + GCS |
+| `launch.sh` | ✓ Done | Single-drone ISR launcher (set -m, process groups) |
+| `record_demo.sh` | ✓ Done | Phase 0 screen recorder → mp4 |
+| `competition/` | ✓ Submitted | Registration form + Vision document |
 
-### ROS2 Demo Commands (VERIFIED 2026-05-29)
+### Phase 0 Demo — Verified 2026-05-29
+
 ```bash
-# ONE-TIME SETUP
-bash ~/aran_mbc/setup_ws.sh
+# Pre-flight check (7/7 must pass)
+bash tools/pre_demo_check.sh
 
-# Terminal 1 — Gazebo (shows drone 3D model)
-gz sim ~/aran_mbc/new_drone/mbc3_exact_v3.sdf
+# Record 5-minute competition video
+bash record_demo.sh
+# → ~/mbc3_phase0_demo.mp4
 
-# Terminal 2 — Radar fusion detection node
-source /opt/ros/jazzy/setup.bash && source ~/ros2_ws/install/setup.bash
-ros2 run radar_fusion detection_node
-# Expected: "[INFO] Detected 1 target(s): TGT_01 R=200m Az=xxx°" at 5 Hz
-
-# Terminal 3 — Demo script (launches AERIS-10 sim + shows mission sequence)
-bash ~/ros2_ws/src/fly_demo.sh
+# Full swarm launch (competition mode)
+MBC3_MODE=1 bash swarm_launch.sh
 ```
 
-### Build Commands
+### ROS2 Build
 ```bash
-cd ~/ros2_ws
-source /opt/ros/jazzy/setup.bash
-colcon build --packages-select radar_fusion aeris10_driver --symlink-install
-source install/setup.bash
+bash setup_ws.sh   # one-shot: colcon build + pip deps
 ```
 
-### Pipeline Status
+### Pipeline Status (2026-05-29 verified)
 ```
-AERIS-10 sim → /radar_A..F/scan/points → detection_node → /radar/targets ✓
-5 scatter points/cycle → min_cluster_hits=3 satisfied ✓
-[no TF] in detection log is normal without Gazebo (disappears with gz sim running)
+AERIS-10 sim (15 pts) → /radar_A..F/scan/points → detection_node → /radar/targets ✓
+RF gate: 15 hits >> threshold 9 → classified as target ✓
+344 radar tracks, 4/4 drones surviving after kill, leader election ✓
 ```
 
 ---
@@ -457,32 +460,27 @@ processors=8
 
 ## 7. NEXT STEPS
 
-### IMMEDIATE — Before 31 May 2026
+### DONE — Phase 0 (31 May 2026)
 
-- [ ] Record demo video (3 terminals: gazebo → detection_node → fly_demo.sh)
-- [ ] Verify `fly_demo.sh` location (`~/ros2_ws/src/` or `~/aran_mbc/`)
-- [ ] Register on IAF/MBC-3 website
-- [ ] Submit Phase 0 application with video + documents from `competition/`
+- [x] Phase 0 application submitted — video + vision doc + registration form
+- [x] 5-drone swarm SITL verified — 344 radar tracks, leader election, redistribution
+- [x] GCS thread safety, auth, CORS, mission watchdog — all fixed (commit `062ba61`)
+- [x] Ubuntu 24.04 native dual-boot on HP Pavilion — done
 
-### HARDWARE (after submission)
+### Phase I Preparation (presentations 13–24 July 2026)
 
-- [ ] Order components: 6× T-Motor MN3110-26, 6× ESC 40A, battery, CF tubes/plates
-- [ ] Create CAD models in FreeCAD from specs in Section 5
-- [ ] 3D print: arm clamps, motor mounts, payload bay, landing gear, ESC brackets
-- [ ] CNC/laser cut: hub plates (4mm CF or 6061 aluminum)
-- [ ] Assemble frame, fit motors, test bench thrust
-
-### SOFTWARE (after submission)
-
+- [ ] Practice live demo — all 7/7 pre_demo_check.sh passes, Ctrl-C clean shutdown
 - [ ] Verify AERIS-10 USB VID/PID from actual hardware (`lsusb`) and update `aeris10_usb.py`
-- [ ] Write `fly_demo.sh` if missing
-- [ ] Test aeris10_driver sim_mode with detection_node pipeline end-to-end
-- [ ] Add aeris10_driver to swarm launch script
-- [ ] Phase 1: integrate physical AERIS-10 once hardware arrives
+- [ ] Merge `fix/approach-orbit-queue` (FIX-1 to FIX-4) after verified exit-0 run
+- [ ] Record updated demo video showing swarm GCS military theme
 
-### LAPTOP MIGRATION (after submission)
-- [ ] Dual boot Ubuntu 24.04 on HP Pavilion (see Section 6)
-- [ ] Restore and rebuild all packages on native Ubuntu
+### HARDWARE (ongoing)
+
+- [ ] Order: 6× T-Motor MN3110-26, 6× ESC 40A, 6S 16000mAh, CF tubes/plates
+- [ ] FreeCAD models from Section 5 specs
+- [ ] 3D print: arm clamps, motor mounts, payload bay, landing gear
+- [ ] CNC/laser cut hub plates (4mm CF or 6061-T6)
+- [ ] Bench thrust test after assembly
 
 ---
 

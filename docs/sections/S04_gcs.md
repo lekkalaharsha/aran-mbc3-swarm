@@ -1,6 +1,6 @@
 # S04 — GCS Dashboards
 
-**Status:** ISR GCS ✅ done | ASP GCS 🔲 Phase 2 (not started)
+**Status:** ISR GCS ✅ done | ASP GCS ✅ done (swarm_telemetry_web.py)
 
 ---
 
@@ -21,28 +21,32 @@ Change rule: ask before changing HTML/JS frontend.
 
 ---
 
-## ASP GCS (to be built — Phase 2)
+## ASP GCS (swarm_telemetry_web.py) — COMPLETE
 
-Separate Flask app. MBC-3 requirement: consolidated ASP on single browser screen.
+`src/swarm_telemetry_web.py` — Flask/SocketIO server port 5000. Military theme GCS dashboard for 5-drone swarm.
 
-**Required features:**
-| Feature | Description |
-|---------|-------------|
-| Track table | ID, range, azimuth, velocity, source drones |
-| Sector map | 360° polar display with track positions |
-| Leader identity | Which drone is currently leader |
-| Decision log | LLM tactical outputs (Phase 7) |
-| JSON session recording | Timestamped log per session |
-| 2.5 Hz refresh | SocketIO push from `/swarm/tracks` |
+| Feature | Status |
+|---------|--------|
+| 5-drone position table | ✅ |
+| Radar polar display (6-panel FOV) | ✅ |
+| Contact alerts + track table | ✅ |
+| Leader identity indicator | ✅ |
+| Follow-target mode (`/api/track_state`) | ✅ |
+| D2D health per drone | ✅ |
+| 2.5 Hz SocketIO refresh | ✅ |
+| Thread-safe shared state (`_shared_lock`) | ✅ |
+| GCS_TOKEN auth on mutation endpoints | ✅ |
+| CORS restricted to localhost | ✅ |
+| Mission watchdog + STALE badge | ✅ |
 
-**Input:** `/swarm/tracks` + `/swarm/situation` from `fusion_node`  
-**Branch:** `test/phase2-radar-web` (not started)
+**Input:** `POST /asp_update` from `radar_sim.py`, `POST /lidar_update` from each drone's mission script  
+**Branch:** `main`
 
 ---
 
 ## Open Tasks
 
-- [ ] Phase 2: build ASP GCS Flask app
-- [ ] Connect to `/swarm/tracks` SocketIO push
-- [ ] Sector map Leaflet overlay
-- [ ] Session recording to JSON
+- [x] Phase 2: build ASP GCS Flask app
+- [x] Connect to radar tracks SocketIO push
+- [x] Sector map polar overlay
+- [ ] Phase 7: LLM decision log integration

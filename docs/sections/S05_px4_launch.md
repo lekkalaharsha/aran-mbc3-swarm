@@ -78,6 +78,7 @@ STEP 6  Live status monitor (PX4/GCS/Mission/Radar health)
 | `ROS2_WS` | `~/ros2_ws` | ROS2 workspace for radar |
 | `RADAR_MODE` | `single` | `single` or `swarm` |
 | `ROS2_DISTRO` | auto | ROS2 distro name |
+| `GCS_TOKEN` | `` (unset) | When set: enforces `X-GCS-Token` header on all GCS mutation endpoints (`/add_nfz`, `/add_target`, `/pid_tune`, `/config_update`, `/inject_event`) |
 
 ---
 
@@ -107,8 +108,14 @@ STEP 6  Live status monitor (PX4/GCS/Mission/Radar health)
 
 ---
 
+## Process Group Safety (`set -m`)
+
+`launch.sh` uses `set -m` (bash job control). This assigns each background job its own process group (PGID == PID). The `cleanup()` trap sends `kill -SIGTERM -- "-${pid}"` (negative PID = kill entire process group) so PX4 grandchildren, Gazebo render threads, and Python subprocesses all terminate cleanly rather than becoming orphans.
+
+---
+
 ## Open Tasks
 
-- [ ] Phase 1 flight test — run `python3 tests/phase1_flight_test.py`
-- [ ] Verify `isr_lidar_mpc.py` runs on mbc3_radar_drone (Option B)
-- [ ] Add headless test to merge checklist for Phase 1
+- [x] Process group kill — cleanup() now kills full subtree
+- [ ] Phase I flight test — presentations New Delhi, 13–24 July 2026
+- [ ] Verify `isr_lidar_mpc.py` runs on mbc3_radar_drone

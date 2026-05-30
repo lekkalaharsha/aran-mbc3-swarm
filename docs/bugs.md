@@ -506,6 +506,80 @@ real current position.
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 25 | Total: 29
+---
 
-**Next action:** Record Phase 0 demo video, then submit to IAF website.
+## Batch 15 — GCS thread-safety + reliability (2026-05-30, fix/gcs-thread-safety-auth-reliability → main)
+
+### B15-1 | CRITICAL | Shared GCS state race — data[]/lidar_data[]/asp_data[] written from two threads with no lock
+**Files:** `src/telemetry_web.py` — `lidar_update()`, `asp_update()`, `emit_loop()`
+**Status:** ✅ FIXED
+
+**Problem:** `lidar_update()` (Flask request thread) and `emit_loop()` (daemon thread) both read/write `data[]` and `lidar_data[]` without any lock. `asp_update()` also raced on `asp_data["scan_count"] += 1`. Python's GIL does not protect multi-step read-modify-write on dicts.
+
+**Fix:** Added `_shared_lock = threading.Lock()`. All mutations to `data[]`, `lidar_data[]`, `asp_data[]` wrapped in `with _shared_lock:`. `emit_loop()` takes atomic snapshot inside lock, emits outside. `socketio.emit()` always called outside lock to prevent blocking.
+
+---
+
+### B15-2 | HIGH | No auth on GCS mutation endpoints — any host could inject NFZ/targets/events
+**File:** `src/telemetry_web.py` — `pid_tune`, `add_nfz`, `add_target`, `config_update`, `inject_event`
+**Status:** ✅ FIXED
+
+**Problem:** All mutation endpoints accepted any POST with no authentication. On a shared network (competition LAN, lab WiFi) any machine could inject NFZs, redirect targets, or trigger events.
+
+**Fix:** Added `_check_auth()` — checks `X-GCS-Token` header against `GCS_TOKEN = os.environ.get("GCS_TOKEN", "")`. Token enforcement active only when `GCS_TOKEN` is set (backward-compatible). Applied to all 5 mutation endpoints.
+
+---
+
+### B15-3 | HIGH | Process subtree leak — cleanup() killed parent PID only, orphaning child processes
+**File:** `launch.sh` — `cleanup()` trap
+**Status:** ✅ FIXED
+
+**Problem:** `cleanup()` ran `kill ${pid}` which signals only the direct child. Background jobs launched with `bash -c "..."` (PX4, Gazebo, Python) fork grandchildren. Parent exits, grandchildren become orphans and keep running (stray `gz sim`, stray `px4` instances accumulate between runs).
+
+**Fix:** Added `set -m` (job control) — bash assigns PGID==PID for each background job. Changed to `kill -SIGTERM -- "-${pid}"` (negative PID = kill process group), with SIGKILL follow-up after 3s. Also scoped pre-launch pkill to `${PX4_DIR}.*bin/px4` to avoid killing unrelated px4 processes.
+
+---
+
+### B15-4 | HIGH | Mission staleness silent — no watchdog, no UI indicator when push stops
+**File:** `src/telemetry_web.py` — `emit_loop()`, GCS HTML
+**Status:** ✅ FIXED
+
+**Problem:** If `isr_lidar_mpc.py` crashed or stalled, GCS continued showing last-known position and phase with no staleness indication. Operator had no way to distinguish "drone flying normally" from "mission script dead".
+
+**Fix:** Added `_mission_alive = {"last_push": 0.0}` stamped on every `/lidar_update` POST. `emit_loop()` computes `mission_alive = last_push > 0 and time.time() - last_push < 10.0`. Added orange `MISSION STALE (Xs)` badge in GCS header, shown when `mission_alive == False`.
+
+---
+
+### B15-5 | MEDIUM | CORS wildcard on SocketIO — cross-origin WebSocket handshake accepted from any origin
+**File:** `src/telemetry_web.py` — `SocketIO()` init
+**Status:** ✅ FIXED
+
+**Problem:** `SocketIO(app, cors_allowed_origins="*")` accepted WebSocket upgrade from any origin, including attacker pages on the same competition LAN. Browser-based CSRF via WebSocket was possible.
+
+**Fix:** Changed to `cors_allowed_origins=["http://localhost:5000", "http://127.0.0.1:5000"]`. Confirmed only the SocketIO handshake endpoint (`/socket.io/`) is affected; regular Flask routes are same-origin in browser usage.
+
+---
+
+### B15-6 | MEDIUM | No input validation on /add_nfz, /add_target, /pid_tune — invalid floats crashed endpoint
+**File:** `src/telemetry_web.py` — `add_nfz()`, `add_target()`, `pid_tune()`
+**Status:** ✅ FIXED
+
+**Problem:** `float(payload["lat"])` etc. with no try/except. Non-numeric string raises `ValueError` → unhandled → Flask returns 500, logs traceback. Operator sees no useful error message.
+
+**Fix:** Wrapped numeric field extraction in `try/except (ValueError, TypeError)` → returns `{"ok": False, "error": "Invalid numeric field: ..."}` with HTTP 400.
+
+---
+
+### B15-7 | MEDIUM | Drone marker invisible until first /lidar_update — operator sees blank map on startup
+**File:** `src/telemetry_web.py` — GCS JS drone marker logic
+**Status:** ✅ FIXED
+
+**Problem:** JS condition `if(!droneOnMap && d.connected)` — `d.connected` is `False` until MAVSDK reports connected (which requires mission script running). During GCS-only launch or pre-arm, map stays blank even though MAVSDK telemetry is streaming.
+
+**Fix:** Changed to `const hasPosData = d.connected || d.alt > 0.5 || d.mission_alive; if(!droneOnMap && hasPosData)` — marker appears as soon as any telemetry data is present.
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 32 | Total: 36
+
+**Next action:** Phase I presentations — New Delhi, 13–24 July 2026.

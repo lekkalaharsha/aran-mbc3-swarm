@@ -1,108 +1,101 @@
-# Session Handoff — 2026-05-29
+# Session Handoff — 2026-05-30
 
 ## What we did this session
 
-### 1. PX4 SITL — built and installed
-- Cleared 13 GB of old logs to free disk (was 4.7 GB free, needed ~8 GB for build)
-- Fixed CMakeLists.txt airframe registration (`t4601` tab-misparsed to literal `t`)
-- Ran `install_px4_model.sh` — installed `mbc3_radar_drone` model + airframe into PX4
-- Built PX4 SITL: `~/PX4-Autopilot/build/px4_sitl_default/bin/px4` (57 MB) ✓
-- Copied 4 custom worlds to `~/PX4-Autopilot/Tools/simulation/gz/worlds/`
+### 1. GCS + launch.sh rated against industry/military standards
+Both `src/telemetry_web.py` (GCS v13) and `launch.sh` reviewed against:
+- Thread safety (MISRA-C threading rules adapted for Python)
+- Auth / CORS (OWASP API Security Top 10)
+- Process management (POSIX job control)
+- Input validation (CWE-20)
+- UI reliability (NATO GCS usability guidelines)
 
-### 2. Pre-arm fixes (drone was stuck armable=False)
-Two SITL-specific pre-arm failures fixed in `new_drone/airframe/4601_gz_mbc3_radar_drone`:
+### 2. Fixes applied — all merged to main
 
-| Failure | Param | Value |
-|---|---|---|
-| `system power unavailable` | `CBRK_SUPPLY_CHK` | `894281` |
-| `High Accelerometer Bias` | `EKF2_ABL_LIM` | `0.8` |
+| ID | File | Fix |
+|----|------|-----|
+| B15-1 | `telemetry_web.py` | `_shared_lock` protecting data[]/lidar_data[]/asp_data[] — atomic snapshot in emit_loop |
+| B15-2 | `telemetry_web.py` | `GCS_TOKEN` auth via `X-GCS-Token` header on 5 mutation endpoints |
+| B15-3 | `launch.sh` | `set -m` + `kill -SIGTERM -- "-${pid}"` — kills full process group, not just parent |
+| B15-4 | `telemetry_web.py` | Mission watchdog `_mission_alive` + orange `MISSION STALE (Xs)` badge in GCS header |
+| B15-5 | `telemetry_web.py` | CORS restricted to `["http://localhost:5000", "http://127.0.0.1:5000"]` on SocketIO |
+| B15-6 | `telemetry_web.py` | Input validation `try/except (ValueError, TypeError)` → HTTP 400 on /add_nfz, /add_target, /pid_tune |
+| B15-7 | `telemetry_web.py` | Drone marker: `hasPosData = connected || alt > 0.5 || mission_alive` — shows before first telemetry |
 
-Drone now arms successfully — `armable=True` confirmed in logs.
+### 3. README.md cleaned
+Removed section 14 (Bug Fixes — This Release) entirely. Renumbered sections 15→14, 16→15. Cleaned bug-ID references from troubleshooting.
 
-**After any airframe change, always run:**
-```bash
-cp new_drone/airframe/4601_gz_mbc3_radar_drone ~/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/4601_gz_mbc3_radar_drone
-cp new_drone/airframe/4601_gz_mbc3_radar_drone ~/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/airframes/4601_gz_mbc3_radar_drone
-chmod +x ~/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/4601_gz_mbc3_radar_drone
-chmod +x ~/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/airframes/4601_gz_mbc3_radar_drone
-rm -f ~/PX4-Autopilot/build/px4_sitl_default/rootfs/eeprom/parameters
+### 4. All MD files updated to 2026-05-30 state
+- `MBC3_MASTER.md` — Phase 0 submitted, Phase I dates, current software status, next steps
+- `docs/bugs.md` — Batch 15 added (7 bugs), totals updated: 32 fixed, 4 in-branch, 36 total
+- `docs/session_handoff.md` — this file
+- `docs/sections/S04_gcs.md` — ASP GCS marked done (swarm_telemetry_web.py complete)
+- `docs/sections/S03_isr_mission.md` — BUG-E1 fix documented, date updated
+- `docs/section_summarize.md` — bug totals, git state, date updated
+- `docs/sections/S05_px4_launch.md` — GCS_TOKEN env var added, set -m section added
+- `docs/FILE_STRUCTURE.md` — MBC3_MASTER.md description accurate
+
+### 5. Code syntax verified
 ```
-
-### 3. Climb stall fix (drone hovered at 19.8m instead of 30m)
-**Root cause:** `goto_location(HOME_LAT, HOME_LON, ...)` fallback in `src/isr_lidar_mpc.py` fired when the drone was already at HOME horizontal position → PX4 declared waypoint reached instantly → levelled off at 19.8m.
-
-**Fix applied in `src/isr_lidar_mpc.py`:**
-- Replaced the time-based `elapsed > 30s AND alt < 20m` trigger with rate-based stall detection: `climb_rate < 0.05 m/s` for 12+ seconds
-- When rescue fires, uses `drone_state["lat"] + 0.00045` (≈50m north) instead of HOME — gives PX4 a real horizontal target so it climbs while navigating
-- Both `goto_location` call sites fixed (takeoff fallback at line ~1290 + climb rescue at line ~1336)
-
-**Status at session end:** Fix applied, `launch.sh` restarted, monitor running. **Verify in next session.**
-
-### 4. record_demo.sh updated for swarm
-`record_demo.sh` now:
-1. Kills stale processes
-2. Opens gnome-terminal with `swarm_launch.sh` (5-drone SITL + Gazebo + GCS)
-3. Polls `http://localhost:5000` up to 300s for GCS
-4. Opens Firefox to swarm GCS dashboard
-5. Records 300s via x11grab → `~/mbc3_phase0_demo.mp4`
-6. Kills DRONE-2 at T+150s (leader failover demo)
+python3 -m py_compile src/telemetry_web.py  → OK
+bash -n launch.sh                           → OK
+```
 
 ---
 
 ## State at session end
 
 | Component | Status |
-|---|---|
-| PX4 binary | ✓ Built at `~/PX4-Autopilot/build/px4_sitl_default/bin/px4` |
-| mbc3_radar_drone model | ✓ Installed in PX4 |
-| pre-arm (CBRK + EKF2) | ✓ Fixed and verified — drone arms |
-| Climb stall | ✓ Fixed in code, **re-test needed** |
-| record_demo.sh | ✓ Ready for swarm recording |
-| Phase 0 video | `~/mbc3_phase0_demo.mp4` exists (old fly_demo.sh version, 12M) |
-| Deadline | **31 May 2026** — 2 days |
+|-----------|--------|
+| `src/telemetry_web.py` | ✅ v13 — thread-safe, auth, CORS, watchdog, validated |
+| `launch.sh` | ✅ process-group kill, scoped pkill, set -m |
+| `src/swarm_telemetry_web.py` | ✅ Phase 6 complete — 5-drone GCS, radar polar, follow-target |
+| `src/swarm_mission.py` | ✅ 5-drone swarm — D2D, leader election, sector redistribution |
+| `src/isr_lidar_mpc.py` | ✅ BUG-E1 fixed (approach poll uses drone_state not MAVSDK queue) |
+| Phase 0 deadline | ✅ Submitted 31 May 2026 |
+| Phase I | Presentations New Delhi, 13–24 July 2026 |
+| Bug register | 32 fixed, 4 in-branch (`fix/approach-orbit-queue`), 0 open |
 
 ---
 
 ## What to do next
 
-### Priority 1 — Verify climb fix
+### Priority 1 — Merge `fix/approach-orbit-queue`
+FIX-1 to FIX-4 (approach speed, orbit entry point, queue race, CRLF). Still not merged.
 ```bash
+git checkout main
+git merge fix/approach-orbit-queue
+bash launch.sh --headless --scenario iit_panel_demo
+```
+Expected: no approach timeouts, orbit starts at commanded radius.
+
+### Priority 2 — Phase I preparation
+- Technical presentation slides (architecture, radar pipeline, swarm coordination)
+- Live demo: 5-drone swarm GCS → `bash swarm_launch.sh`
+- Failover demo: `bash record_demo.sh` (kills DRONE-2 at T+150s)
+- Competition docs: `competition/Final_Vision_Document_for_MBC_3_22Apr26.pdf`
+
+### Priority 3 — GCS_TOKEN for competition LAN
+Set `GCS_TOKEN=<random>` in `launch.sh` env before Phase I demo:
+```bash
+export GCS_TOKEN="$(openssl rand -hex 16)"
 bash launch.sh
 ```
-Expected: drone arms, climbs continuously to 30m without WARNING messages, reaches `Cruise altitude reached — alt=29.Xm`. If `goto_location rescue` fires at all, it should be at a genuine stall, not at 19.8m.
-
-### Priority 2 — Record swarm demo video
-Once climb is verified:
-```bash
-bash record_demo.sh
-```
-This takes ~8 min total (3 min swarm startup + 5 min recording). Watch for:
-- `GCS reachable at T+XXs` 
-- Firefox opens to `http://localhost:5000`
-- `DRONE-2 killed` at T+150s
-- `~/mbc3_phase0_demo.mp4` saved
-
-### Priority 3 — Submit to IAF portal (deadline 31 May 2026)
-Files to submit:
-- `~/mbc3_phase0_demo.mp4`
-- `competition/Final_Vision_Document_for_MBC_3_22Apr26.pdf`
-- `competition/Registration_form_MBC_3_final.pdf`
+Operators must include `X-GCS-Token: <token>` in any API calls.
 
 ---
 
 ## Key file paths
 
 | File | Purpose |
-|---|---|
-| `src/isr_lidar_mpc.py` | Single-drone ISR mission — climb fix here |
+|------|---------|
+| `src/telemetry_web.py` | Single-drone ISR GCS (v13) |
+| `src/swarm_telemetry_web.py` | Swarm GCS (Phase 6 complete) |
+| `src/isr_lidar_mpc.py` | Single-drone mission controller |
 | `src/swarm_mission.py` | 5-drone swarm mission |
-| `new_drone/airframe/4601_gz_mbc3_radar_drone` | PX4 airframe params (source of truth) |
-| `launch.sh` | Single-drone demo launcher (972 lines, STEP 1–6) |
+| `launch.sh` | Single-drone demo launcher |
 | `swarm_launch.sh` | 5-drone swarm launcher |
-| `record_demo.sh` | Screen recorder for demo video |
-| `tools/pre_demo_check.sh` | Pipeline validator (7/7 checks) |
-| `docs/bugs.md` | Bug register — add before fixing |
-
-## Known open items (not fixed this session)
-- `Radar=OFF` in launch.sh STEP 6 — `ros_gz_bridge` not installed, `aeris10_driver` exits; radar avoidance falls back to LiDAR-only mode. Not blocking for demo.
-- `WARNING  Still low at Xm` stall check at 15s, alt < 15m — fires a `takeoff()` retry; harmless but noisy.
+| `record_demo.sh` | Screen recorder (ffmpeg static) |
+| `tools/pre_demo_check.sh` | Pre-flight checklist (7/7) |
+| `docs/bugs.md` | Bug register (32 fixed, 4 in-branch) |
+| `competition/` | IAF submission documents |

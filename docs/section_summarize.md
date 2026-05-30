@@ -1,6 +1,6 @@
 # Aran Technologies — Session Summary
-## ISR Mission + LiDAR MPC Avoidance v12-MPC-v5
-## Last updated: 2026-05-16
+## ISR Mission + LiDAR MPC Avoidance v12-MPC-v5 | Swarm GCS v2
+## Last updated: 2026-05-30
 
 > Nirmaan Incubation — IIT Hyderabad Demo Build
 
@@ -48,21 +48,21 @@ Aran_Technologies_v1/
 
 ---
 
-## Current Git State (2026-05-16)
+## Current Git State (2026-05-30)
 
-### Branch: `fix/approach-orbit-queue` (ACTIVE — not yet merged)
+### Branch: `main` (ACTIVE)
+All Phase 0 code merged. Phase I prep in progress.
+
+### Branch: `fix/approach-orbit-queue` (NOT YET MERGED)
 Contains FIX-1 through FIX-4. Needs verified exit-0 run then merge to main.
 
-### Main branch log
+### Main branch log (recent)
 ```
-5d34b0f  merge: fix/lidar-topic-discovery → main
-d7cf336  fix: correct LiDAR topic for gz_x500_lidar_2d model
-44db1a8  docs: add CODING_RULES.md
-d29f048  fix: 4 runtime issues found during smoke test (NEW-1 through NEW-4)
-6d6a758  fix: resolve 5 dynamic-mission-control bugs (BUG-1 through BUG-5)
-4ca6f70  merge: feature/dynamic-mission-control → main
-5ab4597  feat: dynamic mission control — NFZ/target/config/event injection
-8c811e9  fix: resolve 6 bugs across mission, GCS, and mapping stack
+449b736  feat: phase6 complete — swarm GCS military theme, D2D follow-target, radar visualization
+3eae464  feat: record_demo.sh — no-sudo recorder (static ffmpeg, two gnome-terminal windows)
+df60cab  feat: record_demo.sh — automated Phase 0 video recorder
+934f978  fix: pre_demo_check 7/7 pass — colcon pip, section(), --full-length, --once loop
+6a7d184  fix: ARAN path — use SCRIPT_DIR not hardcoded ~/aran_mbc
 ```
 
 ---
@@ -128,9 +128,11 @@ address this.
 | Batch 2 (dynamic mission) | 5 | All fixed — commit `6d6a758` |
 | Batch 3 (smoke test) | 5 | All fixed — commits `d29f048`, `d7cf336` |
 | Batch 4 (perf/quality) | 4 | In branch `fix/approach-orbit-queue` — NOT merged |
-| **Total** | **20** | **16 fixed, 4 in-branch** |
+| Batch 10–14 (swarm, radar, telemetry) | 9 | All fixed — various commits |
+| Batch 15 (GCS thread-safety + auth) | 7 | All fixed — 2026-05-30, main |
+| **Total** | **36** | **32 fixed, 4 in-branch** |
 
-See `bugs.md` for full details.
+See `docs/bugs.md` for full details.
 
 ---
 

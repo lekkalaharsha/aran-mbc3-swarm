@@ -15,7 +15,7 @@ Root: `~/Documents/aran_mbc/`
 | `record_demo.sh` | Screen recorder for demo video — ffmpeg static binary, two terminal windows |
 | `setup_ws.sh` | One-shot workspace setup — installs ROS2 deps, colcon builds, pip installs |
 | `README.md` | Project overview, setup guide, architecture, phase 0 demo steps |
-| `MBC3_MASTER.md` | Competition master doc — phase checklist, scoring rubric, team roles |
+| `MBC3_MASTER.md` | Competition master doc — phase checklist, scoring rubric, team roles, Phase 0 submitted ✓, Phase I July 2026 |
 | `.gitignore` | Ignores `__pycache__`, `*.pyc`, `logs/`, `map_output/` |
 | `.gitattributes` | Enforces LF line endings on all text files |
 

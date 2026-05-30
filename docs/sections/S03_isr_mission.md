@@ -2,7 +2,7 @@
 
 **Branch:** `feature/6-panel-radar-coverage`  
 **Parent:** `main`  
-**Status:** ✅ Stable — last verified exit 0 on 2026-05-16
+**Status:** ✅ Stable — last verified exit 0 on 2026-05-30
 
 ---
 
@@ -84,8 +84,10 @@ Existing `radar_gz_reader()` in `isr_lidar_mpc.py` already subscribes to 6 panel
 | FIX-2 | Pre-fly to orbit entry point (N of target at r) |
 | FIX-3 | Queue race in gz callback — drain+put atomically |
 | FIX-4 | scenarios.json CRLF → LF |
+| BUG-E1 | Approach loop reads stale MAVSDK queue — replaced `async for pos in drone.telemetry.position()` with `asyncio.sleep(0.5)` poll using `drone_state["lat"/"lon"]`; re-issues `goto_location` every 10s |
 
-All in `fix/approach-orbit-queue` — must be merged before Phase 3.
+FIX-1 to FIX-4 in `fix/approach-orbit-queue` — must be merged before Phase 3.  
+BUG-E1 fixed in `main`.
 
 ---
 
