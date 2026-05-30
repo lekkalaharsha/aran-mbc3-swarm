@@ -456,18 +456,23 @@ if [[ "${OPT_GCS_ONLY}" == false ]]; then
 
     # Kill any stale PX4/Gazebo from a previous session before launching.
     # "PX4 server already running for instance 0" aborts the make target in <1s.
+    # Patterns include PX4_DIR to avoid killing unrelated users' PX4 instances
+    # (best-effort on single-user machines; pkill -f is always process-name-wide).
     log "Clearing stale PX4 / Gazebo processes…"
-    pkill -f "bin/px4"    2>/dev/null && sleep 1 || true
-    pkill -f "gz sim"     2>/dev/null || true
-    pkill -f "gzserver"   2>/dev/null || true
-    pkill -f "ruby.*gz"   2>/dev/null || true
-    sleep 1
+    pkill -9 -f "${PX4_DIR}.*bin/px4" 2>/dev/null || pkill -9 -f "bin/px4" 2>/dev/null || true
+    pkill -9 -f "gz sim"              2>/dev/null || true
+    pkill -9 -f "gzserver"            2>/dev/null || true
+    pkill -9 -f "ruby.*gz"            2>/dev/null || true
+    pkill -9 -f "px4-gz_bridge"       2>/dev/null || true
+    pkill -9 -f "cmake.*px4"          2>/dev/null || true
+    sleep 2
+    rm -f /tmp/px4_lock-* /tmp/px4-sock-* 2>/dev/null || true
     log_ok "Pre-launch cleanup done"
 
     log "Launching: make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}"
     (
         cd "${PX4_DIR}"
-        make ${PX4_MAKE_DIR} ${PX4_MAKE_MODEL}
+        make "${PX4_MAKE_DIR}" "${PX4_MAKE_MODEL}"
     ) >> "${PX4_LOG}" 2>&1 &
     PID_PX4=$!
     log_info "PX4 PID: ${PID_PX4}  |  log: ${PX4_LOG}"
