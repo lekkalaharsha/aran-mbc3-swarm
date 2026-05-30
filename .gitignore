@@ -74,5 +74,10 @@ logs/
 competition/generate_proposal_pdf.py
 competition/SUBMISSION_CHECKLIST.md
 
+# Internal session / planning docs
+MBC3_MASTER.md
+tests/testcode.py
+tools/win_scripts/
+
 # Demo video recordings — large binaries, store locally only
 *.mp4

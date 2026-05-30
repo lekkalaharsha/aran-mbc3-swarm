@@ -1,8 +1,47 @@
 # Aran Technologies — MBC-3 ISR Swarm Drone System
-## v13 GCS | PX4 SITL + Gazebo Harmonic + ROS2 Jazzy + MAVSDK Python
+
+![IAF MBC-3](https://img.shields.io/badge/IAF-Mehar%20Baba%20Competition%203-1a237e?style=for-the-badge)
+![Phase I](https://img.shields.io/badge/Phase%20I-Ready-brightgreen?style=for-the-badge)
+![Mission](https://img.shields.io/badge/Mission-Verified%20Exit%200-brightgreen?style=for-the-badge)
+![PX4 SITL](https://img.shields.io/badge/PX4-SITL-0d47a1?style=for-the-badge)
+![ROS2 Jazzy](https://img.shields.io/badge/ROS2-Jazzy-22314e?style=for-the-badge)
+![Gazebo Harmonic](https://img.shields.io/badge/Gazebo-Harmonic-f57c00?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)
 
 > **Mehar Baba Competition-3 (MBC-3) — Indian Air Force**
 > Nirmaan Incubation · IIT Hyderabad · 2026
+
+---
+
+## Mission Demo — Verified 30 May 2026
+
+Single-drone ISR simulation: autonomous survey grid → primary target orbit → RTL.
+**Layout:** Gazebo 3D view (left) · GCS dashboard (right) · 1920×1080
+
+```
+┌─────────────────────────┬─────────────────────────┐
+│                         │   GCS DASHBOARD          │
+│    GAZEBO 3D SIM        │  ● Armed  ▲ 30m AGL     │
+│    [Hexacopter]         │  Phase: SURVEY           │
+│    Survey grid →        │  WP: 7 / 11              │
+│    Orbit 50m radius     │  Speed: 12 m/s           │
+│                         │  Bat: 87%                │
+└─────────────────────────┴─────────────────────────┘
+```
+
+| Phase | Result | Detail |
+|-------|--------|--------|
+| PHASE 1 — Mission upload | ✅ Pass | 11 / 11 waypoints |
+| PHASE 2 — ISR survey | ✅ Pass | 11 WPs · 0 avoidances |
+| PHASE 3 — PRIMARY orbit | ✅ Pass | 50.0 m radius · locked ±0.5 m |
+| PHASE 5 — RTL + map save | ✅ Pass | Landed · 3D map saved |
+
+> **Demo video (4 min · 1920×1080 · ~24 MB)** — generated locally:
+> ```bash
+> sudo apt install -y wmctrl
+> bash record_single_drone.sh
+> # → ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4
+> ```
 
 ---
 
