@@ -58,144 +58,61 @@ def build():
     # Abstract
     pdf.section_title("Abstract")
     pdf.body_text(
-        "We present a five-drone swarm functioning as a distributed low-altitude airborne radar - "
-        "a micro-AWACS architecture - for real-time aerial target detection, tracking, and Air "
-        "Situation Picture (ASP) generation. Each drone carries six 24 GHz FMCW radar panels "
-        "providing full 360-degree coverage and processes detections through a three-layer onboard "
-        "AI pipeline: CFAR signal detection, Random Forest target classification, and an LLM "
-        "tactical decision engine for swarm coordination. This work extends prior swarm radar "
-        "research [1] by introducing the first onboard ML+LLM inference pipeline on an airborne "
-        "radar platform, enabling autonomous track reallocation, graceful degradation, and "
-        "GNSS-denied operation within a sub-5 kg hexacopter. All core behaviours have been "
-        "verified in simulation and a pre-recorded Phase I demonstration is ready."
+        "We present a five-drone swarm as a distributed airborne FMCW radar -- a micro-AWACS "
+        "architecture -- for real-time target detection, tracking, and ASP generation. "
+        "Each drone carries six AWR1843 24 GHz panels (360-deg coverage) and processes "
+        "detections through CFAR, Random Forest, and LLM tactical engine. First onboard "
+        "ML+LLM inference chain on an airborne radar platform [1]; all behaviours verified "
+        "in simulation."
     )
 
-    # 1. Introduction
-    pdf.section_title("1. Introduction")
+    # 1. Technical Approach
+    pdf.section_title("1. Technical Approach")
+
+    pdf.subsection("1.1 Platform.",
+        "Five hexacopters (AUW 4.267 kg): six AWR1843BOOST AERIS-10 panels (24 GHz, 60-deg "
+        "H-FOV, 360-deg combined), indigenous STM32 FC (custom PCB, FreeRTOS, 250 Hz PID, "
+        "Kalman IMU), Doodle Labs AES-128 radio. Leader: Jetson AGX Orin 64 GB; soldiers: "
+        "Orin NX 16 GB. Endurance ~32 min (6S 10,000 mAh). EKF2: optical flow + IMU + baro.")
+
+    pdf.subsection("1.2 AI Pipeline.",
+        "L1: AWR1843 DSP -- range-Doppler FFT + CFAR in <10 ms (range, azimuth, velocity, SNR). "
+        "L2: Random Forest on Jetson -- target vs. clutter in <50 ms. "
+        "L3: Llama 3.2 3B (leader) / Gemma 2B (soldiers) -- JSON situation reports to track "
+        "reassignment, sector reorientation, threat alerts; triggers on L2 confirmations only.")
+
+    pdf.subsection("1.3 Swarm Resilience.",
+        "GCS > Leader > Soldier LLM. Leader loss >2 s: highest-battery soldier self-elects, "
+        "resumes ASP fusion (sim. verified). Soldier loss: LLM redistributes orphaned tracks. "
+        "ASP continuity >=3 drones (344 tracks logged). Split-merge on GCS command; "
+        "re-fusion <5 s (sim. verified). Flask GCS 2.5 Hz: track table, sector map, "
+        "decision log, JSON recording.")
+
+    # 2. Innovation & Indigenisation
+    pdf.section_title("2. Innovation and Indigenisation")
     pdf.body_text(
-        "Distributed airborne radar using drone swarms offers terrain-adaptive, cost-effective "
-        "surveillance compared to conventional AWACS platforms. Recent work [1] demonstrated "
-        "aerial target localization using SDR-based FMCW radars on drone swarms. However, "
-        "existing systems lack onboard intelligence for autonomous track management when swarm "
-        "nodes fail. The MBC-3 requirements for self-healing, graceful degradation, and "
-        "contested-environment operation demand a higher level of autonomy than triangulation-"
-        "based fusion alone can provide."
+        "Novel: (i) first airborne CFAR->ML->LLM chain; (ii) LLM track reallocation on "
+        "node failure [2,3]; (iii) priority-gated fallback without GCS. "
+        "Indigenous: AI stack, ROS2, GCS, antenna PCB, airframe, STM32 FC. "
+        "Contributes to AERIS-10 (github.com/NawfalMotii79/PLFM_RADAR) -- "
+        "open-source 10.5 GHz pulse-LFM radar. COTS: AWR1843, Jetson, Doodle Labs. "
+        "Indigenous >=55% (MBC-3 sec. 2.25). Nirmaan pre-incubation Phase 1, IIT Madras."
     )
 
-    # 2. Technical Approach
-    pdf.section_title("2. Technical Approach")
-
-    pdf.subsection("2.1 Platform.",
-        "Five hexacopters (AUW 4.267 kg) each carry six TI AWR1843BOOST AERIS-10 panels "
-        "(24 GHz FMCW, 60-degree H-FOV per panel, 360-degree combined), an indigenous "
-        "STM32 flight controller (custom PCB, FreeRTOS, 250 Hz dual-loop PID, Kalman IMU), "
-        "and Doodle Labs AES-128 mesh radio. The leader drone carries a Jetson AGX Orin 64 GB; "
-        "soldiers carry Jetson Orin NX 16 GB. "
-        "Operational altitude: 500 m AGL minimum (2 km AMSL). Six-motor redundancy and "
-        "onboard EKF2 attitude hold maintain stable radar operation in winds up to 10 knots. "
-        "Minimum crew: two operators (one GCS, one launch/recovery); single-operator mode "
-        "supported via automated pre-flight checks.")
-
-    pdf.subsection("2.2 Three-Layer Processing Pipeline.",
-        "Layer 1 (Signal): AWR1843 onboard DSP performs range-Doppler FFT and CFAR "
-        "detection in under 10 ms, outputting candidate detections with range, azimuth, "
-        "velocity, and SNR. Layer 2 (Classifier): a Random Forest model on the Jetson "
-        "classifies candidates as real targets or clutter in under 50 ms, using SNR, velocity, "
-        "range-rate, and estimated RCS as features. Only confirmed detections proceed to Layer 3. "
-        "Layer 3 (LLM Decision Engine): Llama 3.2 3B on the leader and Gemma 2B on each soldier "
-        "receive structured JSON situation reports and output tactical commands including track "
-        "reassignment, formation reallocation, and alert generation. The LLM triggers only on "
-        "Layer 2 confirmations, keeping inference load within edge-compute budget.")
-
-    pdf.subsection("2.3 Multi-Target Tracking and ASP.",
-        "Each AWR1843 panel tracks up to 12 simultaneous objects; six panels per drone "
-        "provide up to 72 raw track slots per drone. The fusion node de-duplicates and "
-        "consolidates across all five drones, maintaining 10+ confirmed unique tracks "
-        "simultaneously. Range resolution is 120 m at 2-5 km operational range (4 GHz "
-        "bandwidth, per MBC-3 sec. 2.12). The Flask-based Ground Control Station displays "
-        "a consolidated real-time ASP on a single browser screen at 2.5 Hz refresh, "
-        "with track table, sector map, leader identity, decision log, and recording to "
-        "timestamped JSON session logs. FMCW radar operates independently of ambient light, "
-        "providing identical day and night detection capability.")
-
-    pdf.subsection("2.4 Swarm Hierarchy, Failover, and Split-Merge.",
-        "Command priority: Ground Station > Leader Drone > Soldier autonomous LLM. "
-        "On leader heartbeat timeout exceeding two seconds, the highest-battery soldier "
-        "self-elects as new leader and assumes radar fusion and ASP publishing. On soldier "
-        "loss, the leader LLM reassigns orphaned track IDs to the nearest active drone. "
-        "Full ASP continuity is maintained with three or more drones operational. "
-        "On ground station command, the leader issues formation-split orders, "
-        "redistributing sector assignments across two independent sub-swarms for area "
-        "coverage expansion. On merge command, sub-swarms reconverge under the "
-        "highest-battery leader with full track database re-fusion within 5 seconds. "
-        "FOV management: all six panels per drone operate continuously (360-degree "
-        "always-on); on threat-sector command, the swarm reorients to focus combined "
-        "aperture within a 60-degree sector for increased effective gain. "
-        "All failover, track reallocation, split-merge, and ASP continuity behaviours "
-        "have been verified in simulation.")
-
-    pdf.subsection("2.5 GNSS-Denied Operation.",
-        "Optical flow (60 Hz), barometer (50 Hz), magnetometer, and IMU inertial "
-        "dead-reckoning (250 Hz) are fused via onboard EKF2 on the indigenous STM32 FC. "
-        "Radar operation is fully independent of GPS availability.")
-
-    # 3. Innovation
-    pdf.section_title("3. Innovation, Novelty, and Indigenisation")
-    pdf.body_text(
-        "This system extends swarm FMCW radar [1] in three directions not found in prior "
-        "literature: (i) the first onboard CFAR -> ML -> LLM inference chain deployed on an "
-        "airborne radar platform; (ii) LLM-driven radar track reallocation upon swarm node "
-        "failure, distinct from prior navigation-focused LLM-swarm work [2, 3]; and (iii) a "
-        "priority-gated autonomous fallback hierarchy enabling full graceful degradation without "
-        "ground station involvement. Literature search confirms no patent or paper covers the "
-        "combined airborne deployment of this three-layer pipeline."
-    )
-    pdf.body_text(
-        "Indigenisation (weighted by mission-criticality, safety-criticality, "
-        "security-criticality per MBC-3 sec. 2.25): The entire intelligence layer -- "
-        "CFAR signal processing software, Random Forest classifier, LLM tactical engine, "
-        "ROS2 swarm coordination stack, Flask GCS, and custom antenna panel PCB design -- "
-        "is 100% indigenously developed. The hexacopter airframe is indigenously fabricated. "
-        "The flight controller is a custom STM32 PCB designed from scratch (FreeRTOS, Kalman "
-        "IMU fusion, dual-loop PID). Aran Technologies additionally contributes to AERIS-10 "
-        "(github.com/NawfalMotii79/PLFM_RADAR), an open-source 10.5 GHz pulse-LFM phased "
-        "array radar system, with FPGA RTL (Verilog), STM32 firmware, and Python GUI. "
-        "Imported COTS (AWR1843 radar frontend, Jetson compute, Doodle Labs radio) provide "
-        "commodity hardware only. Weighted indigenous content: >=55%, satisfying MBC-3 "
-        "minimum of 50% (sec. 2.25). No GoI-banned components are used."
-    )
-    pdf.body_text(
-        "Institutional Context: Aran Technologies is currently in the Nirmaan pre-incubation "
-        "programme (Phase 1) at IIT Madras, building indigenous defence UAS systems."
-    )
-
-    # 4. MBC-3 Compliance
-    pdf.section_title("4. MBC-3 Compliance Summary")
-    pdf.set_font("Times", "", 10)
+    # 3. MBC-3 Compliance (key rows only)
+    pdf.section_title("3. MBC-3 Compliance Summary")
 
     rows = [
-        ("Min. 5 VTOL UAS", "5 hexacopters, each VTOL capable"),
-        ("360-degree FOV", "6 x AWR1843 panels at 0/60/120/180/240/300 deg; 60-deg sector focus on command"),
-        ("Range 2-5 km", "AWR1843 rated 0.5-5 km; RCS 0.3 m2 at 2 km (per spec)"),
-        ("Range resolution 120 m", "4 GHz bandwidth; 120 m resolution at 2-5 km range"),
-        ("Velocity 10-40 m/s", "Radial velocity via Doppler FFT; covers 10-40 m/s target range"),
-        ("Multi-target >= 5", "10+ confirmed tracks; up to 72 raw slots per drone (sim. verified)"),
-        ("Revisit < 10 s", "10 Hz per-panel update; revisit <1 s per drone"),
-        ("Op. height >= 500 m AGL", "500 m AGL min; 2 km AMSL (simulation target altitude)"),
-        ("Endurance >= 30 min", "6S 10000 mAh; ~32 min at 4.267 kg AUW (calculated)"),
-        ("Graceful degradation", "LLM reallocation; ASP maintained >=3 drones (sim. verified, 344 tracks)"),
-        ("Self-healing", "Bully election <2 s; orphaned tracks reassigned (sim. verified)"),
-        ("Swarm split-merge", "LLM split/merge on GCS command; re-fusion <5 s (sim. verified)"),
-        ("Day and night ops", "FMCW radar light-independent; identical day/night detection"),
-        ("ASP single screen + record", "Flask GCS 2.5 Hz; timestamped JSON logs (sim. verified)"),
-        ("Auto-RTH", "Indigenous STM32 FC: auto-RTH on link loss / low battery / failure"),
-        ("GNSS-denied", "EKF2: optical flow 60 Hz + IMU 250 Hz + baro 50 Hz (indigenous FC)"),
-        ("Encrypted data link", "Doodle Labs AES-128 mesh radio"),
-        ("Min. manpower", "2 operators (GCS + launch/recovery); single-op mode supported"),
-        ("Indigenisation >= 50%", ">=55% by mission-criticality weight (sec. 2.25)"),
+        ("360-deg FOV / Range",   "6 x AWR1843 @ 60-deg intervals; 0.5-5 km; 120 m resolution"),
+        ("Multi-target / Revisit", "10+ tracks; 72 raw slots/drone; revisit <1 s (sim. verified)"),
+        ("Graceful degradation",   "ASP maintained >=3 drones; bully election <2 s (sim. verified)"),
+        ("Endurance / AUW",        "~32 min, 6S 10000 mAh, 4.267 kg; op. height 500 m AGL min"),
+        ("Indigenisation",         ">=55% by mission-criticality weight (MBC-3 sec. 2.25)"),
+        ("GNSS-denied / RTH",      "EKF2: optical flow + IMU 250 Hz + baro; auto-RTH on link loss"),
+        ("Encrypted link / ASP",   "Doodle Labs AES-128; Flask GCS 2.5 Hz + JSON logs"),
     ]
 
-    col_w = [70, 110]
+    col_w = [68, 112]
     pdf.set_font("Times", "B", 9)
     pdf.set_fill_color(200, 200, 200)
     pdf.cell(col_w[0], 5, "Requirement", border=1, fill=True)
@@ -208,21 +125,15 @@ def build():
         pdf.cell(col_w[0], 5, req, border=1, fill=fill)
         pdf.cell(col_w[1], 5, impl, border=1, fill=fill, new_x="LMARGIN", new_y="NEXT")
 
-    pdf.ln(4)
+    pdf.ln(3)
 
-    # 5. Phase I Status
-    pdf.section_title("5. Phase I Status and Outcomes")
+    # 4. Phase I Status
+    pdf.section_title("4. Phase I Status")
     pdf.body_text(
-        "Phase I testing is complete. The five-drone Gazebo Harmonic SITL simulation has "
-        "been verified end-to-end: real-time ASP generation, drone-loss triggering LLM "
-        "track reallocation (344 tracks logged), and ASP continuity with four surviving drones "
-        "are demonstrated and recorded. A pre-recorded 4-minute single-drone ISR mission video "
-        "(1920x1080, v12-MPC-v5) is ready for Phase I presentation. Broadband and "
-        "drone-to-ground communication links have been tested and confirmed operational. "
-        "All simulation, GCS, and graceful degradation systems are ready for live demonstration "
-        "at New Delhi, 13-24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm). "
-        "Phase II-III will deliver a hardware prototype with field demonstration against "
-        "aerial targets in day and night conditions, meeting all MBC-3 performance thresholds."
+        "Phase I complete: SITL simulation verified (ASP, LLM reallocation, 344 tracks, "
+        "split-merge), broadband and drone-to-ground comms tested, 4-min ISR demo video "
+        "ready (github.com/lekkalaharsha/aran-mbc3-swarm). "
+        "Phase II-III: hardware prototype, field demonstration."
     )
 
     # References
