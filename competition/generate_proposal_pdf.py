@@ -220,7 +220,7 @@ def build():
         "(1920x1080, v12-MPC-v5) is ready for Phase I presentation. Broadband and "
         "drone-to-ground communication links have been tested and confirmed operational. "
         "All simulation, GCS, and graceful degradation systems are ready for live demonstration "
-        "at New Delhi, 13-24 July 2026. "
+        "at New Delhi, 13-24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm). "
         "Phase II-III will deliver a hardware prototype with field demonstration against "
         "aerial targets in day and night conditions, meeting all MBC-3 performance thresholds."
     )
