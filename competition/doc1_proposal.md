@@ -35,7 +35,7 @@ The complete intelligence layer — CFAR software, Random Forest classifier, LLM
 
 ### Phase I Deliverable
 
-Phase I testing complete: five-drone SITL simulation verified (ASP generation, LLM track reallocation, graceful degradation), broadband and drone-to-ground comms tested, pre-recorded 4-min ISR demo video (1920×1080) ready — live demonstration available at New Delhi, 13–24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm).
+Phase I complete: SITL simulation verified (ASP, LLM reallocation, graceful degradation), broadband and drone-to-ground comms tested, 4-min ISR demo video (1920×1080) ready — live demonstration at New Delhi, 13–24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm).
 
 ---
 

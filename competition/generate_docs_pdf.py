@@ -13,6 +13,7 @@ DOCS = [
     ("doc4_additional.md",     "MBC3_Doc4_Additional.pdf",       300),
 ]
 
+PROJECT_TITLE = "Collaborative FMCW Radar Swarm with Onboard AI Decision Engine for Aerial Surveillance"
 ORG_LINE    = "Aran Technologies  |  aranrobotics@gmail.com  |  IAF MBC-3 Competition"
 HEADER_TEXT = "IAF Mehar Baba Competition-3 -- Phase I Submission | Aran Technologies"
 FOOTER_TEXT = "Aran Technologies | IAF Mehar Baba Competition-3"
@@ -62,18 +63,19 @@ def md_to_pdf(md_path, out_path, word_limit):
         if line.startswith("*Word count"):
             continue
 
-        # H1 — title block: large bold centered + italic org line + rule
+        # H1 — title block: project title large + doc label subtitle + org line + rule
         if line.startswith("# "):
-            title = line[2:]
+            doc_label = line[2:]
             pdf.set_font("Times", "B", 16)
-            pdf.multi_cell(0, 8, title, align="C")
-            pdf.ln(2)
+            pdf.multi_cell(0, 8, PROJECT_TITLE, align="C")
             pdf.set_font("Times", "I", 10)
-            pdf.cell(0, 6, ORG_LINE, new_x="LMARGIN", new_y="NEXT", align="C")
-            pdf.ln(2)
+            pdf.cell(0, 5, doc_label, new_x="LMARGIN", new_y="NEXT", align="C")
+            pdf.set_font("Times", "I", 10)
+            pdf.cell(0, 5, ORG_LINE, new_x="LMARGIN", new_y="NEXT", align="C")
+            pdf.ln(1)
             pdf.set_draw_color(0, 0, 0)
             pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
-            pdf.ln(2)
+            pdf.ln(1)
 
         # Skip bold subtitle line right after H1
         elif line.startswith("**Aran Technologies"):
