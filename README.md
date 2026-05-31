@@ -41,16 +41,48 @@ https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/download/v1.0.0-single
 
 ---
 
-## Quick Start
+## Setup
 
-**Prerequisites:** Ubuntu 24.04 · ROS2 Jazzy · Gazebo Harmonic · PX4-Autopilot built at `~/PX4-Autopilot`
+### 1. System Requirements
+
+| Requirement | Version |
+|-------------|---------|
+| OS | Ubuntu 24.04 |
+| ROS2 | Jazzy |
+| Gazebo | Harmonic |
+| Python | 3.10+ |
+| PX4-Autopilot | Built at `~/PX4-Autopilot` |
+
+### 2. Install Python dependencies
 
 ```bash
 pip install mavsdk flask flask-socketio requests numpy scipy scikit-learn
 pip install colcon-common-extensions
-bash setup_ws.sh                    # build ROS2 workspace
-bash tools/pre_demo_check.sh        # verify 7/7 checks pass
 ```
+
+### 3. Install drone model into PX4
+
+```bash
+bash new_drone/install_px4_model.sh
+```
+
+### 4. Build ROS2 workspace
+
+```bash
+bash setup_ws.sh
+# Builds aeris10_driver + radar_fusion into ~/ros2_ws
+```
+
+### 5. Verify setup
+
+```bash
+bash tools/pre_demo_check.sh
+# All 7 checks must pass before launch
+```
+
+---
+
+## Quick Start
 
 **Swarm (competition mode):**
 ```bash
@@ -115,17 +147,3 @@ aeris10_driver ──/radar/scan──► radar_fusion/detection_node ──► 
 leader_election.py ──► /api/leader (bully protocol, < 2 s election)
 ```
 
----
-
-## Competition Submission
-
-| Document | File |
-|----------|------|
-| Proposal (Doc 1) | `competition/MBC3_Doc1_Proposal.pdf` |
-| Products & Tech (Doc 2) | `competition/MBC3_Doc2_Products_Tech.pdf` |
-| Competitions (Doc 3) | `competition/MBC3_Doc3_Competitions.pdf` |
-| Additional Info (Doc 4) | `competition/MBC3_Doc4_Additional.pdf` |
-| IAF Vision Document | `competition/Final_Vision_Document_for_MBC_3_22Apr26.pdf` |
-| Registration Form | `competition/Registration_form_MBC_3_final.pdf` |
-
-Submit to: **pratiyogita-3@gov.in** | Phase I presentations: **New Delhi, 13–24 July 2026**
