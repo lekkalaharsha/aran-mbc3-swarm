@@ -137,7 +137,45 @@ bash tools/kill_drone_sim.sh 2   # kills DRONE-2, triggers redistribution
 
 ## Swarm Architecture
 
-**System overview diagram:** [`images/mbc3_architecture.drawio`](images/mbc3_architecture.drawio) — open in [draw.io](https://app.diagrams.net)
+```mermaid
+flowchart LR
+    subgraph SWARM["🚁 SWARM — 5 Hexacopters"]
+        direction TB
+        D1["**DRONE-1 — LEADER**\nLlama 3.2 3B\n6× FMCW · 360°\nASP fusion"]
+        D2["DRONE-2\nGemma 2B\n6× FMCW · 360°"]
+        D3["DRONE-3\nGemma 2B\n6× FMCW · 360°"]
+        D4["DRONE-4\nGemma 2B\n6× FMCW · 360°"]
+        D5["DRONE-5\nGemma 2B\n6× FMCW · 360°"]
+        D2 & D3 & D4 & D5 -. "Mesh AES-128" .-> D1
+    end
+
+    subgraph AI["⚡ Onboard AI Pipeline"]
+        direction TB
+        R["**RADAR INPUT**\n6× AERIS-10 FMCW\n24 GHz · 60° × 6 = 360°\nAWR1843 frontend"]
+        L1["**LAYER 1 — CFAR**\nRange-Doppler FFT\nAWR1843 DSP · &lt;10 ms/scan"]
+        L2["**LAYER 2 — Random Forest**\nClutter rejection · Jetson\n&lt;50 ms/detection"]
+        L3["**LAYER 3 — LLM**\nTactical engine\nTrack · Sector · Threat"]
+        ASP["**AIR SITUATION PICTURE**\n→ GCS @ 2.5 Hz"]
+        R --> L1 --> L2 --> L3 --> ASP
+    end
+
+    subgraph GCS["🖥 Ground Control Station"]
+        direction TB
+        FLASK["**Flask / SocketIO**\nlocalhost:5000"]
+        P1["Track Table"]
+        P2["Polar Radar Display"]
+        P3["Leaflet Map"]
+        P4["LLM Decision Log"]
+        FLASK --> P1 & P2 & P3 & P4
+    end
+
+    D1 -- "MAVLink / ROS2" --> R
+    ASP -- "ASP @ 2.5 Hz" --> FLASK
+```
+
+> Graceful degradation: drone loss → bully election → leader reassigned in < 2 s · ASP continuity with ≥ 3 drones active
+
+**Editable diagram:** [`images/mbc3_architecture.drawio`](images/mbc3_architecture.drawio) — open in [draw.io](https://app.diagrams.net)
 
 ![MBC-3 Swarm — 5× mbc3_radar_drone in Gazebo Harmonic](images/Screenshot%202026-05-22%20205131.png)
 
