@@ -35,7 +35,7 @@ The complete intelligence layer — CFAR software, Random Forest classifier, LLM
 
 ### Phase I Deliverable
 
-A verified five-drone Gazebo Harmonic SITL simulation demonstrating real-time ASP generation, drone-loss triggering LLM track reallocation, and ASP continuity across surviving drones — available for live demonstration at New Delhi, 13–24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm).
+Phase I testing complete: five-drone SITL simulation verified (ASP generation, LLM track reallocation, graceful degradation), broadband and drone-to-ground comms tested, pre-recorded 4-min ISR demo video (1920×1080) ready — live demonstration available at New Delhi, 13–24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm).
 
 ---
 

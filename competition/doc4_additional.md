@@ -3,11 +3,11 @@
 
 ---
 
-## Simulation Demonstration — Phase I Ready
+## Phase I Testing — Completed
 
-A verified five-drone swarm simulation demonstrates all core MBC-3 requirements on ROS2 Jazzy and Gazebo Harmonic: real-time ASP generation, bully-protocol leader election, graceful degradation on drone loss, and sector reassignment — 344 radar tracks logged with four surviving drones sustaining full mission continuity.
+All Phase I systems have been tested and verified. The five-drone swarm simulation on ROS2 Jazzy and Gazebo Harmonic has demonstrated all core MBC-3 requirements: real-time ASP generation, bully-protocol leader election, graceful degradation on drone loss, and sector reassignment — 344 radar tracks logged with four surviving drones sustaining full mission continuity.
 
-Single-drone ISR video prepared for Phase I: 4-minute 1920×1080 recording covering survey grid (11 WPs), primary target orbit (50 m radius, locked ±0.5 m), and RTL with 3D occupancy map save. Mission exit verified clean (v12-MPC-v5).
+A pre-recorded 4-minute single-drone ISR mission video (1920×1080, v12-MPC-v5) is ready for Phase I presentation: 11-waypoint survey, primary target orbit locked at 50 m radius ±0.5 m, RTL, and 3D occupancy map save — verified clean exit. Broadband and drone-to-ground communication links have been tested and confirmed operational.
 
 ## Indigenisation Breakdown
 
@@ -39,7 +39,7 @@ Point of Contact: aranrobotics@gmail.com | +91 72888 40612
 
 ## Phase I Readiness
 
-Simulation stack, GCS dashboard, and graceful degradation demonstration are prepared for live presentation at New Delhi, 13–24 July 2026.
+Simulation stack, GCS dashboard, graceful degradation demonstration, and pre-recorded mission video are complete and ready for live presentation at New Delhi, 13–24 July 2026.
 
 ---
 
