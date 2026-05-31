@@ -5,9 +5,7 @@
 
 ## Phase I Testing — Completed
 
-All Phase I systems have been tested and verified. The five-drone swarm simulation on ROS2 Jazzy and Gazebo Harmonic has demonstrated all core MBC-3 requirements: real-time ASP generation, bully-protocol leader election, graceful degradation on drone loss, and sector reassignment — 344 radar tracks logged with four surviving drones sustaining full mission continuity.
-
-A pre-recorded 4-minute single-drone ISR mission video (1920×1080, v12-MPC-v5) is ready for Phase I presentation: 11-waypoint survey, primary target orbit locked at 50 m radius ±0.5 m, RTL, and 3D occupancy map save — verified clean exit. Broadband and drone-to-ground communication links have been tested and confirmed operational.
+Five-drone swarm simulation verified on ROS2 Jazzy / Gazebo Harmonic: ASP generation, bully-protocol leader election, graceful degradation, sector reassignment — 344 tracks logged, four surviving drones sustaining full continuity. Pre-recorded 4-min ISR video (1920×1080, v12-MPC-v5) ready: 11-WP survey, 50 m orbit ±0.5 m, RTL, 3D map save. Broadband and drone-to-ground comms tested and operational.
 
 ## Indigenisation Breakdown
 
@@ -29,17 +27,13 @@ Estimated indigenisation: **≥ 55%** by mission-criticality weighting — meets
 
 Aran Technologies is a three-member engineering startup building indigenous defence UAS systems from the ground up.
 
-**Kishore Udhayakumar** | Founder & CEO — Mechanical Engineering. Leads product development, mechanical design, thermal engineering, and business strategy. Drives go-to-market planning and direct engagement with Indian defence end-users.
+**Kishore Udhayakumar** | Founder & CEO — Mechanical Engineering. Product development, mechanical design, thermal engineering, business strategy, and defence market engagement.
 
-**Vegi Tejo Bhargav** | Co-Founder & CTO — Mechanical Engineering. Manages project execution, hexacopter airframe fabrication, additive manufacturing, procurement, and hardware integration roadmap.
+**Vegi Tejo Bhargav** | Co-Founder & CTO — Mechanical Engineering. Project execution, hexacopter airframe fabrication, additive manufacturing, and hardware integration.
 
-**L. Harsha Vardhan Naidu** | Product Head, Electronics — EEE. Designed the complete autonomous mission stack: PX4 SITL pipeline, ROS2 swarm middleware, GCS dashboard, STM32 flight controller firmware, and three-layer onboard AI pipeline (CFAR → Random Forest → LLM).
+**L. Harsha Vardhan Naidu** | Product Head, Electronics — EEE. Autonomous mission stack: PX4 SITL, ROS2 swarm middleware, GCS dashboard, STM32 FC firmware, and three-layer AI pipeline (CFAR → RF → LLM).
 
 Point of Contact: aranrobotics@gmail.com | +91 72888 40612
-
-## Phase I Readiness
-
-Simulation stack, GCS dashboard, graceful degradation demonstration, and pre-recorded mission video are complete and ready for live presentation at New Delhi, 13–24 July 2026.
 
 ---
 
