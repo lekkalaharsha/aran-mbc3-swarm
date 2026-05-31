@@ -133,6 +133,10 @@ bash tools/kill_drone_sim.sh 2   # kills DRONE-2, triggers redistribution
 |---|---|---|
 | ![3/4 front view](images/assembly_reference/view_3quarter_front.jpeg) | ![Top perspective](images/assembly_reference/view_top_perspective.jpeg) | ![Isometric](images/assembly_reference/view_isometric.jpeg) |
 
+| Render |
+|---|
+| ![Isometric render](images/assembly_reference/render_isometric.png) |
+
 ---
 
 ## Swarm Architecture
