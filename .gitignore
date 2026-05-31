@@ -79,5 +79,5 @@ MBC3_MASTER.md
 tests/testcode.py
 tools/win_scripts/
 
-# Demo video recordings — large binaries, store locally only
-*.mp4
+# Demo video recordings
+# *.mp4
