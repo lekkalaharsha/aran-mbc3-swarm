@@ -13,11 +13,11 @@ Contemporary aerial surveillance requires persistent, wide-area detection of low
 
 Aran Technologies proposes a five-hexacopter swarm, each platform carrying six 24 GHz FMCW radar panels (TI AWR1843, 60° H-FOV per panel) providing full 360° coverage per drone. A three-layer onboard AI pipeline autonomously processes raw radar data through to tactical decision output.
 
-**Layer 1 — Signal Processing:** The AWR1843 onboard DSP performs range-Doppler FFT and CFAR detection within 10 ms per scan cycle, producing candidate detections with range, azimuth, radial velocity, and SNR.
+**Layer 1 — Signal Processing:** AWR1843 DSP performs range-Doppler FFT and CFAR detection within 10 ms, outputting range, azimuth, radial velocity, and SNR.
 
-**Layer 2 — Target Classification:** A Random Forest classifier executing on each drone's Jetson compute module classifies candidates as confirmed targets or clutter within 50 ms, using SNR, velocity, range-rate, and estimated RCS. Only confirmed detections propagate to Layer 3.
+**Layer 2 — Classification:** Random Forest on Jetson classifies candidates as targets or clutter within 50 ms using SNR, velocity, range-rate, and RCS. Only confirmed detections reach Layer 3.
 
-**Layer 3 — LLM Tactical Engine:** Llama 3.2 3B (leader drone) and Gemma 2B (soldier drones) receive structured JSON situation reports and generate tactical commands — track reassignment, formation reallocation, sector reorientation, and threat alerts — operating within edge-compute budget and triggering exclusively on Layer 2 confirmations.
+**Layer 3 — LLM Tactical Engine:** Llama 3.2 3B (leader) and Gemma 2B (soldiers) receive JSON situation reports and generate tactical commands — track reassignment, formation reallocation, sector reorientation, and threat alerts — triggering only on Layer 2 confirmations.
 
 ### Swarm Architecture and Resilience
 
@@ -39,4 +39,4 @@ Phase I testing complete: five-drone SITL simulation verified (ASP generation, L
 
 ---
 
-*Word count: ~480 | Limit: 500*
+*Word count: ~493 | Limit: 500*
