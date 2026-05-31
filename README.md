@@ -28,9 +28,9 @@ Five-hexacopter swarm operating as a distributed airborne FMCW radar system for 
 
 ## Demo
 
-**Demo video (4 min · 1920×1080)**
+**Demo video (4 min · 1920×1080)** — click to play
 
-<video src="https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/download/v1.0.0-single-drone/mbc3_single_drone_demo.mp4" controls title="MBC-3 Single-Drone ISR Mission Demo" width="100%"></video>
+[![MBC-3 Single-Drone ISR Mission Demo](images/demo_thumbnail.jpg)](https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/download/v1.0.0-single-drone/mbc3_single_drone_demo.mp4)
 
 | Phase | Result | Detail |
 |-------|--------|--------|
