@@ -27,7 +27,7 @@ A Flask-based Ground Control Station displays a consolidated real-time ASP at 2.
 
 ### Platform Specification
 
-Each hexacopter carries: TI AWR1843BOOST radar panels ×6, indigenous STM32 flight controller (custom PCB), VectorNav VN-100 IMU, Doodle Labs AES-128 mesh radio, and Jetson edge compute (AGX Orin 64 GB on leader; Orin NX 16 GB on soldier drones). AUW ≤ 4.3 kg. Operational altitude: 500 m AGL minimum. Endurance: approximately 32 minutes (6S, 10,000 mAh). Automatic RTH on data-link loss or critical battery. GNSS-denied resilience via EKF2 fusing optical flow (60 Hz), VN-100 IMU (400 Hz), and barometer (50 Hz).
+Each hexacopter carries: TI AWR1843BOOST radar panels ×6, indigenous STM32 flight controller (custom PCB), Doodle Labs AES-128 mesh radio, and Jetson edge compute (AGX Orin 64 GB on leader; Orin NX 16 GB on soldiers). AUW ≤ 4.3 kg. Endurance: ~32 min (6S, 10,000 mAh). Auto RTH on data-link loss or low battery. GNSS-denied resilience via EKF2 fusing optical flow, IMU, and barometer.
 
 ### Indigenisation
 
@@ -35,9 +35,7 @@ The complete intelligence layer — CFAR software, Random Forest classifier, LLM
 
 ### Phase I Deliverable
 
-A verified five-drone Gazebo Harmonic SITL simulation demonstrating real-time ASP generation, drone-loss triggering LLM track reallocation, and ASP continuity across surviving drones — available for live demonstration at New Delhi, 13–24 July 2026.
-
-Full simulation source code, documentation, and demonstration video: **https://github.com/lekkalaharsha/aran-mbc3-swarm**
+A verified five-drone Gazebo Harmonic SITL simulation demonstrating real-time ASP generation, drone-loss triggering LLM track reallocation, and ASP continuity across surviving drones — available for live demonstration at New Delhi, 13–24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm).
 
 ---
 

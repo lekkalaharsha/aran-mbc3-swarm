@@ -49,7 +49,7 @@ def sanitize(text):
 def md_to_pdf(md_path, out_path, word_limit):
     pdf = DocPDF(word_limit)
     pdf.set_margins(20, 20, 20)
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
 
     with open(md_path, "r") as f:
@@ -65,18 +65,18 @@ def md_to_pdf(md_path, out_path, word_limit):
         # H1
         if line.startswith("# "):
             pdf.set_font("Times", "B", 14)
-            pdf.multi_cell(0, 7, line[2:])
-            pdf.ln(2)
+            pdf.multi_cell(0, 6, line[2:])
+            pdf.ln(1)
         # H2
         elif line.startswith("## "):
             pdf.set_font("Times", "B", 11)
-            pdf.multi_cell(0, 6, line[3:])
-            pdf.ln(1)
+            pdf.multi_cell(0, 5, line[3:])
+            pdf.ln(0.5)
         # H3
         elif line.startswith("### "):
             pdf.set_font("Times", "B", 10)
             pdf.multi_cell(0, 5, line[4:])
-            pdf.ln(1)
+            pdf.ln(0.5)
         # Horizontal rule
         elif line.startswith("---"):
             pdf.set_draw_color(180, 180, 180)
@@ -109,12 +109,12 @@ def md_to_pdf(md_path, out_path, word_limit):
             pdf.ln(1)
         # Blank line
         elif line == "":
-            pdf.ln(2)
+            pdf.ln(1.5)
         # Normal paragraph
         else:
             pdf.set_font("Times", "", 10)
             text = line.replace("**", "").replace("`", "").replace("*", "")
-            pdf.multi_cell(0, 5, text)
+            pdf.multi_cell(0, 5, text, align="L")
 
     pdf.output(out_path)
     size = os.path.getsize(out_path)
