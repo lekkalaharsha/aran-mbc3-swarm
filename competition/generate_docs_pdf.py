@@ -87,16 +87,21 @@ def md_to_pdf(md_path, out_path, word_limit):
             pdf.set_font("Times", "", 10)
             text = line[2:].replace("**", "").replace("`", "")
             pdf.multi_cell(0, 5, f"  •  {text}")
-        # Table row
-        elif line.startswith("|") and not line.startswith("|---") and not line.startswith("|---|"):
-            if "---|" in line:
+        # Table row (skip separator lines like |---|---|)
+        elif line.startswith("|"):
+            if "---" in line:
                 continue
-            cells = [c.strip() for c in line.strip("|").split("|")]
+            cells = [c.strip().replace("**", "").replace("`", "") for c in line.strip("|").split("|")]
+            n = max(len(cells), 1)
+            col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / n
             pdf.set_font("Times", "", 9)
-            col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / max(len(cells), 1)
-            for cell in cells:
-                pdf.cell(col_w, 5, cell[:40], border=1)
-            pdf.ln()
+            x0, y0 = pdf.get_x(), pdf.get_y()
+            max_y = y0
+            for i, cell in enumerate(cells):
+                pdf.set_xy(x0 + i * col_w, y0)
+                pdf.multi_cell(col_w, 5, cell, border=1)
+                max_y = max(max_y, pdf.get_y())
+            pdf.set_y(max_y)
         # Bold header line (** **)
         elif line.startswith("**") and line.endswith("**"):
             pdf.set_font("Times", "B", 10)
