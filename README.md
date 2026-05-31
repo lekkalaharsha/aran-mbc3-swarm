@@ -127,11 +127,11 @@ bash tools/kill_drone_sim.sh 2   # kills DRONE-2, triggers redistribution
 
 | Top | Front |
 |---|---|
-| ![Top view](images/assembly_reference/back%20view%20.jpeg) | ![Front view](images/assembly_reference/side%20view.jpeg) |
+| ![Top view](images/assembly_reference/top_view.jpeg) | ![Front view](images/assembly_reference/front_view.jpeg) |
 
 | 3/4 Front | Top perspective | Isometric |
 |---|---|---|
-| ![](images/assembly_reference/WhatsApp%20Image%202026-05-26%20at%206.31.59%20PM.jpeg) | ![](images/assembly_reference/WhatsApp%20Image%202026-05-26%20at%206.32.00%20PM.jpeg) | ![](images/assembly_reference/WhatsApp%20Image%202026-05-26%20at%206.32.01%20PM.jpeg) |
+| ![3/4 front view](images/assembly_reference/view_3quarter_front.jpeg) | ![Top perspective](images/assembly_reference/view_top_perspective.jpeg) | ![Isometric](images/assembly_reference/view_isometric.jpeg) |
 
 ---
 
