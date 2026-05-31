@@ -181,8 +181,6 @@ flowchart LR
 
 **Editable diagram:** [`images/mbc3_architecture.drawio`](images/mbc3_architecture.drawio) — open in [draw.io](https://app.diagrams.net)
 
-![MBC-3 Swarm — 5× mbc3_radar_drone in Gazebo Harmonic](images/Screenshot%202026-05-22%20205131.png)
-
 ![MBC-3 System Architecture](images/mbc3_radar_drone.svg)
 
 ```
