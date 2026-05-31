@@ -26,7 +26,7 @@ Five-hexacopter swarm operating as a distributed airborne FMCW radar system for 
 
 ---
 
-## Demo — Verified 30 May 2026
+## Demo
 
 **Demo video (4 min · 1920×1080)**
 
