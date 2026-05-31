@@ -47,7 +47,7 @@ Before merging any branch into `main`, ALL of the following must pass:
 
 - [ ] `python3 -m py_compile` passes on every modified `.py` file
 - [ ] Module self-tests pass (`python3 mpc_controller.py`, `python3 mapping_3d.py`)
-- [ ] `./launch.sh --headless --scenario iit_panel_demo` runs without `FAILED` exit
+- [ ] `./launch.sh --headless --scenario mbc3_iaf_demo` runs without `FAILED` exit
 - [ ] Survey completes all WPs (progress reaches 100%)
 - [ ] GCS dashboard reachable at `http://localhost:5000` during run
 - [ ] No new `Traceback` or `RuntimeError` in mission log
@@ -161,7 +161,7 @@ If a file gets CRLF-corrupted: `sed -i 's/\r//' <file>` before committing.
 If any change — even a "small fix" — alters observable flight behaviour (trajectory, avoidance response, orbit radius, phase sequence), it must be:
 
 1. Documented in `bugs.md` or commit body
-2. Tested with `./launch.sh --headless --scenario iit_panel_demo`
+2. Tested with `./launch.sh --headless --scenario mbc3_iaf_demo`
 3. Reviewed before merge to `main`
 
 ---

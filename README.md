@@ -283,16 +283,57 @@ leader_election.py ──POST /api/leader──►  swarm_telemetry_web.py
 
 ## 6. Drone Model
 
-Custom 6-arm hexacopter `mbc3_radar_drone`.
+Custom 6-arm hexacopter `mbc3_radar_drone`. All values derived from `new_drone/mbc3_radar_drone.sdf` and `new_drone/airframe/4601_gz_mbc3_radar_drone`.
+
+### Geometry & mass
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| Configuration | 6-arm hexacopter, X-hex flat | SDF / airframe |
+| Arm length | 360 mm | `CA_ROTOR0_PX` |
+| Motor layout | 0° CCW, 60° CW, 120° CCW, 180° CW, 240° CCW, 300° CW | airframe |
+| SDF base mass | 3.834 kg | `base_link` |
+| Motor bell mass | 6 × 72.3 g = 433 g | `motor_bell_[0-5]` |
+| **Total AUW** | **4.267 kg** | base + 6 × motor bells |
+| Prop diameter | 276 mm (≈ 10.9 in) | SDF rotor radius 0.138 m |
+
+### Motor & propulsion
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| Thrust coefficient kT | 2.800 × 10⁻⁵ N/(rad/s)² | `motorConstant` |
+| Torque/thrust ratio km | 0.01408 | `momentConstant` |
+| Max rotor speed | 838 rad/s (~8,000 RPM) | `maxRotVelocity` |
+| Motor time constant | 12.5 ms (up & down) | `timeConstantUp/Down` |
+| Rotor drag coefficient | 8.06 × 10⁻⁵ | `rotorDragCoefficient` |
+| **Max thrust per motor** | **19.66 N** | kT × 838² |
+| **Total max thrust** | **117.9 N** | 6 × 19.66 N |
+| **Thrust-to-weight ratio** | **2.82** | 117.9 / (4.267 × 9.81) |
+| Hover throttle (empirical) | 0.63 | flight log `13_58_15.ulg` |
+
+### Inertia (base_link)
+
+| Axis | Value |
+|------|-------|
+| Ixx = Iyy | 0.06685 kg·m² |
+| Izz | 0.08865 kg·m² |
+
+### Battery & endurance
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| Battery | 6S LiPo, 10,000 mAh | `BAT1_N_CELLS / BAT1_CAPACITY` |
+| Nominal voltage | 22.2 V (6 × 3.7 V) | — |
+| Max voltage | 25.2 V (6 × 4.2 V) | `BAT1_V_CHARGED` |
+| Empty voltage | 21.0 V (6 × 3.5 V) | `BAT1_V_EMPTY` |
+| Est. hover endurance | ~32 min | airframe header |
+
+### Identifiers
 
 | Parameter | Value |
 |-----------|-------|
-| Arms | 6 |
-| Motor config | X-hex |
-| SDF mass | ~3.8 kg |
-| Battery | 6S LiPo |
-| Frame | Carbon fibre (competition build) |
 | Payload | AERIS-10 FMCW radar module |
+| Frame material | Carbon fibre (competition build) |
 | SDF source | `new_drone/mbc3_radar_drone.sdf` |
 | PX4 airframe | `4601_gz_mbc3_radar_drone` |
 

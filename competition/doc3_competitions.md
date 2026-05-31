@@ -3,22 +3,16 @@
 
 ---
 
-## Nirmaan — IIT Madras Incubation Programme
+## Nirmaan Entrepreneurship and Incubation Programme — IIT Madras
 
-Aran Technologies participated in the Nirmaan entrepreneurship and incubation programme at IIT Madras. Nirmaan is one of India's leading student incubators, operating under IIT Madras, focused on deep-tech and product startups.
+Aran Technologies completed the Nirmaan deep-tech incubation programme at the Indian Institute of Technology Madras — one of India's premier technology institutions. The programme follows the Disciplined Entrepreneurship framework, requiring structured completion of sequential workbooks covering market segmentation, beachhead market selection, total addressable market sizing, end-user profiling, and go-to-market strategy formulation.
 
-As part of the programme, the team completed structured Disciplined Entrepreneurship (DE) workbooks covering market segmentation, primary market research, beachhead market selection, total addressable market sizing, and end-user profiling. Primary market research was conducted with defence and paramilitary end-users including Border Security Force and Indian Army tactical unit profiles, validating demand for indigenous persistent ISR and collaborative surveillance systems.
+Primary market research was conducted directly with defence and paramilitary end-users, including Border Security Force personnel and Indian Army tactical unit profiles. This research validated a significant capability gap in low-cost indigenous persistent ISR and collaborative aerial surveillance within current border protection operations. The validated beachhead market was identified as BSF border battalions, with a vehicle-mounted tethered drone ISR platform as the primary product offering.
 
-The programme resulted in a validated product roadmap for a vehicle-mounted tethered drone ISR platform targeting BSF border battalions as the beachhead market, with a defined go-to-market strategy aligned to Atmanirbhar Bharat defence objectives.
+The programme produced two outputs of direct relevance to the MBC-3 submission. First, a validated product-market fit analysis and go-to-market roadmap aligned to Atmanirbhar Bharat defence procurement objectives. Second, the foundational ISR Mission Stack — a fully operational autonomous drone mission system on PX4 SITL, Gazebo Harmonic, and MAVSDK Python, incorporating LiDAR-based MPC obstacle avoidance and a Flask/SocketIO Ground Control Station. This stack, demonstrated as the programme's technical output, has since been extended and verified for MBC-3 Phase I, forming the single-drone core of the five-drone collaborative radar swarm submission.
 
-The Nirmaan incubation also drove development of the ISR Mission Stack demo build — a full autonomous drone mission system demonstrated as part of the incubation output, built on PX4 SITL, Gazebo Harmonic, and MAVSDK Python with LiDAR MPC obstacle avoidance and Flask GCS dashboard.
-
-## IAF Mehar Baba Competition-3
-
-MBC-3 is the team's first direct participation in a national defence innovation competition. The MBC-3 submission builds directly on skills and validated problem understanding developed through the Nirmaan programme.
-
-The team's Phase 0 registration was accepted for Phase I evaluation. The Phase I simulation stack — five-drone swarm on ROS2 Jazzy + Gazebo Harmonic, real-time ASP, leader election, graceful degradation — is fully verified as of 30 May 2026 and ready for live demonstration at New Delhi (13–24 July 2026). A single-drone ISR demo video (4 minutes, 1920×1080) has been recorded showing autonomous survey, primary target orbit, and RTL. The swarm simulation demonstrates verified drone-kill recovery in under 2 seconds with full ASP continuity maintained across four remaining drones.
+Aran Technologies' MBC-3 submission directly applies the technical capability, indigenous development methodology, and validated defence market understanding developed through the Nirmaan programme to the Indian Air Force's collaborative drone-based surveillance radar requirement.
 
 ---
 
-*Word count: ~295 | Limit: 300*
+*Word count: ~270 | Limit: 300*

@@ -94,7 +94,7 @@ BUG-E1 fixed in `main`.
 ## Open Tasks
 
 - [ ] Merge `fix/approach-orbit-queue` (FIX-1 to FIX-4) to parent branch
-- [ ] Verify exit 0 on `iit_panel_demo` after merge
+- [ ] Verify exit 0 on `mbc3_iaf_demo` after merge
 - [ ] Phase 3: integrate radar fusion into avoidance_loop
 </content>
 </invoke>

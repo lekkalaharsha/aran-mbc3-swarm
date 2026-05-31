@@ -73,7 +73,7 @@ cd src && python3 mpc_controller.py && python3 mapping_3d.py
 python3 radar_fusion/test_unit.py
 
 # 4. Headless mission run
-./launch.sh --headless --scenario iit_panel_demo
+./launch.sh --headless --scenario mbc3_iaf_demo
 
 # 5. Check log
 grep -i "FAILED\|Traceback\|RuntimeError" logs/$(ls logs/ | tail -1)/mission.log

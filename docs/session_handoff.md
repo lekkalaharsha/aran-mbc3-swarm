@@ -65,7 +65,7 @@ FIX-1 to FIX-4 (approach speed, orbit entry point, queue race, CRLF). Still not 
 ```bash
 git checkout main
 git merge fix/approach-orbit-queue
-bash launch.sh --headless --scenario iit_panel_demo
+bash launch.sh --headless --scenario mbc3_iaf_demo
 ```
 Expected: no approach timeouts, orbit starts at commanded radius.
 

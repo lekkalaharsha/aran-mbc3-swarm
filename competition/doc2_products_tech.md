@@ -3,22 +3,22 @@
 
 ---
 
-Aran Technologies is a defence-focused UAS development team with hands-on experience across flight controller hardware, autonomous mission software, and AI-driven surveillance systems.
+Aran Technologies is a defence-focused UAS development team with demonstrated capability across flight controller hardware, autonomous mission software, and AI-driven surveillance systems.
 
-## ESP32 Autonomous Flight Controller
+## Indigenous ESP32 Autonomous Flight Controller
 
-We designed and built a complete custom flight controller from scratch on ESP32-WROOM, running FreeRTOS dual-core architecture at 250 Hz. The system integrates a Kalman-filter IMU pipeline (MPU6050), barometer-based altitude hold (BMP280), GPS position hold and Return-to-Home (NEO-6M), and compass-referenced body-frame position control (QMC5883L). A dual-loop PID architecture (outer angle loop, inner rate loop) drives the motor mixer for an X-frame quadcopter. This project demonstrated indigenous design of flight-critical embedded systems with multi-sensor fusion.
+Aran Technologies designed and fabricated a complete autonomous flight controller on the ESP32-WROOM platform, operating on a FreeRTOS dual-core architecture at 250 Hz. The system integrates a Kalman-filter IMU pipeline (MPU6050), barometer-based altitude hold (BMP280), GPS position hold and Return-to-Home (NEO-6M), and compass-referenced body-frame position control (QMC5883L). A dual-loop PID architecture — outer angle loop, inner rate loop — drives the motor mixer for an X-frame quadcopter. This demonstrator established indigenous design capability for flight-critical embedded systems with multi-sensor fusion.
 
-## ISR Mission Stack with LiDAR MPC Avoidance — Verified Phase I Demo Build
+## ISR Mission Stack — Verified Phase I Demo Build (v12-MPC-v5)
 
-Developed a full autonomous ISR mission stack on PX4 SITL + Gazebo Harmonic using MAVSDK Python. Key capabilities include 360° LiDAR obstacle avoidance driven by a Model Predictive Controller (MPC with L-BFGS-B finite-horizon QP solver), boustrophedon survey grid, multi-target ISR orbit sequences, No-Fly Zone enforcement, and a live Flask/SocketIO Ground Control Station dashboard streaming altitude, climb rate, heading, battery, and mission phase at 2.5 Hz.
+Aran Technologies developed a full autonomous ISR mission stack on PX4 SITL and Gazebo Harmonic using MAVSDK Python. Core capabilities include 360° LiDAR obstacle avoidance driven by a Model Predictive Controller (L-BFGS-B finite-horizon QP solver), boustrophedon survey grid generation, multi-target ISR orbit sequencing, No-Fly Zone hard fencing, and a live Flask/SocketIO Ground Control Station streaming altitude, heading, battery state, and mission phase at 2.5 Hz.
 
-The stack (v12-MPC-v5) was verified on 30 May 2026 with a full clean exit: 11-waypoint survey, primary target orbit locked at 50 m radius ±0.5 m, RTL, and 3D occupancy map save. A 4-minute demo video (Gazebo + GCS side-by-side, 1920×1080) is ready for Phase I submission. Originally developed as the IIT Madras Nirmaan incubation programme demonstration build.
+The stack (v12-MPC-v5) was verified on 30 May 2026 with a full clean exit: 11-waypoint survey, primary target orbit locked at 50 m radius ±0.5 m, RTL, and 3D occupancy map save. A 4-minute demonstration video (Gazebo and GCS side-by-side, 1920×1080) is prepared for Phase I submission. This stack forms the single-drone foundation of the MBC-3 swarm submission.
 
 ## MBC-3 Collaborative Swarm — Current Development
 
-Five-drone hexacopter swarm functioning as a distributed airborne radar with a three-layer onboard AI pipeline. Full simulation stack verified on ROS2 Jazzy + Gazebo Harmonic with graceful degradation, leader election, and real-time ASP generation.
+Five-drone hexacopter swarm operating as a distributed airborne radar, incorporating a three-layer onboard AI pipeline. Full simulation verified on ROS2 Jazzy and Gazebo Harmonic with graceful degradation, bully-protocol leader election, and real-time ASP generation.
 
 ---
 
-*Word count: ~265 | Limit: 300*
+*Word count: ~270 | Limit: 300*

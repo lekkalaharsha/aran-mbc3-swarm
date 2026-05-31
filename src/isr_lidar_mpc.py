@@ -467,12 +467,11 @@ def _discover_radar_topics():
 
 
 async def radar_gz_reader():
-    """Subscribe to 4 FMCW radar panels and fuse into 360° range array.
+    """Subscribe to 6 FMCW radar panels and fuse into 360° range array.
 
-    Panels A/B/C/D each cover ±27.5° (55° H-FOV). Combined they give
-    4×55°=220° of coverage with 35° gaps between panels. Gap slots stay
-    at float('inf') — avoidance treats them as clear, same as a 2D LiDAR
-    with no return. Fusion takes the minimum range across overlapping bins.
+    Panels A–F each cover 60° H-FOV at 0/60/120/180/240/300°. Combined
+    they give 6×60°=360° full coverage with no gaps. Fusion takes the
+    minimum range across overlapping bins.
     """
     topics = dict(_RADAR_TOPICS)
     node = Node()
@@ -1681,7 +1680,7 @@ async def run():
     banner("FULL ISR + LiDAR MPC MISSION COMPLETE v12-MPC-v5")
     log(f"Survey -> {avoidance_state['count']} obstacle(s) avoided -> "
         f"{total_targets} target(s) acquired & orbited -> RTL")
-    log("Aran Technologies — Ready for IIT Panel Demo")
+    log("Aran Technologies — Ready for IAF MBC-3 Mission")
 
 
 # ══════════════════════════════════════════════════════════

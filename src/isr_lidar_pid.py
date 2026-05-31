@@ -875,7 +875,7 @@ async def run():
     banner("FULL ISR + LiDAR MISSION COMPLETE v12")
     log(f"Survey -> {avoidance_state['count']} obstacle(s) avoided -> "
         f"{total_targets} target(s) acquired & orbited -> RTL")
-    log("Aran Technologies — Ready for IIT Panel Demo")
+    log("Aran Technologies — Ready for IAF MBC-3 Mission")
 
 
 # ══════════════════════════════════════════════════════════

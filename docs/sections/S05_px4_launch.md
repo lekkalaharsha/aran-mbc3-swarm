@@ -38,10 +38,10 @@ STEP 6  Live status monitor (PX4/GCS/Mission/Radar health)
 ./launch.sh --sim-only
 
 # With specific scenario
-./launch.sh --scenario iit_panel_demo
+./launch.sh --scenario mbc3_iaf_demo
 
 # Headless (no Gazebo GUI)
-./launch.sh --headless --scenario iit_panel_demo
+./launch.sh --headless --scenario mbc3_iaf_demo
 
 # Skip radar fusion
 ./launch.sh --no-radar

@@ -7,36 +7,36 @@
 
 ### Problem Statement
 
-Modern aerial surveillance demands persistent, wide-area coverage against low-observable targets at low cost. A five-drone swarm functioning as a distributed FMCW radar — a micro-AWACS architecture — addresses this requirement by distributing aperture, providing redundancy, and enabling autonomous track management without ground-station intervention.
+Contemporary aerial surveillance requires persistent, wide-area detection of low-observable targets at operationally sustainable cost. Single-platform airborne radar is vulnerable to attrition and cannot provide distributed coverage. Aran Technologies addresses this requirement through a five-drone swarm configured as a distributed FMCW radar — a micro-AWACS architecture — that distributes aperture across platforms, provides mission redundancy, and enables autonomous track management independent of continuous ground-station control.
 
 ### Proposed Solution
 
-We propose a five-hexacopter swarm, each drone carrying four 24 GHz FMCW radar panels (TI AWR1843, 90° H-FOV per panel) providing full 360° coverage. A three-layer onboard AI pipeline processes raw radar data through to tactical decisions autonomously.
+Aran Technologies proposes a five-hexacopter swarm, each platform carrying six 24 GHz FMCW radar panels (TI AWR1843, 60° H-FOV per panel) providing full 360° coverage per drone. A three-layer onboard AI pipeline autonomously processes raw radar data through to tactical decision output.
 
-**Layer 1 — Signal Processing:** The AWR1843 onboard DSP performs range-Doppler FFT and CFAR detection in under 10 ms per scan cycle, outputting candidate detections with range, azimuth, radial velocity, and SNR.
+**Layer 1 — Signal Processing:** The AWR1843 onboard DSP performs range-Doppler FFT and CFAR detection within 10 ms per scan cycle, producing candidate detections with range, azimuth, radial velocity, and SNR.
 
-**Layer 2 — Target Classification:** A Random Forest model on each drone's Jetson compute classifies candidates as real targets or clutter in under 50 ms, using SNR, velocity, range-rate, and estimated RCS. Only confirmed detections propagate to Layer 3.
+**Layer 2 — Target Classification:** A Random Forest classifier executing on each drone's Jetson compute module classifies candidates as confirmed targets or clutter within 50 ms, using SNR, velocity, range-rate, and estimated RCS. Only confirmed detections propagate to Layer 3.
 
-**Layer 3 — LLM Tactical Engine:** Llama 3.2 3B on the leader drone and Gemma 2B on each soldier receive structured JSON situation reports and output tactical commands — track reassignment, formation reallocation, sector reorientation, and alert generation — operating within edge-compute budget by triggering only on Layer 2 confirmations.
+**Layer 3 — LLM Tactical Engine:** Llama 3.2 3B (leader drone) and Gemma 2B (soldier drones) receive structured JSON situation reports and generate tactical commands — track reassignment, formation reallocation, sector reorientation, and threat alerts — operating within edge-compute budget and triggering exclusively on Layer 2 confirmations.
 
-### Swarm Architecture
+### Swarm Architecture and Resilience
 
-The swarm operates under a priority hierarchy: Ground Station > Leader Drone > Soldier autonomous LLM. On leader heartbeat loss (>2 s), the highest-battery soldier self-elects as new leader via a bully election protocol and assumes radar fusion and ASP publishing within 2 seconds. On soldier loss, the leader LLM reassigns orphaned track IDs to the nearest active drone. Full Air Situation Picture (ASP) continuity is maintained with three or more drones operational, satisfying the graceful degradation requirement.
+Command hierarchy: Ground Station > Leader Drone > Soldier autonomous mode. On leader heartbeat loss exceeding 2 seconds, the highest-battery soldier self-elects as leader via bully election protocol, assuming radar fusion and ASP publication within 2 seconds. On soldier loss, the leader LLM redistributes orphaned track IDs to the nearest active drone. Full Air Situation Picture continuity is sustained with three or more drones operational, satisfying the MBC-3 graceful degradation requirement.
 
-A Flask-based GCS displays a consolidated real-time ASP at 2.5 Hz on a single browser screen with track table, polar radar view, leader identity, decision log, and timestamped JSON session recording.
+A Flask-based Ground Control Station displays a consolidated real-time ASP at 2.5 Hz — track table, polar radar display, leader identity, decision log, and timestamped JSON recording — on a single browser screen with no external dependency.
 
-### Platform
+### Platform Specification
 
-Each hexacopter carries: TI AWR1843BOOST radar panels × 4, Pixhawk 6C flight controller, VectorNav VN-100 IMU, Doodle Labs AES-128 mesh radio, and Jetson edge compute (AGX Orin 64 GB on leader; Orin NX 16 GB on soldiers). AUW ≤ 4.1 kg. Operational altitude: 500 m AGL minimum. Endurance: ~32 min (6S 10,000 mAh). Auto-RTH on link loss or low battery. GNSS-denied operation via EKF2 fusing optical flow (60 Hz), VN-100 (400 Hz), and barometer (50 Hz).
+Each hexacopter carries: TI AWR1843BOOST radar panels ×6, Pixhawk 6C flight controller, VectorNav VN-100 IMU, Doodle Labs AES-128 mesh radio, and Jetson edge compute (AGX Orin 64 GB on leader; Orin NX 16 GB on soldier drones). AUW ≤ 4.3 kg. Operational altitude: 500 m AGL minimum. Endurance: approximately 32 minutes (6S, 10,000 mAh). Automatic RTH on data-link loss or critical battery. GNSS-denied resilience via EKF2 fusing optical flow (60 Hz), VN-100 IMU (400 Hz), and barometer (50 Hz).
 
 ### Indigenisation
 
-The entire intelligence layer — CFAR software, Random Forest classifier, LLM engine, ROS2 swarm stack, GCS dashboard, custom antenna PCB design, and hexacopter airframe fabrication — is 100% indigenously developed. Weighted indigenous content: ≥55% by mission-criticality, satisfying MBC-3 §2.25.
+The complete intelligence layer — CFAR software, Random Forest classifier, LLM tactical engine, ROS2 swarm coordination stack, GCS dashboard, custom antenna PCB design, and hexacopter airframe fabrication — is 100% indigenously developed. Weighted indigenous content: ≥ 55% by mission-criticality, satisfying MBC-3 §2.25.
 
 ### Phase I Deliverable
 
-A verified five-drone Gazebo Harmonic simulation demonstrating real-time ASP generation, drone loss triggering LLM track reallocation, and ASP continuity — live at New Delhi, 13–24 July 2026.
+A verified five-drone Gazebo Harmonic SITL simulation demonstrating real-time ASP generation, drone-loss triggering LLM track reallocation, and ASP continuity across surviving drones — available for live demonstration at New Delhi, 13–24 July 2026.
 
 ---
 
-*Word count: ~490 | Limit: 500*
+*Word count: ~480 | Limit: 500*

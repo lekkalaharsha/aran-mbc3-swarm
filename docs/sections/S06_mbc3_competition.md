@@ -76,4 +76,4 @@ Proposal says "4 panels at 0/90/180/270°" but implementation uses **6 panels at
 - [ ] Phase 1: complete flight test (test/phase1-px4-flight)
 - [ ] Phase 2: ASP GCS (test/phase2-radar-web)
 - [ ] Update proposal compliance table: 4 panels → 6 panels
-- [ ] IIT Hyderabad demo dry-run (existing ISR stack)
+- [ ] IAF MBC-3 demo dry-run (existing ISR stack)

@@ -780,7 +780,7 @@ HTML = r"""
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Aran Technologies — ISR GCS v13</title>
+<title>Aran Technologies — MBC-3 Ground Control Station</title>
 
 <script src="/static/socket.io.min.js"></script>
 <script src="/static/chart.umd.min.js"></script>
@@ -1017,7 +1017,7 @@ body::after {
   <div class="hdr-left">
     <div class="hdr-logo">&#11041; Aran Technologies</div>
     <span style="color:var(--dim)">|</span>
-    <div class="hdr-mission">ISR GCS v13 — 50m/s &#9889; 100m AGL — 360&#176; LiDAR | 4 TARGETS | 3 NFZ | 24 SCENARIOS &nbsp;|&nbsp; <a href="/asp" style="color:#ff3d3d;font-weight:bold;text-decoration:none">◈ OPEN ASP SCREEN</a></div>
+    <div class="hdr-mission">MBC-3 MISSION GCS — FMCW RADAR | 6-PANEL 360&#176; | MPC AVOIDANCE | 4 TARGETS | 3 NFZ &nbsp;|&nbsp; <a href="/asp" style="color:#ff3d3d;font-weight:bold;text-decoration:none">◈ OPEN ASP SCREEN</a></div>
   </div>
   <div class="hdr-right">
     <span><div class="dot" id="conn-dot"></div><span id="conn-txt">OFFLINE</span></span>
@@ -1025,7 +1025,7 @@ body::after {
     <span>RECONNECTS: <b id="reconnect-count" style="color:var(--warn)">0</b></span>
     <span>ELAPSED: <b id="elapsed" style="color:var(--text)">00:00:00</b></span>
     <span>PHASE: <b id="hdr-phase" style="color:var(--warn)">STANDBY</b></span>
-    <span id="lidar-hdr" style="color:var(--textdim)">360&#176; LiDAR: --</span>
+    <span id="lidar-hdr" style="color:var(--textdim)">AVOIDANCE: --</span>
     <span class="nfz-breach-badge" id="nfz-breach-hdr">&#9888; NFZ BREACH</span>
     <span class="nfz-breach-badge" id="mission-stale-badge" style="display:none;background:rgba(255,100,0,0.15);border-color:#ff6400;color:#ff6400">&#9888; MISSION STALE</span>
     <span style="color:var(--accent2)">OSM &#183; LEAFLET</span>
@@ -1098,14 +1098,14 @@ body::after {
 
     <div class="map-legend">
       <div class="legend-row"><div class="ls" style="background:#00c8ff"></div>Drone trail</div>
-      <div class="legend-row"><div class="ls ls-dashed" style="border-color:rgba(255,179,0,0.7);width:22px"></div>LiDAR warn 25m</div>
-      <div class="legend-row"><div class="ls ls-dashed" style="border-color:rgba(255,61,61,0.8);width:22px"></div>LiDAR avoid 15m</div>
+      <div class="legend-row"><div class="ls ls-dashed" style="border-color:rgba(255,179,0,0.7);width:22px"></div>Avoidance warn 25m</div>
+      <div class="legend-row"><div class="ls ls-dashed" style="border-color:rgba(255,61,61,0.8);width:22px"></div>Avoidance trigger 15m</div>
       <div class="legend-row"><div class="ls ls-dashed" style="border-color:rgba(0,255,157,0.6);width:22px"></div>Survey grid</div>
       <div class="legend-row"><div class="ls ls-dashed" style="border-color:rgba(170,68,255,0.7);width:22px"></div>Primary orbit</div>
       <div class="legend-row"><div class="ls ls-dashed" style="border-color:rgba(100,180,255,0.7);width:22px"></div>Secondary orbits</div>
       <div class="legend-row"><div class="ls" style="background:rgba(255,61,61,0.4)"></div>No-fly zones</div>
       <div class="legend-row"><div class="ls" style="background:#ffb300"></div>Detour / Loiter WP</div>
-      <div class="legend-row"><div class="ls" style="background:rgba(0,200,255,0.3)"></div>LiDAR sectors</div>
+      <div class="legend-row"><div class="ls" style="background:rgba(0,200,255,0.3)"></div>Avoidance sectors</div>
     </div>
     <div id="leaflet-map" style="width:100%;height:100%;"></div>
   </div>
@@ -1161,7 +1161,7 @@ body::after {
   </div>
 
   <div class="card">
-    <div class="ctitle" id="lidar-hdr-panel">&#9656; 360&#176; LiDAR: CLEAR</div>
+    <div class="ctitle" id="lidar-hdr-panel">&#9656; MPC AVOIDANCE: CLEAR</div>
     <div class="metric">
       <span class="mlabel">NEAREST OBS</span>
       <span><span class="mval" id="lidar-dist" style="color:var(--accent2)">---</span><span class="munit">m</span></span>
@@ -1291,7 +1291,7 @@ body::after {
   <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0">
     <div class="ctitle">&#9656; System Log</div>
     <div class="log-wrap" id="log">
-      <div class="le"><span class="lt">[INIT] </span><span class="lm">GCS v13 — multi-target | NFZ | loiter WPs</span></div>
+      <div class="le"><span class="lt">[INIT] </span><span class="lm">MBC-3 GCS — multi-target ISR | NFZ enforcement | loiter waypoints</span></div>
       <div class="le"><span class="lt">[INIT] </span><span class="lm">Connecting SITL udp://:14540</span></div>
     </div>
   </div>
@@ -1299,9 +1299,9 @@ body::after {
 </div>
 
 <div class="footer">
-  <span>ARAN TECHNOLOGIES PVT LTD — ISR DEMO BUILD v13.0</span>
-  <span>NIRMAAN INCUBATION &#183; IIT HYDERABAD &#183; 2026</span>
-  <span>LiDAR: 360&#176; PID v13 | 4 Targets | 3 NFZ | 24 Scenarios | LEAFLET + OSM</span>
+  <span>ARAN TECHNOLOGIES PVT LTD — MBC-3 MISSION SYSTEM</span>
+  <span>IAF MEHAR BABA COMPETITION-3 &#183; ARAN TECHNOLOGIES &#183; 2026</span>
+  <span>FMCW RADAR 360&#176; | 4 Targets | 3 NFZ | MPC AVOIDANCE | LEAFLET + OSM</span>
 </div>
 
 <script>
@@ -1816,8 +1816,8 @@ function updateLidarPanel(lidar){
   document.getElementById('lidar-scans').textContent=lidar.scan_count.toLocaleString();
   document.getElementById('lidar-events').textContent=lidar.avoidance_count;
   document.getElementById('escape-side').textContent=lidar.escape_side||'---';
-  document.getElementById('lidar-hdr-panel').textContent='360\u00b0 LiDAR: '+(dist>100?'CLEAR':dist.toFixed(1)+'m');
-  document.getElementById('lidar-hdr').textContent='360\u00b0 LiDAR: '+(dist>100?'CLEAR':dist.toFixed(1)+'m');
+  document.getElementById('lidar-hdr-panel').textContent='MPC AVOIDANCE: '+(dist>100?'CLEAR':dist.toFixed(1)+'m');
+  document.getElementById('lidar-hdr').textContent='AVOIDANCE: '+(dist>100?'CLEAR':dist.toFixed(1)+'m');
 
   const bar=document.getElementById('obstacle-bar');
   bar.style.width=(Math.min(dist/LIDAR_RANGE,1)*100)+'%';
@@ -2148,7 +2148,7 @@ tr:hover td{background:#0b1525}
 </div>
 <div id="bottombar">
   <button class="btn" onclick="downloadCSV()">⬇ DOWNLOAD TRACK LOG</button>
-  <a href="/" class="btn btn-isr">◀ ISR GCS</a>
+  <a href="/" class="btn btn-isr">◀ MBC-3 GCS</a>
   <div id="update-time">Last update: ---</div>
 </div>
 
@@ -2388,7 +2388,7 @@ if __name__ == "__main__":
         t.start()
     else:
         _gcs_print("SWARM_MODE: MAVSDK telemetry disabled — swarm_monitor owns drone ports")
-    print("Aran GCS v13.0 running at http://localhost:5000")
+    print("Aran Technologies — MBC-3 GCS running at http://localhost:5000")
     print("  Coordinates served from mission_config.py — single source of truth")
     print("  POST /lidar_update    — push LiDAR + mission state")
     print("  POST /pid_tune        — live gain update")

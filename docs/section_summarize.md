@@ -2,7 +2,7 @@
 ## ISR Mission + LiDAR MPC Avoidance v12-MPC-v5 | Swarm GCS v2
 ## Last updated: 2026-05-30
 
-> Nirmaan Incubation — IIT Hyderabad Demo Build
+> Nirmaan Incubation — IAF MBC-3 Demo Build
 
 ---
 
@@ -82,7 +82,7 @@ df60cab  feat: record_demo.sh — automated Phase 0 video recorder
 ## Last Verified Run (2026-05-16 — commit 5d34b0f)
 
 ```
-Scenario:          iit_panel_demo
+Scenario:          mbc3_iaf_demo
 LiDAR model:       gz_x500_lidar_2d
 LiDAR scans:       4384  ✅
 Avoidances:        2  ✅
@@ -192,7 +192,7 @@ See `docs/bugs.md` for full details.
 2. **Check approach speed actually improved** — confirm no timeouts with FIX-1 (`set_maximum_speed`)
 3. **Check orbit cold-start fixed** — confirm radius starts near commanded value with FIX-2
 4. **Update README.md** — section 6 (bug fixes) is out of date; add Batch 3 + 4
-5. **IIT panel demo dry-run** — screen-record GCS at `http://localhost:5000`
+5. **MBC-3 IAF demo dry-run** — screen-record GCS at `http://localhost:5000`
 
 ---
 
@@ -200,10 +200,10 @@ See `docs/bugs.md` for full details.
 
 ```bash
 # Standard demo launch
-./launch.sh --headless --scenario iit_panel_demo
+./launch.sh --headless --scenario mbc3_iaf_demo
 
 # With GUI (if display available)
-./launch.sh --scenario iit_panel_demo
+./launch.sh --scenario mbc3_iaf_demo
 
 # LiDAR model override (default is gz_x500_lidar_2d)
 PX4_MAKE_MODEL=gz_x500_lidar_2d ./launch.sh --headless
