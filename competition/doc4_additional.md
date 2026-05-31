@@ -5,9 +5,9 @@
 
 ## Simulation Demonstration — Phase I Ready
 
-A fully verified five-drone swarm simulation is complete as of 30 May 2026. The simulation operates on ROS2 Jazzy and Gazebo Harmonic on Ubuntu 24.04 and demonstrates all core MBC-3 technical requirements: real-time Air Situation Picture generation, graceful degradation on drone loss, autonomous bully-protocol leader election, and sector reassignment across surviving drones. A complete swarm verification test — including live drone elimination and recovery — confirms 344 radar tracks logged with all four surviving drones sustaining full mission continuity.
+A verified five-drone swarm simulation demonstrates all core MBC-3 requirements on ROS2 Jazzy and Gazebo Harmonic: real-time ASP generation, bully-protocol leader election, graceful degradation on drone loss, and sector reassignment — 344 radar tracks logged with four surviving drones sustaining full mission continuity.
 
-A single-drone ISR demonstration video is recorded and prepared for Phase I submission: a 4-minute, 1920×1080 recording presenting Gazebo 3D simulation and GCS dashboard side-by-side across survey grid (11 waypoints), primary target orbit (50 m radius, locked ±0.5 m), and RTL with 3D occupancy map save. Mission exit verified clean (v12-MPC-v5, 30 May 2026).
+Single-drone ISR video prepared for Phase I: 4-minute 1920×1080 recording covering survey grid (11 WPs), primary target orbit (50 m radius, locked ±0.5 m), and RTL with 3D occupancy map save. Mission exit verified clean (v12-MPC-v5).
 
 ## Indigenisation Breakdown
 
@@ -27,7 +27,15 @@ Estimated indigenisation: **≥ 55%** by mission-criticality weighting — meets
 
 ## Team
 
-Aran Technologies is a defence-focused engineering team with demonstrated capability in embedded flight systems, autonomous mission software, ROS2 swarm middleware, edge AI inference, and defence product market research validated through direct engagement with Indian defence end-users. Point of Contact: L. Harsha Vardhan Naidu — `aranrobotics@gmail.com` | +91 72888 40612.
+Aran Technologies is a three-member engineering startup building indigenous defence UAS systems from the ground up.
+
+**Kishore Udhayakumar** | Founder & CEO — Mechanical Engineering. Leads product development, mechanical design, thermal engineering, and business strategy. Drives go-to-market planning and direct engagement with Indian defence end-users.
+
+**Vegi Tejo Bhargav** | Co-Founder & CTO — Mechanical Engineering. Manages project execution, hexacopter airframe fabrication, additive manufacturing, procurement, and hardware integration roadmap.
+
+**L. Harsha Vardhan Naidu** | Product Head, Electronics — EEE. Designed the complete autonomous mission stack: PX4 SITL pipeline, ROS2 swarm middleware, GCS dashboard, STM32 flight controller firmware, and three-layer onboard AI pipeline (CFAR → Random Forest → LLM).
+
+Point of Contact: aranrobotics@gmail.com | +91 72888 40612
 
 ## Phase I Readiness
 
@@ -35,4 +43,4 @@ Simulation stack, GCS dashboard, and graceful degradation demonstration are prep
 
 ---
 
-*Word count: ~285 | Limit: 300*
+*Word count: ~295 | Limit: 300*
