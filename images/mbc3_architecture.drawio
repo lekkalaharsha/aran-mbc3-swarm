@@ -1,0 +1,238 @@
+<mxfile host="app.diagrams.net" version="21.0.0">
+  <diagram name="MBC-3 Architecture" id="mbc3-overview">
+    <mxGraphModel dx="1422" dy="762" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="760" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TITLE BAR -->
+        <mxCell id="2" value="MBC-3 Collaborative Drone Radar System — Aran Technologies" style="text;html=1;strokeColor=none;fillColor=#1a237e;align=center;verticalAlign=middle;fontSize=20;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1654" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="IAF Mehar Baba Competition-3  |  Five-Hexacopter Swarm  |  Distributed FMCW Radar  |  Three-Layer Onboard AI  |  Flask/SocketIO GCS" style="text;html=1;strokeColor=none;fillColor=#283593;align=center;verticalAlign=middle;fontSize=11;fontColor=#E8EAF6;" vertex="1" parent="1">
+          <mxGeometry x="0" y="48" width="1654" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- COLUMN 1: SWARM FORMATION  (x=10..549) -->
+        <!-- ============================================================ -->
+        <mxCell id="c1bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4FE;strokeColor=#3949AB;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="10" y="84" width="540" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="c1hdr" value="SWARM FORMATION" style="text;html=1;strokeColor=none;fillColor=#3949AB;align=center;verticalAlign=middle;fontSize=13;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="10" y="84" width="540" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Coverage ellipse -->
+        <mxCell id="cov" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=1;dashed=1;opacity=60;" vertex="1" parent="1">
+          <mxGeometry x="55" y="155" width="450" height="450" as="geometry" />
+        </mxCell>
+
+        <!-- DRONE-1 LEADER (centre) -->
+        <mxCell id="d1" value="&lt;b&gt;DRONE-1 — LEADER&lt;/b&gt;&lt;br&gt;Bully election protocol&lt;br&gt;6× FMCW | 360° full cover&lt;br&gt;Llama 3.2 3B | ASP fusion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0D47A1;strokeColor=#1A237E;fontColor=#FFFFFF;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="215" y="328" width="130" height="88" as="geometry" />
+        </mxCell>
+
+        <!-- DRONE-2 NW -->
+        <mxCell id="d2" value="&lt;b&gt;DRONE-2&lt;/b&gt;&lt;br&gt;Soldier&lt;br&gt;6× FMCW | 360°&lt;br&gt;Gemma 2B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="55" y="185" width="115" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- DRONE-3 NE -->
+        <mxCell id="d3" value="&lt;b&gt;DRONE-3&lt;/b&gt;&lt;br&gt;Soldier&lt;br&gt;6× FMCW | 360°&lt;br&gt;Gemma 2B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="390" y="185" width="115" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- DRONE-4 SW -->
+        <mxCell id="d4" value="&lt;b&gt;DRONE-4&lt;/b&gt;&lt;br&gt;Soldier&lt;br&gt;6× FMCW | 360°&lt;br&gt;Gemma 2B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="55" y="465" width="115" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- DRONE-5 SE -->
+        <mxCell id="d5" value="&lt;b&gt;DRONE-5&lt;/b&gt;&lt;br&gt;Soldier&lt;br&gt;6× FMCW | 360°&lt;br&gt;Gemma 2B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="390" y="465" width="115" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Mesh lines: soldiers → leader -->
+        <mxCell id="e12" value="Mesh&lt;br&gt;AES-128" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#1565C0;strokeWidth=1;fontSize=8;fontColor=#1565C0;" edge="1" source="d2" target="d1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#1565C0;strokeWidth=1;" edge="1" source="d3" target="d1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#1565C0;strokeWidth=1;" edge="1" source="d4" target="d1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#1565C0;strokeWidth=1;" edge="1" source="d5" target="d1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Resilience note -->
+        <mxCell id="res" value="Graceful degradation: drone loss → bully election → &lt;2 s recovery&lt;br&gt;ASP continuity with ≥ 3 drones active" style="text;html=1;strokeColor=#F57F17;fillColor=#FFF9C4;align=center;verticalAlign=middle;fontSize=9;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="55" y="565" width="450" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- Stack label -->
+        <mxCell id="stk" value="PX4 SITL × 5  |  ROS2 Jazzy  |  Gazebo Harmonic  |  MAVSDK Python" style="text;html=1;strokeColor=none;fillColor=#3949AB;align=center;verticalAlign=middle;fontSize=9;fontColor=#FFFFFF;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="55" y="610" width="450" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- COLUMN 2: AI PIPELINE  (x=562..1061) -->
+        <!-- ============================================================ -->
+        <mxCell id="c2bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="562" y="84" width="500" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="c2hdr" value="ONBOARD AI PIPELINE  (per drone)" style="text;html=1;strokeColor=none;fillColor=#E65100;align=center;verticalAlign=middle;fontSize=13;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="562" y="84" width="500" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Radar sensor input -->
+        <mxCell id="radar" value="&lt;b&gt;RADAR SENSOR INPUT&lt;/b&gt;&lt;br&gt;6× AERIS-10 FMCW panels | AWR1843 frontend&lt;br&gt;24 GHz | 60° H-FOV each = 360° total coverage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BF360C;strokeColor=#7F1800;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="592" y="132" width="440" height="72" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow radar → L1 -->
+        <mxCell id="ar1" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#E65100;strokeWidth=2;" edge="1" source="radar" target="l1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Layer 1: CFAR -->
+        <mxCell id="l1" value="&lt;b&gt;LAYER 1 — SIGNAL PROCESSING&lt;/b&gt;&lt;br&gt;CFAR detection (AWR1843 onboard DSP)&lt;br&gt;Range-Doppler FFT | &lt; 10 ms per scan cycle&lt;br&gt;Output: range · azimuth · radial velocity · SNR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=#BF360C;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="592" y="245" width="440" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow L1 → L2 -->
+        <mxCell id="ar2" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2E7D32;strokeWidth=2;" edge="1" source="l1" target="l2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Layer 2: Random Forest -->
+        <mxCell id="l2" value="&lt;b&gt;LAYER 2 — TARGET CLASSIFICATION&lt;/b&gt;&lt;br&gt;Random Forest (Jetson Orin NX / AGX Orin)&lt;br&gt;Clutter rejection | &lt; 50 ms per detection&lt;br&gt;Features: SNR · velocity · RCS · range-rate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E7D32;strokeColor=#1B5E20;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="592" y="375" width="440" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow L2 → L3 -->
+        <mxCell id="ar3" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6A1B9A;strokeWidth=2;" edge="1" source="l2" target="l3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Layer 3: LLM -->
+        <mxCell id="l3" value="&lt;b&gt;LAYER 3 — LLM TACTICAL ENGINE&lt;/b&gt;&lt;br&gt;Leader: Llama 3.2 3B  |  Soldier: Gemma 2B&lt;br&gt;Track reassignment · Sector reorientation&lt;br&gt;Formation reallocation · Threat alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6A1B9A;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="592" y="505" width="440" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow L3 → ASP -->
+        <mxCell id="ar4" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#0D47A1;strokeWidth=2;" edge="1" source="l3" target="asp" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ASP output -->
+        <mxCell id="asp" value="&lt;b&gt;AIR SITUATION PICTURE (ASP)&lt;/b&gt;  →  GCS @ 2.5 Hz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0D47A1;strokeColor=#1A237E;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="592" y="632" width="440" height="42" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- COLUMN 3: GCS  (x=1074..1644) -->
+        <!-- ============================================================ -->
+        <mxCell id="c3bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1074" y="84" width="570" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="c3hdr" value="GROUND CONTROL STATION" style="text;html=1;strokeColor=none;fillColor=#2E7D32;align=center;verticalAlign=middle;fontSize=13;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1074" y="84" width="570" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- GCS main -->
+        <mxCell id="gcs" value="&lt;b&gt;Flask / SocketIO GCS&lt;/b&gt;&lt;br&gt;localhost:5000  |  2.5 Hz refresh  |  Single browser screen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1B5E20;strokeColor=#0D3B12;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1104" y="130" width="510" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- GCS panels 2x3 -->
+        <mxCell id="p1" value="&lt;b&gt;Track Table&lt;/b&gt;&lt;br&gt;ID | Range | Az | Vel&lt;br&gt;Threat class | Source drone" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1104" y="210" width="240" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" value="&lt;b&gt;Polar Radar Display&lt;/b&gt;&lt;br&gt;360° FMCW sweep&lt;br&gt;Target blips | Range rings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1374" y="210" width="240" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" value="&lt;b&gt;Leaflet Map&lt;/b&gt;&lt;br&gt;Live drone positions&lt;br&gt;Target tracks | NFZ overlay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1104" y="310" width="240" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p4" value="&lt;b&gt;LLM Decision Log&lt;/b&gt;&lt;br&gt;Tactical commands&lt;br&gt;Track assignments | Alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1374" y="310" width="240" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p5" value="&lt;b&gt;Swarm Status&lt;/b&gt;&lt;br&gt;Leader identity | Drone health&lt;br&gt;Battery | Active sectors" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1104" y="410" width="240" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p6" value="&lt;b&gt;ASP Recording&lt;/b&gt;&lt;br&gt;Timestamped JSON log&lt;br&gt;3D occupancy map save" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1374" y="410" width="240" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- GCS note -->
+        <mxCell id="gcsnote" value="MAVLink + ROS2 topics + SocketIO  |  No external dependency" style="text;html=1;strokeColor=#1B5E20;fillColor=#A5D6A7;align=center;verticalAlign=middle;fontSize=9;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1104" y="510" width="510" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- MPC avoidance note -->
+        <mxCell id="mpcnote" value="&lt;b&gt;MPC Obstacle Avoidance&lt;/b&gt; (single-drone ISR mode)&lt;br&gt;L-BFGS-B finite-horizon QP solver | 50 Hz | LiDAR input" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0277BD;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1104" y="558" width="510" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- CROSS-COLUMN ARROWS -->
+        <!-- ============================================================ -->
+        <!-- Leader drone → Radar Input (col1 → col2) -->
+        <mxCell id="cross1" value="MAVLink / ROS2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#0D47A1;strokeWidth=2;fontColor=#0D47A1;fontSize=9;" edge="1" source="d1" target="radar" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ASP → GCS (col2 → col3) -->
+        <mxCell id="cross2" value="ASP @ 2.5 Hz" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2E7D32;strokeWidth=2;fontColor=#2E7D32;fontSize=9;" edge="1" source="asp" target="gcs" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GCS → panels -->
+        <mxCell id="eg1" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2E7D32;strokeWidth=1;" edge="1" source="gcs" target="p1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eg2" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2E7D32;strokeWidth=1;" edge="1" source="gcs" target="p2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eg3" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2E7D32;strokeWidth=1;" edge="1" source="gcs" target="p3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eg4" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2E7D32;strokeWidth=1;" edge="1" source="gcs" target="p4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- BOTTOM STATS BAR -->
+        <!-- ============================================================ -->
+        <mxCell id="statsbar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1A237E;strokeColor=#1A237E;" vertex="1" parent="1">
+          <mxGeometry x="0" y="674" width="1654" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" value="5 HEXACOPTERS&lt;br&gt;AUW ≤ 4.3 kg" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="10" y="674" width="200" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" value="360° FMCW RADAR&lt;br&gt;6 panels × 60° per drone" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="230" y="674" width="230" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" value="3-LAYER AI&lt;br&gt;CFAR → RF → LLM" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="480" y="674" width="200" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" value="&lt; 2 s RECOVERY&lt;br&gt;Bully leader election" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="674" width="210" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s5" value="32 MIN ENDURANCE&lt;br&gt;6S 10,000 mAh" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="930" y="674" width="200" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s6" value="≥ 55% INDIGENOUS&lt;br&gt;MBC-3 §2.25 compliant" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="674" width="240" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="s7" value="PHASE I READY&lt;br&gt;New Delhi · July 2026" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1410" y="674" width="230" height="56" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
