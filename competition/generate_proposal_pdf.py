@@ -58,7 +58,7 @@ def build():
     # Abstract
     pdf.section_title("Abstract")
     pdf.body_text(
-        "We propose a five-drone swarm functioning as a distributed low-altitude airborne radar - "
+        "We present a five-drone swarm functioning as a distributed low-altitude airborne radar - "
         "a micro-AWACS architecture - for real-time aerial target detection, tracking, and Air "
         "Situation Picture (ASP) generation. Each drone carries six 24 GHz FMCW radar panels "
         "providing full 360-degree coverage and processes detections through a three-layer onboard "
@@ -66,7 +66,8 @@ def build():
         "tactical decision engine for swarm coordination. This work extends prior swarm radar "
         "research [1] by introducing the first onboard ML+LLM inference pipeline on an airborne "
         "radar platform, enabling autonomous track reallocation, graceful degradation, and "
-        "GNSS-denied operation within a sub-5 kg hexacopter."
+        "GNSS-denied operation within a sub-5 kg hexacopter. All core behaviours have been "
+        "verified in simulation and a pre-recorded Phase I demonstration is ready."
     )
 
     # 1. Introduction
@@ -165,7 +166,7 @@ def build():
     )
     pdf.body_text(
         "Institutional Context: Aran Technologies is currently in the Nirmaan pre-incubation "
-        "programme (Phase 1) at IIT Hyderabad, building indigenous defence UAS systems."
+        "programme (Phase 1) at IIT Madras, building indigenous defence UAS systems."
     )
 
     # 4. MBC-3 Compliance
