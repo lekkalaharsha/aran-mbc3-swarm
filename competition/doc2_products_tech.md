@@ -5,9 +5,13 @@
 
 Aran Technologies is a defence-focused UAS development team with demonstrated capability across flight controller hardware, autonomous mission software, and AI-driven surveillance systems.
 
-## Indigenous ESP32 Autonomous Flight Controller
+## Indigenous Flight Controller — Custom STM32 Platform
 
-Aran Technologies designed and fabricated a complete autonomous flight controller on the ESP32-WROOM platform, operating on a FreeRTOS dual-core architecture at 250 Hz. The system integrates a Kalman-filter IMU pipeline (MPU6050), barometer-based altitude hold (BMP280), GPS position hold and Return-to-Home (NEO-6M), and compass-referenced body-frame position control (QMC5883L). A dual-loop PID architecture — outer angle loop, inner rate loop — drives the motor mixer for an X-frame quadcopter. This demonstrator established indigenous design capability for flight-critical embedded systems with multi-sensor fusion.
+Aran Technologies designed and fabricated an autonomous flight controller on a fully custom STM32 PCB. Operating on FreeRTOS at 250 Hz, the system integrates a Kalman-filter IMU pipeline (MPU6050), barometer altitude hold (BMP280), GPS position hold and RTH (NEO-6M), and compass-referenced body-frame position control (QMC5883L). A dual-loop PID architecture — outer angle loop, inner rate loop — drives the motor mixer. All schematic design, PCB layout, and firmware are indigenously developed.
+
+## AERIS-10 Open-Source Radar — Active Contributor
+
+Aran Technologies contributes to AERIS-10 (PLFM_RADAR), an open-source 10.5 GHz pulse-LFM phased array radar system. Contributions span FPGA signal-processing RTL (Verilog), STM32 firmware, and Python GUI. This collaboration directly informs Aran Technologies' radar payload architecture for the MBC-3 mission.
 
 ## ISR Mission Stack — Verified Phase I Demo Build (v12-MPC-v5)
 
@@ -21,4 +25,4 @@ Five-drone hexacopter swarm operating as a distributed airborne radar, incorpora
 
 ---
 
-*Word count: ~270 | Limit: 300*
+*Word count: ~295 | Limit: 300*

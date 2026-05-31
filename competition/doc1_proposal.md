@@ -27,7 +27,7 @@ A Flask-based Ground Control Station displays a consolidated real-time ASP at 2.
 
 ### Platform Specification
 
-Each hexacopter carries: TI AWR1843BOOST radar panels ×6, Pixhawk 6C flight controller, VectorNav VN-100 IMU, Doodle Labs AES-128 mesh radio, and Jetson edge compute (AGX Orin 64 GB on leader; Orin NX 16 GB on soldier drones). AUW ≤ 4.3 kg. Operational altitude: 500 m AGL minimum. Endurance: approximately 32 minutes (6S, 10,000 mAh). Automatic RTH on data-link loss or critical battery. GNSS-denied resilience via EKF2 fusing optical flow (60 Hz), VN-100 IMU (400 Hz), and barometer (50 Hz).
+Each hexacopter carries: TI AWR1843BOOST radar panels ×6, indigenous STM32 flight controller (custom PCB), VectorNav VN-100 IMU, Doodle Labs AES-128 mesh radio, and Jetson edge compute (AGX Orin 64 GB on leader; Orin NX 16 GB on soldier drones). AUW ≤ 4.3 kg. Operational altitude: 500 m AGL minimum. Endurance: approximately 32 minutes (6S, 10,000 mAh). Automatic RTH on data-link loss or critical battery. GNSS-denied resilience via EKF2 fusing optical flow (60 Hz), VN-100 IMU (400 Hz), and barometer (50 Hz).
 
 ### Indigenisation
 

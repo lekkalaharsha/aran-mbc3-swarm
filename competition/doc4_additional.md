@@ -18,7 +18,7 @@ A single-drone ISR demonstration video is recorded and prepared for Phase I subm
 | AI software stack (CFAR, RF, LLM) | 100% indigenous (Python / C++, open-source models) |
 | GCS dashboard (Flask / SocketIO) | 100% indigenous |
 | ROS2 swarm coordination stack | 100% indigenous |
-| Flight controller firmware | ESP32-based indigenous design |
+| Flight controller firmware | Custom STM32 PCB — designed from scratch |
 | Compute module (Jetson) | COTS — imported |
 | Radar frontend (AWR1843) | COTS — imported |
 | Mesh radio (Doodle Labs) | COTS — imported |
