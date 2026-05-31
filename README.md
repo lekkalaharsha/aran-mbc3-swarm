@@ -1,4 +1,4 @@
-# Aran Technologies — MBC-3 ISR Swarm Drone System
+# Aran Technologies — MBC-3 Collaborative Drone Radar System
 
 ![IAF MBC-3](https://img.shields.io/badge/IAF-Mehar%20Baba%20Competition%203-1a237e?style=for-the-badge)
 ![Phase I](https://img.shields.io/badge/Phase%20I-Ready-brightgreen?style=for-the-badge)
@@ -15,24 +15,12 @@
 
 ## Mission Demo — Verified 30 May 2026
 
-Single-drone ISR simulation: autonomous survey grid → primary target orbit → RTL.
-**Layout:** Gazebo 3D view (left) · GCS dashboard (right) · 1920×1080
-
-```
-┌─────────────────────────┬─────────────────────────┐
-│                         │   GCS DASHBOARD          │
-│    GAZEBO 3D SIM        │  ● Armed  ▲ 30m AGL     │
-│    [Hexacopter]         │  Phase: SURVEY           │
-│    Survey grid →        │  WP: 7 / 11              │
-│    Orbit 50m radius     │  Speed: 12 m/s           │
-│                         │  Bat: 87%                │
-└─────────────────────────┴─────────────────────────┘
-```
+Single-drone simulation: autonomous survey grid → primary target orbit → RTL.
 
 | Phase | Result | Detail |
 |-------|--------|--------|
 | PHASE 1 — Mission upload | ✅ Pass | 11 / 11 waypoints |
-| PHASE 2 — ISR survey | ✅ Pass | 11 WPs · 0 avoidances |
+| PHASE 2 — Survey | ✅ Pass | 11 WPs · 0 avoidances |
 | PHASE 3 — PRIMARY orbit | ✅ Pass | 50.0 m radius · locked ±0.5 m |
 | PHASE 5 — RTL + map save | ✅ Pass | Landed · 3D map saved |
 
@@ -54,15 +42,15 @@ https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/download/v1.0.0-single
 1. [System Overview](#1-system-overview)
 2. [File Structure](#2-file-structure)
 3. [Quick Start](#3-quick-start)
-4. [Phase 0 Demo Pipeline](#4-phase-0-demo-pipeline)
+4. [Phase I Demo Pipeline](#4-phase-i-demo-pipeline)
 5. [Architecture](#5-architecture)
 6. [Drone Model](#6-drone-model)
 7. [Swarm Mission](#7-swarm-mission)
 8. [Leader Election](#8-leader-election)
 9. [AERIS-10 Radar + ROS2 Fusion](#9-aeris-10-radar--ros2-fusion)
 10. [GCS Dashboards](#10-gcs-dashboards)
-11. [Single-Drone ISR Mode](#11-single-drone-isr-mode)
-12. [Single-Drone Demo Recording](#12-single-drone-demo-recording)
+11. [Single-Drone Mission Mode](#11-single-drone-mission-mode)
+12. [Demo Recording](#12-demo-recording)
 13. [Mission Phases](#13-mission-phases)
 14. [Configuration Reference](#14-configuration-reference)
 15. [Dependencies](#15-dependencies)
@@ -72,11 +60,11 @@ https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/download/v1.0.0-single
 
 ## 1. System Overview
 
-Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system built for the IAF MBC-3 competition. Two operating modes:
+Full autonomous collaborative drone radar system built for the IAF MBC-3 competition. Two operating modes:
 
-**Swarm mode (Phase 0 demo)** — 5 hexacopter drones execute parallel sector survey with FMCW radar, leader election, and failure redistribution.
+**Swarm mode** — 5 hexacopter drones execute parallel sector survey with FMCW radar, leader election, and failure redistribution. Each drone carries 6 × AERIS-10 FMCW radar panels providing full 360° coverage.
 
-**Single-drone ISR mode** — One drone with 360° LiDAR MPC avoidance, multi-target orbit, NFZ hard fences, and SDF-defined ISR targets.
+**Single-drone mode** — One drone with MPC obstacle avoidance, multi-target orbit sequencing, NFZ enforcement, and SDF-defined mission targets.
 
 ```
   [PX4 SITL ×5 + Gazebo Harmonic]
@@ -111,23 +99,20 @@ Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system bu
 .
 ├── src/
 │   ├── swarm_mission.py         5-drone parallel mission + redistribution
-│   ├── swarm_telemetry_web.py   Swarm GCS dashboard (military theme, port 5000)
+│   ├── swarm_telemetry_web.py   Swarm GCS dashboard (port 5000)
 │   ├── swarm_monitor.py         Drone liveness monitor → /asp_update
 │   ├── leader_election.py       Bully-style leader election (DEATH_TIMEOUT=15s)
-│   ├── isr_lidar_mpc.py         Single-drone ISR: survey→avoid→orbit→RTL
-│   ├── telemetry_web.py         Single-drone GCS v13 (port 5000)
+│   ├── isr_lidar_mpc.py         Single-drone mission: survey→avoid→orbit→RTL
+│   ├── telemetry_web.py         MBC-3 GCS (port 5000)
 │   ├── mission_config.py        All mission constants (coords, NFZ, targets)
 │   ├── mission_config_swarm.py  Swarm sector layout + redistribution helpers
 │   ├── radar_sim.py             Pose-based FMCW radar simulator
 │   ├── asp_bridge.py            AERIS-10 → GCS ASP bridge
 │   ├── d2d_node.py              Drone-to-drone messaging (REASSIGN, status)
 │   ├── mpc_controller.py        MPC engine (AvoidanceMPC / OrbitMPC / AltitudeMPC)
-│   ├── pid_controller.py        Legacy PID (reference / fallback)
-│   ├── scenarios.json           LiDAR scenario registry (real ISR targets in worlds/*.sdf)
-│   └── static/                  Locally-served JS/CSS (no CDN on demo day)
-│       ├── leaflet.js / .css
-│       ├── socket.io.min.js
-│       └── chart.umd.min.js
+│   ├── pid_controller.py        PID fallback controller
+│   ├── scenarios.json           Inactive — ISR targets defined in worlds/*.sdf
+│   └── static/                  Locally-served JS/CSS (no CDN required on demo day)
 │
 ├── aeris10_driver/              ROS2 package — USB AERIS-10 FMCW radar driver
 │   └── aeris10_driver/aeris10_usb.py   (sim_mode: 15 scatter pts, 200m target)
@@ -144,14 +129,14 @@ Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system bu
 ├── worlds/                      4 SDF Gazebo worlds (copied to PX4)
 │
 ├── swarm_launch.sh              5-drone SITL launcher (PX4 + Gazebo + GCS + mission)
-├── launch.sh                    Single-drone ISR launcher (STEP 1–6, set -m process groups)
-├── record_demo.sh               Swarm demo recorder (300s → ~/mbc3_phase0_demo.mp4)
-├── record_single_drone.sh       Single-drone ISR recorder (240s, Gazebo+GCS side-by-side → mbc3_single_drone_demo.mp4)
+├── launch.sh                    Single-drone launcher (STEP 1–6, set -m process groups)
+├── record_demo.sh               Swarm demo recorder (300s)
+├── record_single_drone.sh       Single-drone demo recorder (240s, Gazebo+GCS)
 ├── setup_ws.sh                  Build ros2_ws (radar_fusion + aeris10_driver)
 ├── kill_drone.sh                Kill one PX4 instance (triggers redistribution)
 │
 └── tools/
-    ├── pre_demo_check.sh        7/7 pre-flight checks (aeris10 → detection → targets)
+    ├── pre_demo_check.sh        7/7 pre-flight checks
     └── kill_drone_sim.sh        Kill specific SITL drone by index
 ```
 
@@ -166,7 +151,7 @@ Full autonomous ISR (Intelligence, Surveillance, Reconnaissance) drone system bu
 # PX4-Autopilot built at ~/PX4-Autopilot
 
 pip install mavsdk flask flask-socketio requests numpy scipy scikit-learn
-pip install colcon-common-extensions  # for ros2_ws build
+pip install colcon-common-extensions
 ```
 
 ### Build ROS2 workspace
@@ -176,7 +161,7 @@ bash setup_ws.sh
 # Builds aeris10_driver + radar_fusion into ~/ros2_ws
 ```
 
-### Pre-flight check (7 items)
+### Pre-flight check
 
 ```bash
 bash tools/pre_demo_check.sh
@@ -198,48 +183,44 @@ MBC3_MODE=1 bash swarm_launch.sh
 bash tools/kill_drone_sim.sh 2   # kills DRONE-2, triggers redistribution
 ```
 
-### Single-drone ISR launch
+### Single-drone launch
 
 ```bash
-./launch.sh                          # with Gazebo GUI (default)
-./launch.sh --headless               # headless — no Gazebo window
+./launch.sh                # with Gazebo GUI (default)
+./launch.sh --headless     # headless — no Gazebo window
 ```
 
-### Single-drone demo recording (automated)
+### Single-drone demo recording
 
 ```bash
 bash record_single_drone.sh
 # → ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4  (240s, 1920×1080)
-# Layout: Gazebo left (960px) | GCS Firefox right (960px)
-# Covers: arm → survey → PRIMARY orbit → RTL  (secondary orbits skipped)
-# Requires: wmctrl  →  sudo apt install -y wmctrl
-# See section 12 for full timeline
 ```
 
 ---
 
-## 4. Phase 0 Demo Pipeline
+## 4. Phase I Demo Pipeline
 
-End-to-end verified 2026-05-29. Produces a 5-minute competition submission video.
+End-to-end verified 2026-05-30.
 
 ```bash
 # Step 1 — build workspace
 bash setup_ws.sh
 
-# Step 2 — verify 7/7 checks pass
+# Step 2 — verify all checks pass
 bash tools/pre_demo_check.sh
 
-# Step 3 — record demo video (automated, no interaction needed)
+# Step 3 — record demo video (automated)
 bash record_demo.sh
-# → ~/mbc3_phase0_demo.mp4  (300s, 1920×1080)
+# → ~/mbc3_swarm_demo.mp4  (300s, 1920×1080)
 #   T+0s:   swarm launches, 5 drones arm + climb
 #   T+90s:  sector survey active, radar detections on ASP
 #   T+150s: DRONE-2 killed → leader re-elected → sector redistributed
 #   T+300s: recording stops
 ```
 
-**Submit to IAF portal:**
-- Video: `~/mbc3_phase0_demo.mp4`
+**Submit to IAF:**
+- Video: `~/mbc3_single_drone_demo.mp4`
 - Vision doc: `competition/Final_Vision_Document_for_MBC_3_22Apr26.pdf`
 - Form: `competition/Registration_form_MBC_3_final.pdf`
 
@@ -259,21 +240,6 @@ radar_sim.py ──POST /asp_update──►  swarm_telemetry_web.py            
                                                                    Browser GCS
 leader_election.py ──POST /api/leader──►  swarm_telemetry_web.py
 ```
-
-### Thread / process model
-
-| Process | Threads |
-|---------|---------|
-| `swarm_mission.py` | 5 asyncio coroutines (one per drone) + D2D thread |
-| `leader_election.py` | Single polling loop (2s interval) |
-| `swarm_telemetry_web.py` | Flask + `_emit_loop` daemon thread (0.5 Hz) |
-| `radar_sim.py` | Single loop (10 Hz) |
-
-### Shared state (thread safety)
-
-- `swarm_state` — guarded by `_state_lock` (RLock)
-- `panel_state` — guarded by same lock; count resets each scan
-- `event_log` — `deque(maxlen=200)`, appendleft is GIL-atomic
 
 ### System diagram
 
@@ -302,43 +268,30 @@ Custom 6-arm hexacopter `mbc3_radar_drone`. All values derived from `new_drone/m
 | Parameter | Value | Source |
 |-----------|-------|--------|
 | Thrust coefficient kT | 2.800 × 10⁻⁵ N/(rad/s)² | `motorConstant` |
-| Torque/thrust ratio km | 0.01408 | `momentConstant` |
 | Max rotor speed | 838 rad/s (~8,000 RPM) | `maxRotVelocity` |
-| Motor time constant | 12.5 ms (up & down) | `timeConstantUp/Down` |
-| Rotor drag coefficient | 8.06 × 10⁻⁵ | `rotorDragCoefficient` |
 | **Max thrust per motor** | **19.66 N** | kT × 838² |
 | **Total max thrust** | **117.9 N** | 6 × 19.66 N |
 | **Thrust-to-weight ratio** | **2.82** | 117.9 / (4.267 × 9.81) |
 | Hover throttle (empirical) | 0.63 | flight log `13_58_15.ulg` |
 
-### Inertia (base_link)
-
-| Axis | Value |
-|------|-------|
-| Ixx = Iyy | 0.06685 kg·m² |
-| Izz | 0.08865 kg·m² |
-
 ### Battery & endurance
 
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| Battery | 6S LiPo, 10,000 mAh | `BAT1_N_CELLS / BAT1_CAPACITY` |
-| Nominal voltage | 22.2 V (6 × 3.7 V) | — |
-| Max voltage | 25.2 V (6 × 4.2 V) | `BAT1_V_CHARGED` |
-| Empty voltage | 21.0 V (6 × 3.5 V) | `BAT1_V_EMPTY` |
-| Est. hover endurance | ~32 min | airframe header |
+| Parameter | Value |
+|-----------|-------|
+| Battery | 6S LiPo, 10,000 mAh |
+| Nominal voltage | 22.2 V |
+| Est. hover endurance | ~32 min |
 
 ### Identifiers
 
 | Parameter | Value |
 |-----------|-------|
-| Payload | AERIS-10 FMCW radar module |
+| Radar payload | AERIS-10 FMCW — 6 panels × 60° = 360° coverage |
 | Frame material | Carbon fibre (competition build) |
 | SDF source | `new_drone/mbc3_radar_drone.sdf` |
 | PX4 airframe | `4601_gz_mbc3_radar_drone` |
 
 ### Assembly reference
-
 
 | Top (orthographic) | Front |
 |---|---|
@@ -354,25 +307,6 @@ Custom 6-arm hexacopter `mbc3_radar_drone`. All values derived from `new_drone/m
 bash new_drone/install_px4_model.sh
 ```
 
-**After any airframe change**, copy to both locations and clear EEPROM:
-
-```bash
-cp new_drone/airframe/4601_gz_mbc3_radar_drone \
-   ~/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/
-cp new_drone/airframe/4601_gz_mbc3_radar_drone \
-   ~/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/airframes/
-chmod +x ~/PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/4601_gz_mbc3_radar_drone
-chmod +x ~/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/airframes/4601_gz_mbc3_radar_drone
-rm -f ~/PX4-Autopilot/build/px4_sitl_default/rootfs/eeprom/parameters
-```
-
-**SITL pre-arm params** (already in airframe file):
-
-| Param | Value | Reason |
-|-------|-------|--------|
-| `CBRK_SUPPLY_CHK` | 894281 | gz-sim-linearbattery-plugin not installed → disables supply check |
-| `EKF2_ABL_LIM` | 0.8 | Default 0.4 too tight at SITL startup; raised to clear arm check |
-
 ---
 
 ## 7. Swarm Mission
@@ -381,15 +315,15 @@ rm -f ~/PX4-Autopilot/build/px4_sitl_default/rootfs/eeprom/parameters
 
 ### Sector layout
 
-Each drone surveys 2 contiguous rows from a 10-row boustrophedon grid. Altitudes staggered 10m apart for deconfliction.
+Each drone surveys 2 contiguous rows from a 10-row boustrophedon grid. Altitudes staggered 10 m apart for deconfliction.
 
 | Drone | Rows | Altitude AGL |
 |-------|------|-------------|
-| DRONE-0 | 0–1 | 30m |
-| DRONE-1 | 2–3 | 40m |
-| DRONE-2 | 4–5 | 50m |
-| DRONE-3 | 6–7 | 60m |
-| DRONE-4 | 8–9 | 70m |
+| DRONE-0 | 0–1 | 30 m |
+| DRONE-1 | 2–3 | 40 m |
+| DRONE-2 | 4–5 | 50 m |
+| DRONE-3 | 6–7 | 60 m |
+| DRONE-4 | 8–9 | 70 m |
 
 ### Failure redistribution
 
@@ -398,9 +332,8 @@ When a drone fails (disconnects or enters FAILED phase):
 1. Leader detects failure via `/api/swarm_state` polling
 2. `compute_redistribution()` splits remaining waypoints across adjacent live drones
 3. Leader sends `REASSIGN` message via `D2DNode`
-4. Receiving drones queue extra WPs in `EXTRA_WPS[idx]`
-5. Extra WPs uploaded and flown after own sector completes
-6. GCS receives `POST /event_push` — redistribution event shown in event log
+4. Receiving drones queue extra WPs and fly them after their own sector completes
+5. GCS receives `POST /event_push` — event shown in event log
 
 ---
 
@@ -409,12 +342,11 @@ When a drone fails (disconnects or enters FAILED phase):
 `src/leader_election.py` — bully-style election.
 
 **Rule:** Highest-index connected drone wins. `DRONE-4 > DRONE-3 > ... > DRONE-0`.
-DRONE-0 is never killed in demo (owns the Gazebo world).
 
 **Timing:**
-- Poll interval: 2s
-- `DEATH_TIMEOUT`: 15s — drone declared dead after 15s no heartbeat
-- Election completes: <2s after detection
+- Poll interval: 2 s
+- `DEATH_TIMEOUT`: 15 s — drone declared dead after 15 s no heartbeat
+- Election completes: < 2 s after detection
 
 **On election:**
 1. POSTs new leader to `swarm_telemetry_web.py /api/leader`
@@ -429,7 +361,7 @@ DRONE-0 is never killed in demo (owns the Gazebo world).
 
 ROS2 package. Publishes FMCW radar detections on `/radar/scan`.
 
-**Sim mode** (no hardware): generates 15 scatter points + one 200m rotating target at 10 Hz. Activated by `sim_mode: true` in `aeris10_driver/config/aeris10_driver.yaml`.
+**Sim mode** (no hardware): generates 15 scatter points + one 200 m rotating target at 10 Hz. Activated by `sim_mode: true` in `aeris10_driver/config/aeris10_driver.yaml`.
 
 ```bash
 ros2 launch aeris10_driver aeris10_driver.launch.py
@@ -446,7 +378,7 @@ ros2 run radar_fusion detection_node
 ### End-to-end test
 
 ```bash
-bash tools/pre_demo_check.sh   # check 7 → aeris10 sim → detection → /radar/targets
+bash tools/pre_demo_check.sh   # aeris10 sim → detection → /radar/targets
 ```
 
 ---
@@ -457,27 +389,15 @@ Both GCS servers run on port 5000. Only one runs at a time.
 
 ### Swarm Command Center (`swarm_telemetry_web.py`)
 
-Military-theme dashboard matching ISR GCS v13.
-
 | Panel | Content |
 |-------|---------|
 | Header | Mission uptime, radar scan count, connection status |
-| Drone grid | 5 cards — phase, alt, speed, WP progress bar, connection dot |
+| Drone grid | 5 cards — phase, altitude, speed, WP progress, connection status |
 | Leaflet map | 5 drone markers + trails, sector polygons, NFZ circles, radar targets |
-| AERIS-10 radar | 6-panel polar SVG per drone (A–F, 60° each) — hits-per-scan + range |
+| AERIS-10 radar | 6-panel polar display per drone (A–F, 60° each) — hits-per-scan + range |
 | Event log | Redistribution events, failures, phase changes |
 
-**REST endpoints:**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/asp_update` | Drone positions + radar tracks from swarm_mission / radar_sim |
-| `POST` | `/event_push` | Redistribution / failure events from swarm_mission |
-| `GET` | `/api/state` | JSON snapshot of all drone + radar state |
-| `GET` | `/api/leader` | Current leader drone |
-| `POST` | `/api/leader` | Update leader (from leader_election.py) |
-
-### ISR GCS v13 (`telemetry_web.py`)
+### MBC-3 GCS (`telemetry_web.py`)
 
 Single-drone dashboard. Port 5000.
 
@@ -485,53 +405,24 @@ Single-drone dashboard. Port 5000.
 |-------|---------|
 | Left | Vehicle status, altitude/speed gauges, battery, compass |
 | Center | Leaflet map (trail, survey grid, NFZ circles, orbit rings, sector overlay), live chart |
-| Right | Swarm status, mission phase list, WP progress, 360° LiDAR panel, target queue, PID live tune, system log |
+| Right | Mission phase list, WP progress, 360° avoidance panel, target queue, system log |
 | ASP screen | `/asp` — radar track table + map, swarm markers, CSV download |
-
-**REST endpoints:**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/lidar_update` | Push LiDAR + mission state (5 Hz from isr_lidar_mpc) |
-| `POST` | `/asp_update` | Radar tracks |
-| `POST` | `/pid_tune` | Live PID gain update |
-| `GET` | `/pid_gains` | Current gains |
-| `GET` | `/download_log` | CSV flight log |
-| `GET` | `/asp_download` | CSV radar track log |
-| `POST` | `/add_nfz` | Inject dynamic NFZ |
-| `POST` | `/add_target` | Add ISR target to queue |
-| `POST` | `/inject_event` | Inject timed LiDAR obstacle (sim mode) |
-| `GET` | `/scenario_list` | All 24 scenario names |
-
-### Static assets
-
-JS/CSS libraries served locally — no CDN required on demo day:
-
-```
-src/static/leaflet.js       145 KB
-src/static/leaflet.css       15 KB
-src/static/socket.io.min.js  49 KB
-src/static/chart.umd.min.js 196 KB
-```
 
 ---
 
-## 11. Single-Drone ISR Mode
+## 11. Single-Drone Mission Mode
 
 `src/isr_lidar_mpc.py` + `launch.sh`
 
 ```bash
-./launch.sh                          # LiDAR sim mode
-./launch.sh --scenario urban_canyon  # named scenario
-./launch.sh --headless               # no Gazebo GUI
-./launch.sh --gcs-only               # GCS only (drone already running)
-ISR_SIM_SCENARIO=urban_canyon python3 src/isr_lidar_mpc.py
+./launch.sh            # with Gazebo GUI
+./launch.sh --headless # headless — no Gazebo window
 ```
 
 ### MPC avoidance pipeline (50 Hz)
 
 ```
-LiDAR scan → median filter → debounce (3 hits)
+Sensor scan → median filter → debounce (3 hits)
     → best_escape_bearing() — world-frame sector analysis
     → AvoidanceMPC.compute_correction() — penetration-weighted offset
     → compute_avoidance_waypoint() — project along escape bearing
@@ -551,29 +442,14 @@ J = Σ_k [ Q_track·‖pos_err‖² + Q_vel·‖vel_err‖² + obs_penalty ]
 **Control input:** `u = [an, ae, ad]` (m·s⁻²)
 **Solver:** L-BFGS-B via `scipy.optimize.minimize`
 
-### Scenario system
-
-Scenarios in `scenarios.json` are inactive — real ISR targets defined in `worlds/mbc3_isr_targets.sdf`.
-
-```json
-{
-  "name": "urban_canyon",
-  "description": "...",
-  "events": [
-    { "start_s": 3.0, "duration_s": 12.0, "bearing_deg": 45.0, "dist_m": 10.0 }
-  ]
-}
-```
-
 ---
 
-## 12. Single-Drone Demo Recording
+## 12. Demo Recording
 
-Automated recorder — launches `launch.sh` (Gazebo GUI), polls GCS, opens Firefox, tiles windows side-by-side, records ISR mission from arm to RTL.
+Automated recorder — launches Gazebo GUI, opens Firefox GCS, tiles windows side-by-side, records mission from arm to RTL.
 
 ```bash
-# Prerequisite (one-time)
-sudo apt install -y wmctrl
+sudo apt install -y wmctrl   # one-time prerequisite
 
 bash record_single_drone.sh
 # → ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4  (240s, 1920×1080, ~24 MB)
@@ -581,41 +457,25 @@ bash record_single_drone.sh
 
 **Layout:** Gazebo 3D view (left 960px) | GCS dashboard in Firefox (right 960px)
 
-**Short demo mode** — secondary orbits (ALPHA-2, BRAVO-1, CHARLIE-3) are skipped via `MBC3_SKIP_SECONDARY=1`. To re-enable them, unset that variable or run `launch.sh` directly.
-
 **Timeline:**
 
 | Time | Event |
 |------|-------|
-| T+0s | `launch.sh` starts — PX4 SITL + Gazebo GUI + GCS |
-| T+~30s | Drone armed, climbing to 30m AGL |
-| T+~45s | PHASE 2 — Survey grid (11 WPs, 0 avoidances) |
-| T+~90s | PHASE 3 — PRIMARY orbit (50m radius, locked ±0.5m) |
+| T+0s | `launch.sh` starts — PX4 SITL + Gazebo + GCS |
+| T+~30s | Drone armed, climbing to 30 m AGL |
+| T+~45s | PHASE 2 — Survey grid (11 WPs) |
+| T+~90s | PHASE 3 — PRIMARY orbit (50 m radius, locked ±0.5 m) |
 | T+~180s | PHASE 5 — RTL, 3D map saved |
 | T+240s | Recording stops |
 
-**GCS dashboard shows during recording:**
+**GCS shows during recording:**
 - Drone position on Leaflet map (lat/lon trail)
-- Armed/disarmed status, flight mode, battery %
+- Armed status, flight mode, battery %
 - Altitude, climb rate, groundspeed, heading
-- Mission phase indicator (STANDBY → SURVEY → LOITER → RTL)
-- LiDAR sector overlay, NFZ boundaries, target markers
-- Mission STALE watchdog badge (orange, if push stops)
+- Mission phase (STANDBY → SURVEY → LOITER → RTL)
+- Avoidance sector overlay, NFZ boundaries, target markers
 
-**Prerequisites:** `DISPLAY` set (run from desktop terminal, not SSH without X forwarding). ffmpeg at `~/.local/bin/ffmpeg`. wmctrl installed.
-
-**Preview / submit:**
-```bash
-xdg-open ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4
-
-# Submit to IAF portal:
-#   Video:  ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4
-#   Docs:   competition/Final_Vision_Document_for_MBC_3_22Apr26.pdf
-#   Form:   competition/Registration_form_MBC_3_final.pdf
-```
-
-**Verified run:** 2026-05-30 — FULL ISR + LiDAR MPC MISSION COMPLETE v12-MPC-v5 (exit 0)  
-**Short demo verified:** 2026-05-30 — 240s, 24 MB, Gazebo + GCS side-by-side (exit 0)  
+**Verified:** 2026-05-30 — full mission complete (exit 0)
 **Release:** [v1.0.0-single-drone](https://github.com/lekkalaharsha/aran-mbc3-swarm/releases/tag/v1.0.0-single-drone)
 
 ---
@@ -624,22 +484,22 @@ xdg-open ~/Documents/aran_mbc/mbc3_single_drone_demo.mp4
 
 ### Swarm
 
-| Phase | All drones |
-|-------|-----------|
+| Phase | Description |
+|-------|-------------|
 | `STANDBY` | Pre-arm, port allocation |
 | `TAKEOFF` | Concurrent climb to sector altitude |
-| `SURVEY` | Parallel boustrophedon sectors |
-| `EXTRA` | Redistributed WPs from failed drone |
-| `RTL` | All active drones return + land |
+| `SURVEY` | Parallel boustrophedon sectors with FMCW radar active |
+| `EXTRA` | Redistributed waypoints from failed drone |
+| `RTL` | All active drones return and land |
 
-### Single-drone ISR
+### Single-drone
 
 | Phase | Description |
 |-------|-------------|
 | `STANDBY` | Pre-arm, NFZ check, mission upload |
 | `TAKEOFF` | Climb to survey altitude |
-| `SURVEY` | Boustrophedon grid + LiDAR avoidance |
-| `LOITER` | Primary target orbit (45m radius, 90m AGL, 30s) |
+| `SURVEY` | Boustrophedon grid + MPC obstacle avoidance |
+| `LOITER` | Primary target orbit (45 m radius, 90 m AGL, 30 s) |
 | `SEC-1/2/3` | Secondary ISR target orbits |
 | `RTL` | Return-to-launch → land |
 
@@ -655,9 +515,9 @@ All mission constants in `src/mission_config.py`.
 | `ALTITUDE` | 50.0 m | Survey cruise altitude AGL |
 | `SPEED` | 50.0 m/s | Mission speed |
 | `ROWS` | 4 | Survey grid rows |
-| `ROW_SPACING` | 0.0003° | ~33m row spacing |
-| `ROW_WIDTH` | 0.0006° | ~47m row length |
-| `TARGET_LAT / LON` | 47.3985, 8.5470 | Primary ISR target |
+| `ROW_SPACING` | 0.0003° | ~33 m row spacing |
+| `ROW_WIDTH` | 0.0006° | ~47 m row length |
+| `TARGET_LAT / LON` | 47.3985, 8.5470 | Primary target |
 | `ORBIT_RADIUS` | 45 m | Primary orbit radius |
 | `ORBIT_ALTITUDE` | 90 m AGL | Primary orbit altitude |
 | `ORBIT_DURATION` | 30 s | Primary orbit dwell |
@@ -672,7 +532,7 @@ Swarm constants in `src/mission_config_swarm.py`:
 | `generate_drone_wps(i)` | Returns sector waypoints for drone i |
 | `compute_redistribution(failed, active, remaining_wps)` | Returns redistribution map |
 
-LiDAR constants (local to `isr_lidar_mpc.py`):
+Avoidance constants (local to `isr_lidar_mpc.py`):
 
 | Constant | Default | Description |
 |----------|---------|-------------|
@@ -707,14 +567,13 @@ LiDAR constants (local to `isr_lidar_mpc.py`):
 | Gazebo Harmonic | Simulation environment |
 | ROS2 Jazzy | radar_fusion + aeris10_driver |
 | colcon | ROS2 workspace build |
-| ffmpeg (static `~/.local/bin/ffmpeg`) | Demo recording |
+| ffmpeg (`~/.local/bin/ffmpeg`) | Demo recording |
 
 ### Install
 
 ```bash
 pip install mavsdk flask flask-socketio requests numpy scipy scikit-learn
 pip install colcon-common-extensions
-# Gazebo Python bindings (optional — real LiDAR)
 sudo apt install python3-gz-transport13 python3-gz-msgs10
 ```
 
@@ -724,21 +583,21 @@ sudo apt install python3-gz-transport13 python3-gz-msgs10
 
 Videos are **not tracked in git** (`.gitignore: *.mp4`) — stored locally only.
 
-### Single-drone ISR demo (Phase I submission)
+### Single-drone demo (Phase I submission)
 
 ```bash
-# Requires wmctrl (one-time): sudo apt install -y wmctrl
+sudo apt install -y wmctrl
 bash record_single_drone.sh
 ```
 
 | Property | Value |
 |----------|-------|
 | Output | `~/Documents/aran_mbc/mbc3_single_drone_demo.mp4` |
-| Duration | 240s (4 min) |
+| Duration | 240 s (4 min) |
 | Resolution | 1920×1080 |
 | Layout | Gazebo 3D left (960px) \| GCS Firefox right (960px) |
 | Size | ~24 MB |
-| Phases covered | Survey → PRIMARY orbit → RTL (secondary orbits skipped) |
+| Phases covered | Survey → PRIMARY orbit → RTL |
 | Verified | 2026-05-30, exit 0 |
 
 ### Swarm demo (5 drones)
@@ -749,20 +608,18 @@ bash record_demo.sh
 
 | Property | Value |
 |----------|-------|
-| Output | `~/mbc3_phase0_demo.mp4` |
-| Duration | 300s (5 min) |
+| Output | `~/mbc3_swarm_demo.mp4` |
+| Duration | 300 s (5 min) |
 | Resolution | 1920×1080 |
 | Phases covered | 5-drone parallel survey + drone kill + leader election + ASP |
 
 ### Re-record from scratch
 
 ```bash
-# Kill everything first
 pkill -9 -f "bin/px4"; pkill -9 -f "gz sim"; pkill -9 -f "telemetry_web"
 pkill -9 -f "isr_lidar_mpc"; pkill -9 -f "mavsdk_server"; pkill -9 -f ffmpeg
 
-# Then record
-bash record_single_drone.sh   # single-drone ISR
+bash record_single_drone.sh   # single-drone
 # or
 bash record_demo.sh           # swarm
 ```
