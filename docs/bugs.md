@@ -320,27 +320,27 @@ Topic pattern confirmed from `GZBridge.cpp` source.
 
 ### FIX-1 | HIGH | `goto_location` transit speed ~1-2 m/s — approach timeouts on all targets
 **File:** `isr_lidar_mpc.py` — `_do_orbit_phase()`  
-**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+**Status:** ✅ FIXED (applied to main 2026-06-05)
 
 **Problem:** `goto_location` ignores mission speed. PX4 SITL defaults to ~2 m/s. ALPHA-2 (49m), BRAVO-1 (258m), CHARLIE-3 (243m) all hit 120s timeout. Orbits executed from wrong position.
 
-**Fix:** `await drone.action.set_maximum_speed(SPEED)` before each `goto_location`.
+**Fix:** `await drone.action.set_maximum_speed(SPEED)` before approach block in `_do_orbit_phase`. Covers both primary (mission upload) and fallback (`goto_location`) paths.
 
 ---
 
 ### FIX-2 | MEDIUM | Orbit cold-start at radius=0 — never reaches commanded radius
 **File:** `isr_lidar_mpc.py` — `_do_orbit_phase()`  
-**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+**Status:** ✅ FIXED (applied to main — superseded by BUG-E1 comprehensive approach rewrite)
 
 **Problem:** Drone arrives within 25m of target centre, then `do_orbit` starts. PX4 begins orbit at radius=0 and spirals outward. In 15-25s dwell the drone only reaches 30-45m of a 50-80m commanded radius.
 
-**Fix:** Fly to orbit entry point (`project_waypoint(t_lat, t_lon, 0.0, t_r)`) before calling `do_orbit`. Arrival threshold changed from `dist < 25m` to `dist <= t_r × 1.3`. Approach timeout raised 120s → 180s.
+**Fix:** Fly to orbit entry point (`project_waypoint(t_lat, t_lon, 0.0, t_r)`) before calling `do_orbit`. Arrival threshold changed from `dist < 25m` to `dist <= t_r × 1.3`. Dynamic approach timeout `max(90, dist/8 + 60)`. Applied as part of BUG-E1 fix.
 
 ---
 
 ### FIX-3 | LOW | `Queue.put_nowait` race — "Exception in callback" log spam
 **File:** `isr_lidar_mpc.py` — `lidar_gz_reader()` `on_scan` callback  
-**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+**Status:** ✅ FIXED (applied to main — `_update()` closure wraps drain+put in single `call_soon_threadsafe`)
 
 **Problem:** Queue drain ran in gz callback thread, put_nowait via `call_soon_threadsafe`. Race: queue could refill between drain and put → `QueueFull` exception logged on every scan burst.
 
@@ -350,11 +350,11 @@ Topic pattern confirmed from `GZBridge.cpp` source.
 
 ### FIX-4 | LOW | `scenarios.json` CRLF line endings
 **File:** `scenarios.json`  
-**Status:** 🔵 IN BRANCH (fix/approach-orbit-queue — needs merge after test pass)
+**Status:** ✅ FIXED (`.gitattributes` with `*.json text eol=lf` in main; `scenarios.json` removed as unused)
 
 **Problem:** Windows CRLF corrupted `scenarios.json`, causing git CRLF warnings on every commit.
 
-**Fix:** `sed -i 's/\r//' scenarios.json`. `.gitattributes` prevents recurrence.
+**Fix:** `.gitattributes` prevents recurrence for all future JSON files. File itself removed (MASTER.md: "scenarios.json is EMPTY — do NOT pass `--scenario` flag").
 
 ---
 
@@ -580,6 +580,6 @@ real current position.
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 4 | Fixed: 32 | Total: 36
+## Open bug count: 0 | In-branch (not merged): 0 | Fixed: 36 | Total: 36
 
 **Next action:** Phase I presentations — New Delhi, 13–24 July 2026.

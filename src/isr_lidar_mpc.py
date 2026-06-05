@@ -1527,6 +1527,13 @@ async def run():
         except Exception as e:
             log_warn(f"hold() before approach failed (non-critical): {e}")
 
+        # FIX-1: cap maximum speed before any approach to prevent ~2 m/s SITL default.
+        # Applies to both primary (mission upload) and fallback (goto_location) paths.
+        try:
+            await drone.action.set_maximum_speed(SPEED)
+        except Exception as e:
+            log_warn(f"set_maximum_speed failed (non-critical): {e}")
+
         # BUG-E1 FIX v2: upload a 1-WP mission to orbit entry point and execute it.
         # goto_location (DO_REPOSITION) was unreliable post-survey — PX4 would comply
         # briefly then revert to loiter/RTL. A mission waypoint uses the same AUTO.MISSION
