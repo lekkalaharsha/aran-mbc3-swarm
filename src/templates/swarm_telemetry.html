@@ -2,9 +2,15 @@ en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MBC-3 Swarm Command Center</title>
-<link rel="stylesheet" href="/static/leaflet.css"/>
-<script src="/static/leaflet.js"></script>
+<title>MBC-3 Swarm Command Center — 3D</title>
+<link rel="stylesheet"
+  href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css"
+  integrity="sha384-ILhPIv8jSb7+k7xDQnyKAf5XxIGLePYGkglt8f+TF0Uv6DGPr4T2rQjRf1hMEqZj"
+  crossorigin="anonymous">
+<script
+  src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js"
+  integrity="sha384-HUWfGNPpO1KBjGWNR2y3QjfY3O1+3WRo8hNzcDDR4GzO9jCmYJb7SwtAlWbrIGAB"
+  crossorigin="anonymous"></script>
 <script src="/static/socket.io.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -165,6 +171,15 @@ svg#polar{display:block}
 @keyframes contact_blink{0%,100%{opacity:1}50%{opacity:.3}}
 #contact_banner.visible{opacity:1;animation:contact_blink .5s ease 3}
 
+/* Cesium widget overrides */
+#cesium_container{width:100%;height:100%}
+.cesium-widget,.cesium-widget canvas{width:100%!important;height:100%!important}
+.cesium-credit-container,.cesium-credit-logoContainer{display:none!important}
+.cesium-viewer-toolbar{top:6px;right:6px}
+.cesium-button{background:rgba(8,15,28,.85)!important;border:1px solid #0e2340!important;color:#00c8ff!important}
+#cesium_offline{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(6,11,20,.95);color:var(--danger);font-size:12px;letter-spacing:2px;z-index:900}
+
 /* Radar sweep */
 @keyframes radar_sweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 #polar_sweep{transform-origin:130px 130px;animation:radar_sweep 5s linear infinite}
@@ -186,7 +201,10 @@ svg#polar{display:block}
 <div id="drone_grid"></div>
 
 <div id="main_row">
-  <div id="map_wrap"><div id="map"></div></div>
+  <div id="map_wrap">
+    <div id="cesium_container"></div>
+    <div id="cesium_offline">&#9888; CESIUM CDN UNAVAILABLE — CHECK NETWORK</div>
+  </div>
 
   <div id="radar_panel">
     <div class="rp_header" style="display:flex;align-items:center">
@@ -238,75 +256,193 @@ const N       = {{ n_drones }};
 const PANELS  = ['A','B','C','D','E','F'];
 const PANEL_ANGLES = {A:0, B:60, C:120, D:180, E:240, F:300}; // centre deg CCW from North
 
-// ── Map ──────────────────────────────────────────────────────────────────────
-const map = L.map('map', {zoomControl:true}).setView(GEO.home, 15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  {attribution:'OSM', maxZoom:19}).addTo(map);
+// ── Cesium 3D Globe ───────────────────────────────────────────────────────────
+let viewer, droneEntities = {}, cesiumTrails = {}, cesiumTrailPts = {}, targetEntities = [];
 
-const droneMarkers = {};
-const droneTrails  = {};
-const trailPoints  = {};
+function makeDroneBillboard(color, heading) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'>
+    <circle cx='14' cy='14' r='9' fill='${color}' stroke='white' stroke-width='2' opacity='0.92'/>
+    <polygon points='14,2 10,12 18,12' fill='white' opacity='0.95'/>
+  </svg>`;
+  return 'data:image/svg+xml;base64,' + btoa(svg);
+}
 
-function makeDroneIcon(idx, heading) {
-  const c = COLORS[idx];
-  const rot = heading || 0;
-  return L.divIcon({
-    html: `<div style="width:20px;height:20px;transform:rotate(${rot}deg)">
-      <svg width="20" height="20" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="6" fill="${c}" stroke="white" stroke-width="1.5" opacity="0.9"/>
-        <polygon points="10,1 7,9 13,9" fill="white" opacity="0.9"/>
-      </svg>
-    </div>`,
-    iconSize:[20,20], iconAnchor:[10,10], className:''
+// Stub makeDroneIcon so updateDroneCards doesn't break (not used for Cesium)
+function makeDroneIcon(idx, heading) { return null; }
+
+function initCesium() {
+  if (typeof Cesium === 'undefined') {
+    document.getElementById('cesium_offline').style.display = 'flex';
+    return;
+  }
+  Cesium.Ion.defaultAccessToken = '';  // no Ion — using OSM + ellipsoid terrain
+
+  viewer = new Cesium.Viewer('cesium_container', {
+    imageryProvider: new Cesium.UrlTemplateImageryProvider({
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      credit: 'OpenStreetMap',
+      maximumLevel: 19,
+    }),
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+    timeline: false, animation: false, geocoder: false, homeButton: false,
+    sceneModePicker: false, navigationHelpButton: false, fullscreenButton: false,
+    baseLayerPicker: false, infoBox: false, selectionIndicator: false,
+  });
+
+  // Dark tactical atmosphere
+  viewer.scene.globe.enableLighting = false;
+  viewer.scene.backgroundColor = new Cesium.Color(0.02, 0.04, 0.08, 1);
+  viewer.scene.globe.baseColor  = new Cesium.Color(0.04, 0.07, 0.12, 1);
+
+  // Fly to mission area at ~800m above home
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(GEO.home[1], GEO.home[0], 800),
+    orientation: {
+      heading: Cesium.Math.toRadians(0),
+      pitch:   Cesium.Math.toRadians(-55),
+      roll:    0,
+    },
+    duration: 2,
+  });
+
+  // ── Drone entities ────────────────────────────────────────────────────────
+  for (let i = 0; i < N; i++) {
+    const clr  = Cesium.Color.fromCssColorString(COLORS[i]);
+    cesiumTrailPts[i]  = [];
+    cesiumTrails[i]    = viewer.entities.add({
+      polyline: {
+        positions: new Cesium.CallbackProperty(() => cesiumTrailPts[i], false),
+        width: 2.5,
+        material: clr.withAlpha(0.65),
+        clampToGround: false,
+      }
+    });
+    droneEntities[i] = viewer.entities.add({
+      billboard: {
+        image:          makeDroneBillboard(COLORS[i], 0),
+        scale:          1.0,
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        rotation:       0,
+        alignedAxis:    Cesium.Cartesian3.UNIT_Z,
+      },
+      label: {
+        text:            `DRONE-${i}`,
+        font:            '11px Courier New',
+        fillColor:       clr,
+        outlineColor:    Cesium.Color.BLACK,
+        outlineWidth:    2,
+        style:           Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin:  Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset:     new Cesium.Cartesian2(0, -28),
+        eyeOffset:       new Cesium.Cartesian3(0, 0, -50),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      point: { show: false },
+    });
+  }
+
+  // ── Survey sector waypoints ───────────────────────────────────────────────
+  GEO.sectors.forEach(s => {
+    const i   = s.drone_idx;
+    const alt = GEO.drone_alts ? GEO.drone_alts[i] : 100 + i * 10;
+    const clr = Cesium.Color.fromCssColorString(s.color);
+    const pts = (s.wps || []).map(([la, lo]) =>
+      Cesium.Cartesian3.fromDegrees(lo, la, alt)
+    );
+    if (pts.length >= 2) {
+      viewer.entities.add({
+        polyline: { positions: pts, width: 1.5,
+          material: new Cesium.PolylineDashMaterialProperty({
+            color: clr.withAlpha(0.45), dashLength: 12
+          })
+        }
+      });
+    }
+    pts.forEach(p => viewer.entities.add({
+      position: p,
+      point: { pixelSize: 5, color: clr.withAlpha(0.7),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY }
+    }));
+  });
+
+  // ── NFZ cylinders ─────────────────────────────────────────────────────────
+  GEO.nfz.forEach(z => {
+    viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(z.lon, z.lat, 80),
+      cylinder: {
+        length:       200,
+        topRadius:    z.r,
+        bottomRadius: z.r,
+        material:     Cesium.Color.fromCssColorString('#f85149').withAlpha(0.08),
+        outline:      true,
+        outlineColor: Cesium.Color.fromCssColorString('#f85149').withAlpha(0.45),
+        outlineWidth: 1,
+      },
+      label: {
+        text: `NFZ: ${z.name}`, font: '10px Courier New',
+        fillColor: Cesium.Color.fromCssColorString('#f85149'),
+        outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      }
+    });
+  });
+
+  // ── Home + primary target ─────────────────────────────────────────────────
+  viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(GEO.home[1], GEO.home[0], 2),
+    point: { pixelSize: 12, color: Cesium.Color.CYAN,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY },
+    label: {
+      text: 'HOME', font: '11px Courier New',
+      fillColor: Cesium.Color.CYAN, outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      pixelOffset: new Cesium.Cartesian2(0, -18),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    }
+  });
+  viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(GEO.primary[1], GEO.primary[0], 2),
+    point: { pixelSize: 10, color: Cesium.Color.ORANGERED,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY },
+    label: {
+      text: 'TARGET', font: '11px Courier New',
+      fillColor: Cesium.Color.ORANGERED, outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      pixelOffset: new Cesium.Cartesian2(0, -18),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    }
   });
 }
 
-// Create drone markers at home positions
-GEO.home && [0,1,2,3,4].forEach(i => {
-  const lat = GEO.home[0] + (i-2)*0.0001;
-  const lon = GEO.home[1] + (i-2)*0.0001;
-  droneMarkers[i] = L.marker([lat,lon], {icon:makeDroneIcon(i, 0)})
-    .bindTooltip(`DRONE-${i}`, {permanent:false}).addTo(map);
-  droneTrails[i]  = L.polyline([], {color:COLORS[i], weight:2, opacity:0.7}).addTo(map);
-  trailPoints[i]  = [];
-});
+// Run after DOM ready so Cesium can find the container
+window.addEventListener('load', initCesium);
 
-// Sector polygons (survey rows per drone)
-GEO.sectors.forEach(s => {
-  if (!s.wps || s.wps.length < 2) return;
-  L.polyline(s.wps, {color:s.color, weight:2, dashArray:'5,5', opacity:0.5}).addTo(map);
-  s.wps.forEach(([la,lo]) =>
-    L.circleMarker([la,lo],{radius:3,color:s.color,fillOpacity:1}).addTo(map));
-});
-
-// NFZ circles
-GEO.nfz.forEach(z => {
-  L.circle([z.lat,z.lon], {radius:z.r, color:'#f85149', fillColor:'#f85149',
-    fillOpacity:.08, dashArray:'6,4', weight:1.5}).addTo(map)
-   .bindTooltip(`NFZ: ${z.name}`);
-});
-
-// Home marker
-L.marker(GEO.home, {icon:L.divIcon({
-  html:'<div style="font-size:18px">🏠</div>',iconSize:[20,20],iconAnchor:[10,10],className:''
-})}).bindTooltip('HOME').addTo(map);
-
-// Primary target
-L.marker(GEO.primary, {icon:L.divIcon({
-  html:'<div style="font-size:16px">🎯</div>',iconSize:[16,16],iconAnchor:[8,8],className:''
-})}).bindTooltip('PRIMARY TARGET').addTo(map);
-
-// Radar target markers
-let targetMarkers = [];
+// ── Radar target entities (Cesium) ────────────────────────────────────────────
 function updateTargets(tracks) {
-  targetMarkers.forEach(m => map.removeLayer(m));
-  targetMarkers = [];
+  targetEntities.forEach(e => viewer && viewer.entities.remove(e));
+  targetEntities = [];
+  if (!viewer) return;
   tracks.forEach(t => {
     if (!t.lat || !t.lon) return;
-    const m = L.circleMarker([t.lat,t.lon],
-      {radius:6, color:'#ff6b35', fillColor:'#ff6b35', fillOpacity:.8, weight:1.5})
-      .bindTooltip(`${t.id} R=${t.range_m}m`).addTo(map);
-    targetMarkers.push(m);
+    const e = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 50),
+      point: {
+        pixelSize: 10, color: Cesium.Color.fromCssColorString('#ff6b35'),
+        outlineColor: Cesium.Color.WHITE, outlineWidth: 1,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      label: {
+        text: `${t.id}\nR=${t.range_m}m`,
+        font: '9px Courier New',
+        fillColor: Cesium.Color.fromCssColorString('#ff6b35'),
+        outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, -20),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      }
+    });
+    targetEntities.push(e);
   });
 }
 
@@ -369,14 +505,15 @@ function updateDroneCards(drones) {
     battEl.textContent = bpct > 0 ? `${bpct}%` : '--';
     battEl.className   = 'dc_val dc_batt' + (bpct > 0 && bpct < 20 ? ' low' : bpct < 40 ? ' med' : '');
 
-    // Map marker — update position and heading arrow
-    if (d.lat && d.lon && Math.abs(d.lat)>0.001) {
-      droneMarkers[i].setLatLng([d.lat, d.lon]);
-      droneMarkers[i].setIcon(makeDroneIcon(i, d.heading || 0));
-      droneMarkers[i].setTooltipContent(`DRONE-${i} | ${d.phase} | ${d.alt}m | ${d.heading||0}°`);
-      trailPoints[i].push([d.lat, d.lon]);
-      if (trailPoints[i].length > 150) trailPoints[i].shift();
-      droneTrails[i].setLatLngs(trailPoints[i]);
+    // Cesium 3D entity update
+    if (viewer && d.lat && d.lon && Math.abs(d.lat) > 0.001) {
+      const pos = Cesium.Cartesian3.fromDegrees(d.lon, d.lat, d.alt || 0);
+      droneEntities[i].position = pos;
+      droneEntities[i].billboard.image   = makeDroneBillboard(COLORS[i], d.heading || 0);
+      droneEntities[i].billboard.rotation = -Cesium.Math.toRadians(d.heading || 0);
+      droneEntities[i].label.text = `DRONE-${i}\n${d.phase} | ${d.alt}m`;
+      cesiumTrailPts[i].push(pos);
+      if (cesiumTrailPts[i].length > 150) cesiumTrailPts[i].shift();
     }
   });
 }
