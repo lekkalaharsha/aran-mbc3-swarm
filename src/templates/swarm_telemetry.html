@@ -1,0 +1,617 @@
+en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MBC-3 Swarm Command Center</title>
+<link rel="stylesheet" href="/static/leaflet.css"/>
+<script src="/static/leaflet.js"></script>
+<script src="/static/socket.io.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#060b14;--panel:#080f1c;--card:#0b1525;--border:#0e2340;
+  --accent:#00c8ff;--accent2:#00ff9d;--warn:#ffb300;--danger:#ff3d3d;
+  --dim:#1e4060;--text:#c8dff0;--textdim:#4a7a9b;
+  --mono:'Share Tech Mono','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px)}
+
+header{
+  background:linear-gradient(90deg,#060b14,#0b1a30,#060b14);
+  border-bottom:1px solid var(--accent);box-shadow:0 0 20px rgba(0,200,255,0.15);
+  padding:6px 14px;display:flex;align-items:center;gap:16px;flex-shrink:0
+}
+header h1{font-size:14px;color:var(--accent);letter-spacing:3px;font-family:'Rajdhani','Share Tech Mono',monospace;font-weight:700}
+#uptime{color:var(--textdim);font-size:11px}
+#scan_badge{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:2px 8px;font-size:11px;color:var(--text)}
+#conn_status{font-size:11px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Drone cards */
+#drone_grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:6px 10px;flex-shrink:0}
+.drone_card{
+  background:var(--card);border:2px solid var(--border);border-radius:4px;
+  padding:8px 10px;transition:border-color .3s;position:relative;overflow:hidden
+}
+.drone_card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.3}
+.drone_card.armed{border-color:var(--dc);box-shadow:0 0 10px rgba(0,200,255,.1)}
+.drone_card.failed{border-color:var(--danger);background:#0d0505;opacity:.75}
+.dc_header{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.dc_dot{width:9px;height:9px;border-radius:50%;background:var(--dc);box-shadow:0 0 6px var(--dc)}
+.dc_id{font-weight:bold;font-size:12px;letter-spacing:1px}
+.dc_phase{font-size:9px;color:var(--textdim);margin-left:auto;letter-spacing:1px}
+.dc_row{display:flex;justify-content:space-between;font-size:10px;color:var(--textdim);margin-top:2px;border-bottom:1px solid #0a1828;padding:2px 0}
+.dc_row:last-of-type{border-bottom:none}
+.dc_val{color:var(--accent)}
+.wp_bar{background:#050e1a;border:1px solid var(--border);border-radius:2px;height:4px;margin-top:5px;overflow:hidden}
+.wp_fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .5s}
+.dot_conn{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:4px}
+.dot_conn.ok{background:var(--accent2);box-shadow:0 0 5px var(--accent2);animation:pulse 1.5s infinite}
+.dot_conn.bad{background:var(--danger)}
+
+/* Main panels */
+#main_row{display:grid;grid-template-columns:1fr 340px;gap:6px;padding:0 10px 6px;flex:1;min-height:0}
+#map_wrap{position:relative;border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+#map{width:100%;height:100%}
+.leaflet-tile{filter:brightness(.52) saturate(.35) hue-rotate(190deg)}
+.leaflet-control-zoom a{background:var(--card)!important;color:var(--accent)!important;border:1px solid var(--border)!important}
+.leaflet-tooltip{background:rgba(6,11,20,.9)!important;border:1px solid var(--border)!important;color:var(--textdim)!important;
+  font-family:var(--mono)!important;font-size:.55rem!important;padding:2px 7px!important;border-radius:2px!important}
+
+/* Radar panel */
+#radar_panel{background:var(--panel);border:1px solid var(--border);border-radius:4px;display:flex;flex-direction:column;min-height:0}
+.rp_header{padding:7px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--accent);letter-spacing:2px}
+.drone_tabs{display:flex;border-bottom:1px solid var(--border)}
+.dtab{flex:1;padding:5px 0;text-align:center;font-size:11px;cursor:pointer;border:none;background:none;
+  color:var(--textdim);border-bottom:2px solid transparent;transition:all .2s;letter-spacing:1px}
+.dtab.active{color:var(--text);border-bottom-color:var(--dc)}
+.dtab:hover{color:var(--accent)}
+#radar_svg_wrap{padding:10px;display:flex;justify-content:center}
+svg#polar{display:block}
+#panel_stats{padding:0 10px 8px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.ps_cell{background:#050e1a;border:1px solid var(--border);border-radius:3px;padding:5px 7px;text-align:center}
+.ps_cell.active{background:rgba(255,61,61,.08);border-color:var(--danger)}
+.ps_lbl{font-size:9px;color:var(--textdim);letter-spacing:1px}
+.ps_cnt{font-size:14px;font-weight:bold}
+.ps_rng{font-size:9px;color:var(--textdim)}
+#radar_tgt_list{flex:1;overflow-y:auto;padding:6px 10px;border-top:1px solid var(--border)}
+#radar_tgt_list::-webkit-scrollbar{width:3px}
+#radar_tgt_list::-webkit-scrollbar-thumb{background:var(--dim)}
+.tgt_row{display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:2px 0;border-bottom:1px solid var(--card)}
+.tgt_id{color:var(--accent)}
+.tgt_track_btn{background:none;border:1px solid var(--dim);color:var(--textdim);
+  border-radius:2px;padding:1px 5px;font-size:9px;cursor:pointer;font-family:var(--mono);
+  letter-spacing:1px;transition:all .2s}
+.tgt_track_btn:hover{border-color:var(--warn);color:var(--warn)}
+.tgt_track_btn.tracking{border-color:var(--warn);color:var(--warn);
+  background:rgba(255,179,0,.1);animation:pulse 1.2s infinite}
+#stop_track_btn{display:none;background:rgba(255,179,0,.12);border:1px solid var(--warn);
+  color:var(--warn);border-radius:3px;padding:3px 10px;font-family:var(--mono);
+  font-size:10px;cursor:pointer;letter-spacing:1px;margin-left:auto}
+#stop_track_btn.visible{display:block}
+
+/* Event log */
+#event_wrap{grid-column:1/-1;background:var(--panel);border:1px solid var(--border);border-radius:4px;
+  padding:5px 10px;max-height:80px;overflow-y:auto}
+#event_wrap::-webkit-scrollbar{width:3px}
+#event_wrap::-webkit-scrollbar-thumb{background:var(--dim)}
+#event_log{display:flex;flex-direction:column;gap:1px}
+.ev_row{display:flex;gap:8px;font-size:10px}
+.ev_ts{color:var(--dim);flex-shrink:0}
+.ev_msg.redistrib{color:var(--warn)}
+.ev_msg.failure{color:var(--danger)}
+.ev_msg.phase{color:var(--textdim)}
+.ev_msg.info{color:var(--accent2)}
+.ev_msg.contact{color:#ffcc00;font-weight:bold}
+.ev_msg.contact_lost{color:#7a5a00}
+.ev_msg.ai{color:#b07aff}
+.ev_msg.warn{color:var(--warn)}
+
+/* AI command panel */
+#ai_panel{padding:5px 10px 6px;flex-shrink:0;background:var(--panel);
+  border:1px solid var(--border);border-top:1px solid rgba(176,122,255,.4);
+  border-radius:0 0 4px 4px}
+.ai_header{font-size:10px;color:#b07aff;letter-spacing:2px;margin-bottom:4px}
+#ai_form{display:flex;gap:6px;margin-bottom:4px}
+#ai_input{flex:1;background:var(--card);border:1px solid var(--border);
+  color:var(--text);font-family:var(--mono);font-size:11px;
+  padding:4px 8px;border-radius:2px;outline:none}
+#ai_input:focus{border-color:#b07aff}
+#ai_submit{background:rgba(176,122,255,.12);border:1px solid #b07aff;
+  color:#b07aff;font-family:var(--mono);font-size:10px;
+  padding:4px 12px;cursor:pointer;border-radius:2px;letter-spacing:1px}
+#ai_submit:hover{background:rgba(176,122,255,.28)}
+#ai_submit:disabled{opacity:.4;cursor:default}
+#ai_response{font-size:10px;min-height:16px;color:var(--textdim)}
+
+/* Contact acquired banner */
+#contact_banner{
+  position:fixed;top:54px;left:50%;transform:translateX(-50%);
+  background:rgba(6,11,20,.96);border:1px solid #ffcc00;border-radius:4px;
+  padding:7px 22px;font-size:13px;color:#ffcc00;letter-spacing:2px;
+  z-index:10000;pointer-events:none;opacity:0;transition:opacity .25s;
+  text-align:center;white-space:nowrap;box-shadow:0 0 20px rgba(255,204,0,.3)
+}
+#contact_banner.visible{opacity:1}
+@keyframes contact_blink{0%,100%{opacity:1}50%{opacity:.3}}
+#contact_banner.visible{opacity:1;animation:contact_blink .5s ease 3}
+
+/* Radar sweep */
+@keyframes radar_sweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+#polar_sweep{transform-origin:130px 130px;animation:radar_sweep 5s linear infinite}
+#polar_sweep line{stroke:rgba(0,200,255,.55);stroke-width:1.5;stroke-linecap:round}
+#polar_sweep line.glow{stroke:rgba(0,200,255,.12);stroke-width:10}
+</style>
+</head>
+<body>
+<div id="contact_banner"></div>
+<header>
+  <h1>&#11041; Aran Technologies &nbsp;|&nbsp; MBC-3 SWARM COMMAND CENTER</h1>
+  <span id="uptime" style="color:var(--textdim);font-size:11px">00:00:00</span>
+  <span id="scan_badge">RADAR 0 scans</span>
+  <span id="conn_status" style="color:var(--danger);font-size:11px">&#9679; CONNECTING</span>
+</header>
+
+<div id="drone_grid"></div>
+
+<div id="main_row">
+  <div id="map_wrap"><div id="map"></div></div>
+
+  <div id="radar_panel">
+    <div class="rp_header" style="display:flex;align-items:center">
+      <span>◈ AERIS-10 RADAR — 6-PANEL FMCW</span>
+      <button id="stop_track_btn" onclick="stopTracking()">■ STOP TRACK</button>
+    </div>
+    <div class="drone_tabs" id="radar_tabs"></div>
+    <div id="radar_svg_wrap">
+      <svg id="polar" width="260" height="260" viewBox="0 0 260 260">
+        <g id="polar_bg"></g>
+        <g id="polar_wedges"></g>
+        <g id="polar_dots"></g>
+        <g id="polar_sweep">
+          <line class="glow" x1="130" y1="130" x2="130" y2="22"/>
+          <line x1="130" y1="130" x2="130" y2="22"/>
+        </g>
+        <g id="polar_labels"></g>
+      </svg>
+    </div>
+    <div id="panel_stats"></div>
+    <div id="radar_tgt_list"></div>
+  </div>
+</div>
+
+<div style="padding:0 10px 0;flex-shrink:0">
+  <div id="event_wrap">
+    <div id="event_log"></div>
+  </div>
+</div>
+
+<div id="ai_panel">
+  <div class="ai_header">&#11042; LLM TACTICAL ENGINE &nbsp;|&nbsp; {{ ai_model }}</div>
+  <div id="ai_form">
+    <input type="text" id="ai_input" placeholder="OPERATOR COMMAND — e.g. RTL DRONE-2, orbit ALPHA-2, abort mission..." autocomplete="off"/>
+    <button id="ai_submit" onclick="submitAICmd()">SEND</button>
+  </div>
+  <div id="ai_response">READY</div>
+</div>
+
+<script>
+const COLORS  = {{ colors|tojson }};
+const GEO     = {{ geo|tojson }};
+const N       = {{ n_drones }};
+const PANELS  = ['A','B','C','D','E','F'];
+const PANEL_ANGLES = {A:0, B:60, C:120, D:180, E:240, F:300}; // centre deg CCW from North
+
+// ── Map ──────────────────────────────────────────────────────────────────────
+const map = L.map('map', {zoomControl:true}).setView(GEO.home, 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {attribution:'OSM', maxZoom:19}).addTo(map);
+
+const droneMarkers = {};
+const droneTrails  = {};
+const trailPoints  = {};
+
+function makeDroneIcon(idx) {
+  const c = COLORS[idx];
+  return L.divIcon({
+    html: `<div style="background:${c};width:14px;height:14px;border-radius:50%;
+                border:2px solid white;box-shadow:0 0 6px ${c}"></div>`,
+    iconSize:[14,14], iconAnchor:[7,7], className:''
+  });
+}
+
+// Create drone markers at home positions
+GEO.home && [0,1,2,3,4].forEach(i => {
+  const lat = GEO.home[0] + (i-2)*0.0001;
+  const lon = GEO.home[1] + (i-2)*0.0001;
+  droneMarkers[i] = L.marker([lat,lon], {icon:makeDroneIcon(i)})
+    .bindTooltip(`DRONE-${i}`, {permanent:false}).addTo(map);
+  droneTrails[i]  = L.polyline([], {color:COLORS[i], weight:2, opacity:0.7}).addTo(map);
+  trailPoints[i]  = [];
+});
+
+// Sector polygons (survey rows per drone)
+GEO.sectors.forEach(s => {
+  if (!s.wps || s.wps.length < 2) return;
+  L.polyline(s.wps, {color:s.color, weight:2, dashArray:'5,5', opacity:0.5}).addTo(map);
+  s.wps.forEach(([la,lo]) =>
+    L.circleMarker([la,lo],{radius:3,color:s.color,fillOpacity:1}).addTo(map));
+});
+
+// NFZ circles
+GEO.nfz.forEach(z => {
+  L.circle([z.lat,z.lon], {radius:z.r, color:'#f85149', fillColor:'#f85149',
+    fillOpacity:.08, dashArray:'6,4', weight:1.5}).addTo(map)
+   .bindTooltip(`NFZ: ${z.name}`);
+});
+
+// Home marker
+L.marker(GEO.home, {icon:L.divIcon({
+  html:'<div style="font-size:18px">🏠</div>',iconSize:[20,20],iconAnchor:[10,10],className:''
+})}).bindTooltip('HOME').addTo(map);
+
+// Primary target
+L.marker(GEO.primary, {icon:L.divIcon({
+  html:'<div style="font-size:16px">🎯</div>',iconSize:[16,16],iconAnchor:[8,8],className:''
+})}).bindTooltip('PRIMARY TARGET').addTo(map);
+
+// Radar target markers
+let targetMarkers = [];
+function updateTargets(tracks) {
+  targetMarkers.forEach(m => map.removeLayer(m));
+  targetMarkers = [];
+  tracks.forEach(t => {
+    if (!t.lat || !t.lon) return;
+    const m = L.circleMarker([t.lat,t.lon],
+      {radius:6, color:'#ff6b35', fillColor:'#ff6b35', fillOpacity:.8, weight:1.5})
+      .bindTooltip(`${t.id} R=${t.range_m}m`).addTo(map);
+    targetMarkers.push(m);
+  });
+}
+
+// ── Drone grid ───────────────────────────────────────────────────────────────
+function buildDroneGrid() {
+  const g = document.getElementById('drone_grid');
+  g.innerHTML = '';
+  for (let i=0; i<N; i++) {
+    const c = COLORS[i];
+    g.innerHTML += `<div class="drone_card" id="dc_${i}" style="--dc:${c}">
+      <div class="dc_header">
+        <div class="dc_dot"></div>
+        <span class="dc_id">DRONE-${i}</span>
+        <span class="dc_phase" id="dc_phase_${i}">STANDBY</span>
+        <span class="dot_conn bad" id="dc_conn_${i}"></span>
+      </div>
+      <div class="dc_row"><span>ALT</span><span class="dc_val" id="dc_alt_${i}">0m</span></div>
+      <div class="dc_row"><span>SPD</span><span class="dc_val" id="dc_spd_${i}">0m/s</span></div>
+      <div class="dc_row"><span>WP</span><span class="dc_val" id="dc_wp_${i}">0/0</span></div>
+      <div class="wp_bar"><div class="wp_fill" id="dc_wpbar_${i}" style="width:0%"></div></div>
+    </div>`;
+  }
+}
+buildDroneGrid();
+
+function updateDroneCards(drones) {
+  drones.forEach((d,i) => {
+    const card    = document.getElementById(`dc_${i}`);
+    const failed  = d.phase==='FAILED';
+    card.className = 'drone_card' + (d.armed?' armed':'') + (failed?' failed':'');
+
+    document.getElementById(`dc_phase_${i}`).textContent = d.phase||'---';
+    document.getElementById(`dc_alt_${i}`).textContent   = `${d.alt}m`;
+    document.getElementById(`dc_spd_${i}`).textContent   = `${d.groundspeed}m/s`;
+    const wc = d.wp_current||0, wt = d.wp_total||0;
+    document.getElementById(`dc_wp_${i}`).textContent    = `${wc}/${wt}`;
+    const pct = wt>0 ? Math.round(100*wc/wt) : 0;
+    document.getElementById(`dc_wpbar_${i}`).style.width = pct+'%';
+    const conn = document.getElementById(`dc_conn_${i}`);
+    conn.className = 'dot_conn '+(d.connected?'ok':'bad');
+
+    // Update map marker
+    if (d.lat && d.lon && Math.abs(d.lat)>0.001) {
+      droneMarkers[i].setLatLng([d.lat,d.lon]);
+      droneMarkers[i].setTooltipContent(`DRONE-${i} | ${d.phase} | ${d.alt}m`);
+      // Trail
+      trailPoints[i].push([d.lat,d.lon]);
+      if (trailPoints[i].length>150) trailPoints[i].shift();
+      droneTrails[i].setLatLngs(trailPoints[i]);
+    }
+  });
+}
+
+// ── Radar polar SVG ──────────────────────────────────────────────────────────
+let selectedDrone = 0;
+
+function buildRadarTabs() {
+  const tb = document.getElementById('radar_tabs');
+  tb.innerHTML = '';
+  for (let i=0;i<N;i++) {
+    tb.innerHTML += `<button class="dtab${i===0?' active':''}"
+      style="--dc:${COLORS[i]}" onclick="selectDrone(${i})" id="rtab_${i}">D${i}</button>`;
+  }
+}
+buildRadarTabs();
+
+function selectDrone(idx) {
+  selectedDrone = idx;
+  document.querySelectorAll('.dtab').forEach((t,i)=>{
+    t.className='dtab'+(i===idx?' active':'');
+  });
+}
+
+const RADAR_DISPLAY_MAX_M = 300; // range at which dot reaches outer ring
+
+function drawRadarPolar(panelData, tracks) {
+  const cx=130, cy=130, R=110, rInner=20;
+  const pd = panelData[selectedDrone] || {};
+
+  // ── Background rings ──────────────────────────────────────────────
+  let bgHtml = '';
+  [0.25,0.5,0.75,1.0].forEach(f=>{
+    bgHtml += `<circle cx="${cx}" cy="${cy}" r="${R*f}" fill="none"
+      stroke="#0e2340" stroke-width="0.7" stroke-dasharray="3,3"/>`;
+  });
+  // Cross hairs
+  bgHtml += `<line x1="${cx-R}" y1="${cy}" x2="${cx+R}" y2="${cy}"
+    stroke="#0e2340" stroke-width="0.5"/>`;
+  bgHtml += `<line x1="${cx}" y1="${cy-R}" x2="${cx}" y2="${cy+R}"
+    stroke="#0e2340" stroke-width="0.5"/>`;
+  // Range labels
+  [75,150,225,300].forEach((m,i)=>{
+    bgHtml += `<text x="${cx+4}" y="${cy-(R*(i+1)*0.25)+3}"
+      font-size="7" fill="#1e4060" font-family="Courier New">${m}m</text>`;
+  });
+  document.getElementById('polar_bg').innerHTML = bgHtml;
+
+  // ── Wedges ────────────────────────────────────────────────────────
+  let wedgeHtml = '';
+  PANELS.forEach(p=>{
+    const startDeg = PANEL_ANGLES[p]-30, endDeg = PANEL_ANGLES[p]+30;
+    const active   = pd[p] && pd[p].active;
+    const col      = active ? '#ff3d3d' : '#080f1c';
+    const stroke   = active ? '#ff3d3d' : '#0e2340';
+    const path     = svgArc(cx,cy,R,rInner,startDeg,endDeg);
+    const rng      = pd[p] ? pd[p].range_m : 0;
+    wedgeHtml += `<path d="${path}" fill="${col}" fill-opacity="${active?0.55:0.4}"
+      stroke="${stroke}" stroke-width="1"/>`;
+    const la = Math.PI/2 - (PANEL_ANGLES[p]*Math.PI/180);
+    const lr = R*0.72;
+    const lx = cx+Math.cos(la)*lr, ly = cy-Math.sin(la)*lr;
+    const tc = active ? '#ffffff' : '#1e4060';
+    wedgeHtml += `<text x="${lx}" y="${ly+4}" text-anchor="middle"
+      font-family="Courier New" font-size="11" fill="${tc}"
+      font-weight="${active?'bold':'normal'}">${p}</text>`;
+    if (active && rng>0) {
+      wedgeHtml += `<text x="${lx}" y="${ly+14}" text-anchor="middle"
+        font-family="Courier New" font-size="8" fill="#ff9090">${rng}m</text>`;
+    }
+  });
+  // Center disc
+  wedgeHtml += `<circle cx="${cx}" cy="${cy}" r="${rInner}" fill="#060b14" stroke="#0e2340"/>`;
+  wedgeHtml += `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="9"
+    font-family="Courier New" fill="#00c8ff">D${selectedDrone}</text>`;
+  // North tick
+  wedgeHtml += `<line x1="${cx}" y1="${cy-rInner}" x2="${cx}" y2="${cy-R-4}"
+    stroke="#00ff9d" stroke-width="1" stroke-dasharray="2,2"/>`;
+  wedgeHtml += `<text x="${cx}" y="${cy-R-7}" text-anchor="middle" font-size="8"
+    font-family="Courier New" fill="#00ff9d">N</text>`;
+  document.getElementById('polar_wedges').innerHTML = wedgeHtml;
+
+  // ── Target dots ───────────────────────────────────────────────────
+  let dotsHtml = '';
+  (tracks || []).forEach(t => {
+    const rng = t.range_m || 0;
+    const brg = t.bearing_deg || 0;
+    if (rng <= 0) return;
+    const r = Math.min(
+      rInner + (rng / RADAR_DISPLAY_MAX_M) * (R - rInner),
+      R - 5
+    );
+    const toRad = d => (90 - d) * Math.PI / 180;
+    const angle = toRad(brg);
+    const dx = cx + r * Math.cos(angle);
+    const dy = cy - r * Math.sin(angle);
+    // Outer ring (echo)
+    dotsHtml += `<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="7"
+      fill="none" stroke="#ff3d3d" stroke-width="0.8" opacity="0.45"/>`;
+    // Solid blip
+    dotsHtml += `<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="3.5"
+      fill="#ff3d3d" stroke="#ffaaaa" stroke-width="0.6"/>`;
+    // Label
+    const label = (t.id||'?').replace('TGT_','T');
+    dotsHtml += `<text x="${(dx+9).toFixed(1)}" y="${(dy+3).toFixed(1)}"
+      font-size="8" fill="#ffaaaa" font-family="Courier New">${label}</text>`;
+  });
+  document.getElementById('polar_dots').innerHTML = dotsHtml;
+}
+
+function svgArc(cx,cy,R,rInner,startDeg,endDeg) {
+  // startDeg/endDeg: degrees CW from North
+  const toRad = d => (90-d)*Math.PI/180;
+  const s1=toRad(startDeg), s2=toRad(endDeg);
+  const x1=cx+R*Math.cos(s1),     y1=cy-R*Math.sin(s1);
+  const x2=cx+R*Math.cos(s2),     y2=cy-R*Math.sin(s2);
+  const ix1=cx+rInner*Math.cos(s1),iy1=cy-rInner*Math.sin(s1);
+  const ix2=cx+rInner*Math.cos(s2),iy2=cy-rInner*Math.sin(s2);
+  return `M${ix1} ${iy1} L${x1} ${y1} A${R} ${R} 0 0 0 ${x2} ${y2} L${ix2} ${iy2} A${rInner} ${rInner} 0 0 1 ${ix1} ${iy1} Z`;
+}
+
+function updatePanelStats(panelData) {
+  const pd = panelData[selectedDrone] || {};
+  const el = document.getElementById('panel_stats');
+  el.innerHTML = PANELS.map(p => {
+    const d      = pd[p] || {};
+    const active = d.active;
+    return `<div class="ps_cell${active?' active':''}">
+      <div class="ps_lbl">Panel ${p}</div>
+      <div class="ps_cnt" style="color:${active?'#f85149':'#3fb950'}">${d.count||0}</div>
+      <div class="ps_rng">${d.range_m>0 ? d.range_m+'m' : '—'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Follow / tracking ─────────────────────────────────────────────────────────
+let _trackingId = null;
+
+function trackTarget(targetId) {
+  _trackingId = targetId;
+  document.getElementById('stop_track_btn').classList.add('visible');
+  fetch('/api/track', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({target_id: targetId, drone_idx: 0}),
+  }).then(r => r.json()).then(d => {
+    if (d.error) { alert('Track error: ' + d.error); _trackingId = null; }
+  }).catch(()=>{ _trackingId = null; });
+}
+
+function stopTracking() {
+  _trackingId = null;
+  document.getElementById('stop_track_btn').classList.remove('visible');
+  fetch('/api/track', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({stop: true}),
+  });
+}
+
+function updateTargetList(tracks) {
+  const el  = document.getElementById('radar_tgt_list');
+  const rel = tracks.filter(t=>t).slice(0,10);
+  el.textContent = '';
+  if (!rel.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:#4a7a9b;font-size:10px;padding:4px';
+    empty.textContent = 'No targets';
+    el.append(empty);
+    return;
+  }
+  for (const t of rel) {
+    const tid        = t.id || '?';
+    const isTracking = tid === _trackingId;
+    const row = document.createElement('div');
+    row.className = 'tgt_row';
+    const idSpan = document.createElement('span');
+    idSpan.className = 'tgt_id';
+    idSpan.textContent = tid;
+    const rSpan = document.createElement('span');
+    rSpan.textContent = `R=${t.range_m||0}m`;
+    const azSpan = document.createElement('span');
+    azSpan.textContent = `Az=${(t.bearing_deg||0).toFixed(0)}°`;
+    const btn = document.createElement('button');
+    btn.className = `tgt_track_btn${isTracking?' tracking':''}`;
+    btn.textContent = isTracking ? '▶ ON' : 'TRACK';
+    btn.addEventListener('click', () => trackTarget(tid));
+    row.append(idSpan, rSpan, azSpan, btn);
+    el.append(row);
+  }
+}
+
+// ── Event log ────────────────────────────────────────────────────────────────
+function updateEventLog(events) {
+  const el = document.getElementById('event_log');
+  el.textContent = '';
+  for (const e of events) {
+    const kindClass = e.kind==='redistrib'?'redistrib':e.kind==='failure'?'failure':e.kind;
+    const row = document.createElement('div');
+    row.className = 'ev_row';
+    const ts = document.createElement('span');
+    ts.className = 'ev_ts';
+    ts.textContent = e.ts;
+    const msg = document.createElement('span');
+    msg.className = `ev_msg ${kindClass}`;
+    msg.textContent = e.msg;
+    row.append(ts, msg);
+    el.append(row);
+  }
+}
+
+// ── Contact banner ────────────────────────────────────────────────────────────
+let _lastContactMsg = '';
+let _bannerTimer = null;
+function showContactBanner(msg) {
+  const b = document.getElementById('contact_banner');
+  b.textContent = '⚠ ' + msg;
+  b.classList.add('visible');
+  clearTimeout(_bannerTimer);
+  _bannerTimer = setTimeout(() => b.classList.remove('visible'), 4500);
+}
+
+// ── Socket.IO ────────────────────────────────────────────────────────────────
+const socket = io();
+socket.on('connect',    ()=>{ document.getElementById('conn_status').textContent='● LIVE'; document.getElementById('conn_status').style.color='#3fb950'; });
+socket.on('disconnect', ()=>{ document.getElementById('conn_status').textContent='● OFFLINE'; document.getElementById('conn_status').style.color='#f85149'; });
+
+socket.on('swarm_update', d => {
+  document.getElementById('uptime').textContent     = d.uptime||'--';
+  document.getElementById('scan_badge').textContent = `RADAR ${d.scan_count||0} scans`;
+
+  // Contact banner — fire on first event if it's a new contact
+  const evts = d.events || [];
+  const latest = evts[0];
+  if (latest && latest.kind === 'contact' && latest.msg !== _lastContactMsg) {
+    _lastContactMsg = latest.msg;
+    showContactBanner(latest.msg);
+  }
+
+  updateDroneCards(d.drones || []);
+  updateTargets(d.tracks || []);
+  drawRadarPolar(d.panels || {}, d.tracks || []);
+  updatePanelStats(d.panels || {});
+  updateTargetList(d.tracks || []);
+  updateEventLog(d.events || []);
+});
+
+// ── AI command panel ─────────────────────────────────────────────────────────
+async function submitAICmd() {
+  const inp  = document.getElementById('ai_input');
+  const resp = document.getElementById('ai_response');
+  const btn  = document.getElementById('ai_submit');
+  const cmd  = inp.value.trim();
+  if (!cmd) return;
+  btn.disabled = true;
+  resp.textContent = 'PROCESSING...';
+  resp.style.color = 'var(--warn)';
+  try {
+    const r = await fetch('/api/ai_command', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({command: cmd}),
+    });
+    const d = await r.json();
+    resp.textContent = '';
+    resp.style.color = '';
+    if (d.ok) {
+      const delta = d.delta;
+      const src   = delta.source || '?';
+      const conf  = ((delta.confidence || 0) * 100).toFixed(0);
+      const tgts  = (delta.target_drones || []).map(i => `D${i}`).join(',') || 'ALL';
+      const sp1 = document.createElement('span'); sp1.style.color='var(--accent2)'; sp1.textContent='▶ '+String(delta.action||'');
+      const sp2 = document.createElement('span'); sp2.style.color='var(--text)';    sp2.textContent=' '+tgts;
+      const sp3 = document.createElement('span'); sp3.style.color='var(--textdim)'; sp3.textContent=' '+String(delta.reasoning||'');
+      const sp4 = document.createElement('span'); sp4.style.color='var(--dim)';     sp4.textContent=' ['+src+' '+conf+'%]';
+      resp.append(sp1, sp2, sp3, sp4);
+    } else {
+      const sp = document.createElement('span'); sp.style.color='var(--danger)'; sp.textContent='✗ REJECTED: '+String(d.reason||'');
+      resp.append(sp);
+    }
+    inp.value = '';
+  } catch(e) {
+    resp.textContent = '';
+    const sp = document.createElement('span'); sp.style.color='var(--danger)'; sp.textContent='✗ GCS ERROR';
+    resp.append(sp);
+  }
+  btn.disabled = false;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('ai_input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAICmd();
+  });
+});
+</script>
+</body>
+</html>
