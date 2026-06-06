@@ -580,6 +580,20 @@ real current position.
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 0 | Fixed: 36 | Total: 36
+---
+
+### B15-8 | HIGH | Swarm telemetry streams die on gRPC connection reset — no retry
+**File:** `src/swarm_mission.py` — `_stream_position()`, `_stream_velocity()`, `_stream_armed()` (lines 207–231)
+**Status:** ✅ FIXED
+
+**Problem:** All three functions are bare `async for` loops. When a mavsdk_server/PX4 instance crashes and resets the gRPC connection (status 14 `UNAVAILABLE`), the loop raises `AioRpcError` and the task exits. No retry → `drone_states[idx]` stops updating. GCS shows stale telemetry. Mission phase and armed-state decisions then use stale data. Observed in swarm log `swarm_20260606_074934`: DRONE-0 streams died at ~T+510s with `recvmsg:Connection reset by peer` and never recovered.
+
+**Root cause:** Inconsistency — `_stream_battery` and `_stream_health` both have `while True: try/except Exception` retry loops (added in batch 5), but the three core state streams were missed.
+
+**Fix:** Wrapped all three in identical `while True: try/except` pattern. Sets `drone_states[idx]["connected"] = False` on disconnect, retries after 3s.
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 0 | Fixed: 37 | Total: 37
 
 **Next action:** Phase I presentations — New Delhi, 13–24 July 2026.

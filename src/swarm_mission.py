@@ -205,30 +205,52 @@ def build_extra_plan(idx: int, extra_wps: list[tuple]) -> MissionPlan:
 
 # ── Telemetry streaming ───────────────────────────────────────────────────────
 async def _stream_position(drone, idx):
-    async for pos in drone.telemetry.position():
-        drone_states[idx].update({
-            "lat":      pos.latitude_deg,
-            "lon":      pos.longitude_deg,
-            "alt":      round(pos.relative_altitude_m, 1),
-            "alt_amsl": round(pos.absolute_altitude_m, 1),
-            "connected": True,
-        })
+    while True:
+        try:
+            async for pos in drone.telemetry.position():
+                drone_states[idx].update({
+                    "lat":      pos.latitude_deg,
+                    "lon":      pos.longitude_deg,
+                    "alt":      round(pos.relative_altitude_m, 1),
+                    "alt_amsl": round(pos.absolute_altitude_m, 1),
+                    "connected": True,
+                })
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            drone_states[idx]["connected"] = False
+            log(idx, f"position stream error — {e}; retrying in 3s")
+            await asyncio.sleep(3.0)
 
 
 async def _stream_velocity(drone, idx):
     import math
-    async for vel in drone.telemetry.velocity_ned():
-        spd = math.sqrt(vel.north_m_s**2 + vel.east_m_s**2)
-        hdg = math.degrees(math.atan2(vel.east_m_s, vel.north_m_s)) % 360
-        drone_states[idx].update({
-            "groundspeed": round(spd, 1),
-            "heading": round(hdg, 0),
-        })
+    while True:
+        try:
+            async for vel in drone.telemetry.velocity_ned():
+                spd = math.sqrt(vel.north_m_s**2 + vel.east_m_s**2)
+                hdg = math.degrees(math.atan2(vel.east_m_s, vel.north_m_s)) % 360
+                drone_states[idx].update({
+                    "groundspeed": round(spd, 1),
+                    "heading": round(hdg, 0),
+                })
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log(idx, f"velocity stream error — {e}; retrying in 3s")
+            await asyncio.sleep(3.0)
 
 
 async def _stream_armed(drone, idx):
-    async for armed in drone.telemetry.armed():
-        drone_states[idx]["armed"] = armed
+    while True:
+        try:
+            async for armed in drone.telemetry.armed():
+                drone_states[idx]["armed"] = armed
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log(idx, f"armed stream error — {e}; retrying in 3s")
+            await asyncio.sleep(3.0)
 
 
 # ── Phase 1: connect + arm + climb ───────────────────────────────────────────
