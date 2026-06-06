@@ -29,7 +29,10 @@ Integration
 """
 
 import asyncio
+import hashlib
+import hmac as _hmac_mod
 import json
+import math
 import socket
 import struct
 import time
@@ -45,10 +48,21 @@ MAX_PACKET      = 4096
 
 HB_HZ           = 2.0         # heartbeat rate
 LEAD_HZ         = 0.2         # leader keepalive (every 5s)
-DEATH_TIMEOUT   = 15.0        # seconds of HB silence → peer considered dead
+DEATH_TIMEOUT   = 3.0         # seconds of HB silence → peer considered dead (proposal: 2 s failover)
 ELECTION_RACE_S = 2.0         # bully race window before winner self-declares
 
 GCS_LEADER_URL  = "http://localhost:5000/api/leader"
+
+SAFE_SEP_M      = 30.0   # minimum separation between drones (metres)
+TAU_S           = 0.3    # rMADER commitment delay — covers multicast RTT
+TIME_WINDOW_S   = 10.0   # temporal window for trajectory conflict check
+
+# Shared HMAC key — set D2D_HMAC_KEY env var on all drones before flight.
+# Default is safe for SITL; change to a random secret for hardware deployment.
+import os
+D2D_HMAC_KEY = os.environ.get(
+    "D2D_HMAC_KEY", "mbc3-aran-d2d-key-CHANGE-IN-PRODUCTION"
+).encode()
 
 
 class _D2DProtocol(asyncio.DatagramProtocol):
@@ -86,6 +100,7 @@ class D2DNode:
         self.peer_last_hb:      dict[int, float] = {}
         self.peer_state:        dict[int, dict]  = {}   # latest HB fields per peer
         self.peer_radar_tracks: dict[int, list]  = {}   # G4: latest RADAR tracks per peer
+        self.peer_trajectories: dict[int, dict]  = {}   # rMADER: planned trajectory per peer
         # G3: ack tracking — msg_id → {target_idx, ack_type, sent_at, acked: bool}
         self.pending_acks:      dict[int, dict]  = {}
         self._msg_seq:          int              = 0    # monotonic message ID
@@ -98,6 +113,7 @@ class D2DNode:
         self._running:        bool          = False
 
         self._on_leader_change: list[Callable] = []
+        self._on_reassign:      list[Callable] = []   # BUG-3 fix: hardware-safe REASSIGN delivery
         self._transport:  Optional[asyncio.DatagramTransport] = None
         self._send_sock:  Optional[socket.socket]             = None
 
@@ -106,6 +122,11 @@ class D2DNode:
     def on_leader_change(self, cb: Callable[[int, int], None]) -> None:
         """Register callback fired on every leader change: cb(leader_idx, election_id)."""
         self._on_leader_change.append(cb)
+
+    def on_reassign(self, cb: Callable[[list], None]) -> None:
+        """Register callback fired when REASSIGN targets this drone: cb(wps).
+        Works on real hardware (separate processes) — does not rely on shared memory."""
+        self._on_reassign.append(cb)
 
     def broadcast_radar(self, tracks: list, scan: int) -> None:
         """Leader calls this to share radar tracks with all peers over D2D."""
@@ -121,6 +142,64 @@ class D2DNode:
                 if t.get("id") and t["id"] not in seen:
                     seen[t["id"]] = t
         return list(seen.values())
+
+    def broadcast_trajectory(self, wps: list, etas: list, committed: bool = False) -> None:
+        """Broadcast planned waypoints + arrival times.
+        committed=False → tentative (still in delay window).
+        committed=True  → locked in, peers must treat as hard constraint."""
+        self._send({"type": "TRAJ", "wps": wps, "etas": etas, "committed": committed})
+
+    def _effective_sep_m(self) -> float:
+        """Safety separation scaled by current groundspeed — faster drone needs wider bubble."""
+        speed = self.state.get("groundspeed", 0.0) or 0.0
+        return max(SAFE_SEP_M, speed * TAU_S * 2)
+
+    @staticmethod
+    def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        R = 6_371_000
+        φ1, φ2 = math.radians(lat1), math.radians(lat2)
+        dφ, dλ = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+        a = math.sin(dφ / 2) ** 2 + math.cos(φ1) * math.cos(φ2) * math.sin(dλ / 2) ** 2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    def check_conflict(self, my_wps: list, my_etas: list) -> bool:
+        """Return True if my planned trajectory conflicts with any peer (rMADER P2).
+        Checks both committed and tentative trajectories — committed are hard constraints,
+        tentative are checked within the delay window (mirrors rMADER delayCheck logic)."""
+        now = time.time()
+        for traj in self.peer_trajectories.values():
+            if now - traj["committed_at"] > 30.0:
+                continue   # stale — skip
+            # Tentative trajs created outside our delay window can't conflict — skip
+            if not traj["committed"] and (now - traj["committed_at"]) > TAU_S * 3:
+                continue
+            for i, wp in enumerate(my_wps):
+                my_lat, my_lon = wp[0], wp[1]
+                my_t = my_etas[i] if i < len(my_etas) else now
+                for j, p_wp in enumerate(traj["wps"]):
+                    p_lat, p_lon = p_wp[0], p_wp[1]
+                    p_t = traj["etas"][j] if j < len(traj["etas"]) else now
+                    if abs(my_t - p_t) > TIME_WINDOW_S:
+                        continue
+                    if self._haversine_m(my_lat, my_lon, p_lat, p_lon) < self._effective_sep_m():
+                        return True
+        return False
+
+    async def commit_trajectory(
+        self, wps: list, etas: list, retries: int = 3
+    ) -> bool:
+        """Broadcast tentative traj, wait τ, delay-check, broadcast committed. rMADER P3.
+        Phase 1: broadcast committed=False (peers see tentative, may replan).
+        Phase 2: after TAU_S, if no conflict → broadcast committed=True (hard constraint).
+        Returns True when safe to fly, False if conflict persists after all retries."""
+        for _ in range(retries):
+            self.broadcast_trajectory(wps, etas, committed=False)
+            await asyncio.sleep(TAU_S)               # delay window — peers receive and check
+            if not self.check_conflict(wps, etas):
+                self.broadcast_trajectory(wps, etas, committed=True)   # lock it in
+                return True
+            await asyncio.sleep(1.0 + self.idx * 0.5)   # lower-index yields first, then retry
+        return False
 
     def send_reassign(self, target_idx: int, waypoints: list) -> int:
         """G3: Leader sends REASSIGN to target drone. Returns msg_id for ACK tracking."""
@@ -150,6 +229,7 @@ class D2DNode:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, TTL)
         s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)  # loopback for SITL
+        s.setblocking(False)   # non-blocking: sendto returns immediately or raises BlockingIOError
         s.bind(("", SRC_BASE + idx))
         return s
 
@@ -170,6 +250,11 @@ class D2DNode:
 
     def _send(self, payload: dict) -> None:
         payload.update({"src": self.id, "idx": self.idx, "t": time.time()})
+        # HMAC-SHA256 over canonical (sorted-key) JSON — authenticates sender identity + content
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        payload["sig"] = _hmac_mod.new(
+            D2D_HMAC_KEY, canonical.encode(), hashlib.sha256
+        ).hexdigest()[:32]
         try:
             data = json.dumps(payload, separators=(",", ":")).encode()
             if len(data) <= MAX_PACKET and self._send_sock:
@@ -209,6 +294,23 @@ class D2DNode:
         except Exception:
             return
 
+        # HMAC authentication — drop unsigned or tampered messages
+        received_sig = msg.pop("sig", None)
+        if received_sig is None:
+            return
+        canonical = json.dumps(msg, sort_keys=True, separators=(",", ":"))
+        expected_sig = _hmac_mod.new(
+            D2D_HMAC_KEY, canonical.encode(), hashlib.sha256
+        ).hexdigest()[:32]
+        if not _hmac_mod.compare_digest(received_sig, expected_sig):
+            print(f"[D2D] HMAC FAIL from {addr} — dropping", flush=True)
+            return
+
+        # Replay protection: reject messages with timestamps outside a 5-second window
+        msg_t = msg.get("t", 0.0)
+        if abs(time.time() - msg_t) > 5.0:
+            return
+
         src = msg.get("idx")
         if src is None or src == self.idx:
             return   # ignore own messages
@@ -236,10 +338,33 @@ class D2DNode:
             # G4: store peer radar tracks; leader will fuse these
             self.peer_radar_tracks[src] = msg.get("tracks", [])
 
+        elif mtype == "TRAJ":
+            committed = msg.get("committed", False)
+            entry = {
+                "wps":          msg.get("wps", []),
+                "etas":         msg.get("etas", []),
+                "committed_at": msg.get("t", time.time()),
+                "committed":    committed,
+            }
+            if committed:
+                # Committed trajectory replaces any prior entry — hard constraint
+                self.peer_trajectories[src] = entry
+            else:
+                # Tentative: only update if no committed entry exists — committed is a hard constraint
+                prior = self.peer_trajectories.get(src)
+                if prior is None or not prior.get("committed"):
+                    self.peer_trajectories[src] = entry
+
         elif mtype == "REASSIGN":
-            # G3: ACK back to sender if this message targets us
             if msg.get("to") == self.idx:
                 self._send_ack("REASSIGN", msg.get("mid", 0), src)
+                # BUG-3 fix: deliver WPs via callback — works on real hardware (separate processes)
+                wps = msg.get("wps", [])
+                for cb in self._on_reassign:
+                    try:
+                        cb(wps)
+                    except Exception:
+                        pass
 
         elif mtype == "ACK":
             # G3: mark pending_acks entry resolved
@@ -271,16 +396,20 @@ class D2DNode:
                     pass
 
     def _post_leader_gcs(self, ldr_idx: int, eid: int) -> None:
-        try:
-            requests.post(self._gcs, json={
-                "leader_id":      f"DRONE-{ldr_idx}",
-                "leader_model":   f"mbc3_radar_drone_{ldr_idx}",
-                "since":          time.time(),
-                "election_count": eid,
-                "source":         "D2D",
-            }, timeout=0.5)
-        except Exception:
-            pass
+        import threading
+        payload = {
+            "leader_id":      f"DRONE-{ldr_idx}",
+            "leader_model":   f"mbc3_radar_drone_{ldr_idx}",
+            "since":          time.time(),
+            "election_count": eid,
+            "source":         "D2D",
+        }
+        def _do_post():
+            try:
+                requests.post(self._gcs, json=payload, timeout=0.5)
+            except Exception:
+                pass
+        threading.Thread(target=_do_post, daemon=True).start()
 
     # ── Bully election ────────────────────────────────────────────────
 
@@ -321,6 +450,12 @@ class D2DNode:
         while self._running:
             await asyncio.sleep(1.0)
             now = time.time()
+
+            # Startup election: no leader known but peers are alive → trigger bully
+            if self._candidate is None and self.leader_idx is None and self.peer_last_hb:
+                oldest_hb = min(self.peer_last_hb.values())
+                if (now - oldest_hb) >= 2.0:
+                    self._start_election("startup — no leader after initial HB exchange")
 
             # Check leader liveness via HB timestamps (only if no election running)
             if self._candidate is None and self.leader_idx is not None and self.leader_idx != self.idx:

@@ -18,6 +18,7 @@ Mission redistribution (G3/G5):
 
 import asyncio
 import atexit
+import math
 import os
 import subprocess
 import sys
@@ -32,6 +33,7 @@ from mavsdk.mission import MissionItem, MissionPlan
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from d2d_node import D2DNode
 from mission_config import HOME_LAT, HOME_LON, SPEED
+from mpc_controller import haversine
 from mission_config_swarm import (
     SWARM_NUM_DRONES,
     drone_alt,
@@ -301,8 +303,23 @@ async def run_mission(
     try:
         drone_states[idx]["phase"] = "UPLOAD"
         log(idx, "Uploading mission ...")
-        await drone.mission.upload_mission(plan)
-        log(idx, f"Plan uploaded ({len(plan.mission_items)} items)")
+        expected = len(plan.mission_items)
+        uploaded = False
+        for _attempt in range(1, 5):
+            try:
+                await drone.mission.upload_mission(plan)
+                await asyncio.sleep(3.0)
+                dl = await asyncio.wait_for(drone.mission.download_mission(), timeout=8.0)
+                if len(dl.mission_items) == expected:
+                    log(idx, f"Plan verified — {expected} items (attempt {_attempt})")
+                    uploaded = True
+                    break
+                log(idx, f"Upload mismatch {len(dl.mission_items)}/{expected} — retry {_attempt}")
+            except Exception as e:
+                log(idx, f"Upload attempt {_attempt}/4 failed: {e}")
+            await asyncio.sleep(3.0)
+        if not uploaded:
+            raise RuntimeError(f"Mission upload failed after 4 attempts — {expected} items unconfirmed")
 
         # Wait at cruise altitude before starting
         target_alt = drone_alt(idx)
@@ -313,6 +330,20 @@ async def run_mission(
             await asyncio.sleep(0.5)
 
         drone_states[idx]["phase"] = "SURVEY"
+
+        # rMADER P4: broadcast sector trajectory before committing — check inter-drone conflicts
+        t_cur = time.time() + 5.0
+        traj_wps, traj_etas = [], []
+        prev_lat, prev_lon = HOME_LAT, HOME_LON
+        for wp_lat, wp_lon in survey_wps:
+            t_cur += haversine(prev_lat, prev_lon, wp_lat, wp_lon) / MISSION_SPEED
+            traj_wps.append((wp_lat, wp_lon, drone_alt(idx)))
+            traj_etas.append(t_cur)
+            prev_lat, prev_lon = wp_lat, wp_lon
+        safe = await d2d.commit_trajectory(traj_wps, traj_etas)
+        if not safe:
+            log(idx, "rMADER: sector conflict unresolved after retries — proceeding with caution")
+
         await drone.mission.start_mission()
         log(idx, "Mission STARTED")
 
@@ -343,8 +374,9 @@ async def run_mission(
         for target_idx, wps in redistrib.items():
             log(idx, f"  → D2D REASSIGN {len(wps)} WPs to DRONE-{target_idx}")
             d2d.send_reassign(target_idx, [(lat, lon) for lat, lon in wps])
-            with EXTRA_WPS_LOCK:
-                EXTRA_WPS[target_idx].extend(wps)
+            # WPs delivered exclusively via D2D callback (_make_cb closure).
+            # Do NOT also write directly to EXTRA_WPS — in SITL multicast loopback
+            # fires the callback immediately, so a direct write duplicates every WP.
         # Push redistribution event to dashboard
         try:
             dist_str = ", ".join(f"D{k}:{len(v)}" for k, v in redistrib.items())
@@ -396,12 +428,12 @@ async def run_mission(
 
 # ── Follow loop ───────────────────────────────────────────────────────────────
 
-async def _follow_loop(drone, idx: int) -> None:
+async def _follow_loop(drone, idx: int, d2d: D2DNode) -> None:
     """Poll GCS /api/track_state every 1 s.
     When this drone is assigned, override nav with repeated goto_location calls.
     goto_location takes absolute (AMSL) altitude — use alt_amsl from telemetry.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     _prev_phase = "INIT"
     while True:
         await asyncio.sleep(1.0)
@@ -434,10 +466,140 @@ async def _follow_loop(drone, idx: int) -> None:
             drone_states[idx]["phase"] = "FOLLOW"
             log(idx, f"FOLLOW mode → {data['target_id']}  {lat:.6f},{lon:.6f}")
 
+        safe = await d2d.commit_trajectory([(lat, lon, amsl)], [time.time() + 2.0])
+        if not safe:
+            log(idx, "rMADER: follow conflict — holding position this cycle")
+            continue
+
         try:
             await drone.action.goto_location(lat, lon, amsl, float("nan"))
         except Exception as e:
             log(idx, f"goto_location failed — {e}")
+
+
+RTL_BATTERY_PCT = 20.0   # auto-RTL threshold (matches proposal §2.11)
+
+
+async def _stream_battery(drone, idx) -> None:
+    """Auto-RTL when battery drops below RTL_BATTERY_PCT while armed and airborne.
+    Retries on stream disconnect — battery monitoring must never die silently."""
+    while True:
+        try:
+            async for batt in drone.telemetry.battery():
+                pct = (batt.remaining_percent or 0.0) * 100.0
+                drone_states[idx]["battery_pct"] = round(pct, 1)
+                phase = drone_states[idx].get("phase", "INIT")
+                if (
+                    pct < RTL_BATTERY_PCT
+                    and drone_states[idx].get("armed")
+                    and phase not in {"RTL", "LANDING", "LANDED", "FAILED",
+                                      "INIT", "STANDBY", "HEALTH"}
+                ):
+                    log(idx, f"LOW BATTERY {pct:.0f}% — auto RTL")
+                    drone_states[idx]["phase"] = "RTL"
+                    try:
+                        await drone.action.return_to_launch()
+                    except Exception as e:
+                        log(idx, f"RTL on low battery failed: {e}")
+                    return   # done — drone is RTL-ing
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log(idx, f"battery stream error — {e}; retrying in 3s")
+            await asyncio.sleep(3.0)
+
+
+async def _stream_health(drone, idx) -> None:
+    """HOLD on GPS loss. Saves pre-denial phase and restores it on GPS recovery.
+    Retries on stream disconnect — GPS monitoring must never die silently."""
+    _pre_deny_phase: str = ""
+    while True:
+        try:
+            async for health in drone.telemetry.health():
+                gps_ok = health.is_global_position_ok
+                phase  = drone_states[idx].get("phase", "INIT")
+                armed  = drone_states[idx].get("armed", False)
+                if (
+                    not gps_ok and armed
+                    and phase not in {"INIT", "STANDBY", "ARMING", "CLIMB", "HEALTH",
+                                      "LANDED", "FAILED", "GPS-DENIED", "RTL", "LANDING"}
+                ):
+                    log(idx, "GPS DENIED — HOLD (EKF baro+IMU fallback)")
+                    _pre_deny_phase = phase
+                    drone_states[idx]["phase"] = "GPS-DENIED"
+                    try:
+                        await drone.action.hold()
+                    except Exception as e:
+                        log(idx, f"hold() on GPS deny failed: {e}")
+                elif gps_ok and phase == "GPS-DENIED":
+                    restored = _pre_deny_phase or "SURVEY"
+                    log(idx, f"GPS RESTORED — resuming phase {restored}")
+                    drone_states[idx]["phase"] = restored
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log(idx, f"health stream error — {e}; retrying in 3s")
+            await asyncio.sleep(3.0)
+
+
+# ── AI command executor ────────────────────────────────────────────────────────
+async def _ai_cmd_loop(drones: list) -> None:
+    """Poll GCS /api/pending_commands every 2 s and execute validated AI deltas."""
+    loop = asyncio.get_running_loop()
+    while True:
+        await asyncio.sleep(2.0)
+        try:
+            data = await loop.run_in_executor(
+                None,
+                lambda: requests.get(
+                    "http://localhost:5000/api/pending_commands", timeout=0.5
+                ).json(),
+            )
+        except Exception:
+            continue
+        for delta in data.get("commands", []):
+            action  = delta.get("action")
+            targets = delta.get("target_drones", []) or list(range(NUM_DRONES))
+            params  = delta.get("params", {})
+            print(f"[AI-EXEC] {action} → drones={targets}  params={params}", flush=True)
+            for idx in targets:
+                if idx not in range(NUM_DRONES):
+                    continue
+                if idx in FAILED_DRONES:
+                    continue
+                try:
+                    if action == "rtl_drone":
+                        await drones[idx].action.return_to_launch()
+                        drone_states[idx]["phase"] = "RTL"
+                        print(f"[AI-EXEC] DRONE-{idx}: RTL triggered", flush=True)
+                    elif action == "loiter":
+                        await drones[idx].action.hold()
+                        drone_states[idx]["phase"] = "HOLD"
+                        print(f"[AI-EXEC] DRONE-{idx}: HOLD triggered", flush=True)
+                    elif action == "abort_mission":
+                        await drones[idx].mission.cancel_mission()
+                        await drones[idx].action.hold()
+                        drone_states[idx]["phase"] = "ABORT"
+                        print(f"[AI-EXEC] DRONE-{idx}: ABORT triggered", flush=True)
+                    elif action == "resume_mission":
+                        await drones[idx].mission.start_mission()
+                        drone_states[idx]["phase"] = "SURVEY"
+                        print(f"[AI-EXEC] DRONE-{idx}: RESUME triggered", flush=True)
+                    elif action == "change_speed":
+                        spd = float(params.get("speed_ms", MISSION_SPEED))
+                        await drones[idx].action.set_maximum_speed(spd)
+                        print(f"[AI-EXEC] DRONE-{idx}: speed capped to {spd}m/s", flush=True)
+                    elif action == "change_altitude":
+                        print(f"[AI-EXEC] DRONE-{idx}: change_altitude requires mission rebuild "
+                              f"— not supported mid-flight. Use RTL+relaunch.", flush=True)
+                    elif action == "orbit_target":
+                        print(f"[AI-EXEC] DRONE-{idx}: orbit_target mid-swarm not supported "
+                              f"(use isr_lidar_mpc.py for single-drone recon).", flush=True)
+                    elif action == "reassign_sector":
+                        print(f"[AI-EXEC] DRONE-{idx}: reassign_sector not executable at runtime "
+                              f"— sectors are fixed in mission upload.", flush=True)
+                except Exception as e:
+                    print(f"[AI-EXEC] DRONE-{idx}: {action} failed — {e}", flush=True)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -492,17 +654,33 @@ async def main():
         asyncio.create_task(_stream_position(drones[i], i))
         asyncio.create_task(_stream_velocity(drones[i], i))
         asyncio.create_task(_stream_armed(drones[i], i))
+        asyncio.create_task(_stream_battery(drones[i], i))
+        asyncio.create_task(_stream_health(drones[i], i))
 
-    # Follow loops — poll GCS track_state, execute goto_location when assigned
-    for i in range(NUM_DRONES):
-        asyncio.create_task(_follow_loop(drones[i], i))
-    print("[SWARM] Follow loops started — poll GCS /api/track_state @ 1 Hz", flush=True)
-
-    # D2D nodes — one per drone
+    # D2D nodes — must start before follow loops (follow loops take d2d ref)
     d2d_nodes = [D2DNode(i, drone_states[i]) for i in range(NUM_DRONES)]
+    # BUG-3 fix: register REASSIGN callbacks so hardware deployments (separate processes)
+    # deliver redistributed WPs via D2D receipt, not shared-memory write.
+    for i in range(NUM_DRONES):
+        def _make_cb(idx):
+            def _cb(wps):
+                with EXTRA_WPS_LOCK:
+                    EXTRA_WPS[idx].extend([(float(w[0]), float(w[1])) for w in wps])
+                print(f"[D2D-RECV] DRONE-{idx}: +{len(wps)} WPs via REASSIGN callback", flush=True)
+            return _cb
+        d2d_nodes[i].on_reassign(_make_cb(i))
     for i in range(NUM_DRONES):
         asyncio.create_task(d2d_nodes[i].run())
     print("[SWARM] D2D multicast nodes running → 224.1.1.1:14900", flush=True)
+
+    # Follow loops — poll GCS track_state, execute goto_location when assigned
+    for i in range(NUM_DRONES):
+        asyncio.create_task(_follow_loop(drones[i], i, d2d_nodes[i]))
+    print("[SWARM] Follow loops started — poll GCS /api/track_state @ 1 Hz", flush=True)
+
+    # AI command executor — poll GCS /api/pending_commands, execute rtl/loiter/abort
+    asyncio.create_task(_ai_cmd_loop(drones))
+    print("[SWARM] AI command executor started — poll GCS /api/pending_commands @ 2 Hz", flush=True)
 
     # Wait for all active drones at altitude
     print("[SWARM] Waiting for drones to reach cruise altitudes ...", flush=True)

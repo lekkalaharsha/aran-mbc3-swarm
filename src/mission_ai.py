@@ -31,9 +31,7 @@ import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mission_config import SECONDARY_TARGETS, NO_FLY_ZONES, ALTITUDE, SPEED
-
-CRUISE_ALT = 100.0   # swarm_mission.py base altitude (m AGL)
-ALT_SEP    = 10.0    # per-drone stagger (m)
+from mission_config_swarm import BASE_ALT as CRUISE_ALT, ALT_SEP
 
 OLLAMA_URL    = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 MODEL         = os.environ.get("MISSION_AI_MODEL", "phi3:mini")

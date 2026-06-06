@@ -25,7 +25,9 @@ USAGE:
   Single-drone launch.sh still uses telemetry_web.py.
 """
 
+import hmac as _hmac_web
 import math
+import os
 import threading
 import time
 from collections import deque
@@ -39,6 +41,7 @@ from mission_config import (
     TARGET_LAT, TARGET_LON,
     SECONDARY_TARGETS, NO_FLY_ZONES,
 )
+from mission_ai import MissionAI
 from mission_config_swarm import (
     SWARM_NUM_DRONES,
     DRONE_SECTORS,
@@ -48,6 +51,22 @@ from mission_config_swarm import (
 
 app    = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+_ai = MissionAI()
+_ai_cmd_queue: deque = deque(maxlen=10)   # validated deltas for swarm_mission to consume
+_ai_cmd_log:   deque = deque(maxlen=20)   # history for dashboard display
+
+GCS_TOKEN = os.environ.get("GCS_TOKEN", "")
+
+
+def _check_auth():
+    """Return 403 response if GCS_TOKEN is set and request header doesn't match."""
+    if not GCS_TOKEN:
+        return None
+    token = request.headers.get("X-GCS-Token", "")
+    if not _hmac_web.compare_digest(token.encode(), GCS_TOKEN.encode()):
+        return jsonify({"ok": False, "error": "Unauthorized — set X-GCS-Token header"}), 403
+    return None
 
 # ── Drone colors (one per drone index) ───────────────────────────────────────
 DRONE_COLORS = ["#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6"]
@@ -112,6 +131,9 @@ def _push_event(msg: str, kind: str = "info"):
 # ── HTTP endpoints ─────────────────────────────────────────────────────────────
 @app.route("/asp_update", methods=["POST"])
 def asp_update():
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
     global radar_scan_count, radar_tracks, radar_last_update, _known_track_ids
     payload = request.get_json(silent=True) or {}
 
@@ -191,6 +213,9 @@ def asp_update():
 @app.route("/event_push", methods=["POST"])
 def event_push():
     """Receive redistribution / failure events from swarm_mission.py."""
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
     payload = request.get_json(silent=True) or {}
     msg  = payload.get("msg",  "event")
     kind = payload.get("kind", "info")
@@ -254,6 +279,45 @@ def api_track_state():
         "lon":       _track_cmd.get("lon",   0.0),
         "stale":     t is None,
     })
+
+
+@app.route("/api/ai_command", methods=["POST"])
+def api_ai_command():
+    """Operator submits natural language command → MissionAI parses → queued for swarm_mission."""
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    data = request.get_json(silent=True) or {}
+    cmd  = data.get("command", "").strip()
+    if not cmd:
+        return jsonify({"ok": False, "error": "empty command"}), 400
+    with _state_lock:
+        drones_snap = {i: dict(swarm_state[i]) for i in range(SWARM_NUM_DRONES)}
+    delta  = _ai.parse_command(cmd, swarm_state=drones_snap)
+    ok, reason = _ai.validate(delta)
+    ts = datetime.now().strftime("%H:%M:%S")
+    _ai_cmd_log.appendleft({"ts": ts, "cmd": cmd, "delta": delta, "ok": ok, "reason": reason})
+    if ok:
+        _ai_cmd_queue.append(delta)
+        _push_event(
+            f"[AI/{delta.get('source','?')}] {delta.get('action')} → "
+            f"D{delta.get('target_drones',[])} ({int(delta.get('confidence',0)*100)}%)", "ai"
+        )
+    else:
+        _push_event(f"[AI REJECT] {reason}", "warn")
+    return jsonify({"ok": ok, "delta": delta, "reason": reason})
+
+
+@app.route("/api/pending_commands", methods=["GET"])
+def api_pending_commands():
+    """swarm_mission.py polls this every 2 s to execute AI-generated deltas."""
+    auth_err = _check_auth()
+    if auth_err:
+        return auth_err
+    cmds = []
+    while _ai_cmd_queue:
+        cmds.append(_ai_cmd_queue.popleft())
+    return jsonify({"commands": cmds})
 
 
 @app.route("/api/state")
@@ -457,6 +521,25 @@ svg#polar{display:block}
 .ev_msg.info{color:var(--accent2)}
 .ev_msg.contact{color:#ffcc00;font-weight:bold}
 .ev_msg.contact_lost{color:#7a5a00}
+.ev_msg.ai{color:#b07aff}
+.ev_msg.warn{color:var(--warn)}
+
+/* AI command panel */
+#ai_panel{padding:5px 10px 6px;flex-shrink:0;background:var(--panel);
+  border:1px solid var(--border);border-top:1px solid rgba(176,122,255,.4);
+  border-radius:0 0 4px 4px}
+.ai_header{font-size:10px;color:#b07aff;letter-spacing:2px;margin-bottom:4px}
+#ai_form{display:flex;gap:6px;margin-bottom:4px}
+#ai_input{flex:1;background:var(--card);border:1px solid var(--border);
+  color:var(--text);font-family:var(--mono);font-size:11px;
+  padding:4px 8px;border-radius:2px;outline:none}
+#ai_input:focus{border-color:#b07aff}
+#ai_submit{background:rgba(176,122,255,.12);border:1px solid #b07aff;
+  color:#b07aff;font-family:var(--mono);font-size:10px;
+  padding:4px 12px;cursor:pointer;border-radius:2px;letter-spacing:1px}
+#ai_submit:hover{background:rgba(176,122,255,.28)}
+#ai_submit:disabled{opacity:.4;cursor:default}
+#ai_response{font-size:10px;min-height:16px;color:var(--textdim)}
 
 /* Contact acquired banner */
 #contact_banner{
@@ -514,10 +597,19 @@ svg#polar{display:block}
   </div>
 </div>
 
-<div style="padding:0 10px 6px;flex-shrink:0">
+<div style="padding:0 10px 0;flex-shrink:0">
   <div id="event_wrap">
     <div id="event_log"></div>
   </div>
+</div>
+
+<div id="ai_panel">
+  <div class="ai_header">&#11042; LLM TACTICAL ENGINE &nbsp;|&nbsp; {{ ai_model }}</div>
+  <div id="ai_form">
+    <input type="text" id="ai_input" placeholder="OPERATOR COMMAND — e.g. RTL DRONE-2, orbit ALPHA-2, abort mission..." autocomplete="off"/>
+    <button id="ai_submit" onclick="submitAICmd()">SEND</button>
+  </div>
+  <div id="ai_response">READY</div>
 </div>
 
 <script>
@@ -803,31 +895,52 @@ function stopTracking() {
 function updateTargetList(tracks) {
   const el  = document.getElementById('radar_tgt_list');
   const rel = tracks.filter(t=>t).slice(0,10);
+  el.textContent = '';
   if (!rel.length) {
-    el.innerHTML='<div style="color:#4a7a9b;font-size:10px;padding:4px">No targets</div>';
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:#4a7a9b;font-size:10px;padding:4px';
+    empty.textContent = 'No targets';
+    el.append(empty);
     return;
   }
-  el.innerHTML = rel.map(t => {
-    const tid  = t.id||'?';
+  for (const t of rel) {
+    const tid        = t.id || '?';
     const isTracking = tid === _trackingId;
-    return `<div class="tgt_row">
-      <span class="tgt_id">${tid}</span>
-      <span>R=${t.range_m||0}m</span>
-      <span>Az=${(t.bearing_deg||0).toFixed(0)}°</span>
-      <button class="tgt_track_btn${isTracking?' tracking':''}"
-        onclick="trackTarget('${tid}')">${isTracking?'▶ ON':'TRACK'}</button>
-    </div>`;
-  }).join('');
+    const row = document.createElement('div');
+    row.className = 'tgt_row';
+    const idSpan = document.createElement('span');
+    idSpan.className = 'tgt_id';
+    idSpan.textContent = tid;
+    const rSpan = document.createElement('span');
+    rSpan.textContent = `R=${t.range_m||0}m`;
+    const azSpan = document.createElement('span');
+    azSpan.textContent = `Az=${(t.bearing_deg||0).toFixed(0)}°`;
+    const btn = document.createElement('button');
+    btn.className = `tgt_track_btn${isTracking?' tracking':''}`;
+    btn.textContent = isTracking ? '▶ ON' : 'TRACK';
+    btn.addEventListener('click', () => trackTarget(tid));
+    row.append(idSpan, rSpan, azSpan, btn);
+    el.append(row);
+  }
 }
 
 // ── Event log ────────────────────────────────────────────────────────────────
 function updateEventLog(events) {
   const el = document.getElementById('event_log');
-  el.innerHTML = events.map(e => {
+  el.textContent = '';
+  for (const e of events) {
     const kindClass = e.kind==='redistrib'?'redistrib':e.kind==='failure'?'failure':e.kind;
-    return `<div class="ev_row"><span class="ev_ts">${e.ts}</span>
-      <span class="ev_msg ${kindClass}">${e.msg}</span></div>`;
-  }).join('');
+    const row = document.createElement('div');
+    row.className = 'ev_row';
+    const ts = document.createElement('span');
+    ts.className = 'ev_ts';
+    ts.textContent = e.ts;
+    const msg = document.createElement('span');
+    msg.className = `ev_msg ${kindClass}`;
+    msg.textContent = e.msg;
+    row.append(ts, msg);
+    el.append(row);
+  }
 }
 
 // ── Contact banner ────────────────────────────────────────────────────────────
@@ -865,6 +978,53 @@ socket.on('swarm_update', d => {
   updateTargetList(d.tracks || []);
   updateEventLog(d.events || []);
 });
+
+// ── AI command panel ─────────────────────────────────────────────────────────
+async function submitAICmd() {
+  const inp  = document.getElementById('ai_input');
+  const resp = document.getElementById('ai_response');
+  const btn  = document.getElementById('ai_submit');
+  const cmd  = inp.value.trim();
+  if (!cmd) return;
+  btn.disabled = true;
+  resp.textContent = 'PROCESSING...';
+  resp.style.color = 'var(--warn)';
+  try {
+    const r = await fetch('/api/ai_command', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({command: cmd}),
+    });
+    const d = await r.json();
+    resp.textContent = '';
+    resp.style.color = '';
+    if (d.ok) {
+      const delta = d.delta;
+      const src   = delta.source || '?';
+      const conf  = ((delta.confidence || 0) * 100).toFixed(0);
+      const tgts  = (delta.target_drones || []).map(i => `D${i}`).join(',') || 'ALL';
+      const sp1 = document.createElement('span'); sp1.style.color='var(--accent2)'; sp1.textContent='▶ '+String(delta.action||'');
+      const sp2 = document.createElement('span'); sp2.style.color='var(--text)';    sp2.textContent=' '+tgts;
+      const sp3 = document.createElement('span'); sp3.style.color='var(--textdim)'; sp3.textContent=' '+String(delta.reasoning||'');
+      const sp4 = document.createElement('span'); sp4.style.color='var(--dim)';     sp4.textContent=' ['+src+' '+conf+'%]';
+      resp.append(sp1, sp2, sp3, sp4);
+    } else {
+      const sp = document.createElement('span'); sp.style.color='var(--danger)'; sp.textContent='✗ REJECTED: '+String(d.reason||'');
+      resp.append(sp);
+    }
+    inp.value = '';
+  } catch(e) {
+    resp.textContent = '';
+    const sp = document.createElement('span'); sp.style.color='var(--danger)'; sp.textContent='✗ GCS ERROR';
+    resp.append(sp);
+  }
+  btn.disabled = false;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('ai_input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAICmd();
+  });
+});
 </script>
 </body>
 </html>"""
@@ -874,11 +1034,13 @@ socket.on('swarm_update', d => {
 def index():
     import json
     geo = _build_map_geometry()
+    from mission_ai import MODEL as _ai_model
     return render_template_string(
         _HTML,
         colors=DRONE_COLORS,
         geo=geo,
         n_drones=SWARM_NUM_DRONES,
+        ai_model=_ai_model,
     )
 
 

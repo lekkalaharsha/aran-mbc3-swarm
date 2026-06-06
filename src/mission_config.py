@@ -35,16 +35,16 @@ Usage:
 # ══════════════════════════════════════════════════════════
 #  HOME / LAUNCH POSITION
 # ══════════════════════════════════════════════════════════
-HOME_LAT    = 47.3977
-HOME_LON    = 8.5456
+HOME_LAT    = 28.7061   # Hindon AFB area, Ghaziabad, UP (IAF Station)
+HOME_LON    = 77.3878
 
 # ══════════════════════════════════════════════════════════
 #  CRUISE PARAMETERS
 # ══════════════════════════════════════════════════════════
-import os as _os_alt
+import os
 # MBC3_MODE=1 → 500m AGL (MBC-3 requirement 2.10: ≥500m AGL)
 # Default (0) → 30m for ISR/racing demo
-_MBC3_MODE = _os_alt.environ.get("MBC3_MODE", "0") not in ("0", "false", "False")
+_MBC3_MODE = os.environ.get("MBC3_MODE", "0") not in ("0", "false", "False")
 ALTITUDE = 500.0 if _MBC3_MODE else 30.0   # cruise altitude (m AGL)
 SPEED    = 20.0  if _MBC3_MODE else 40.0   # m/s — 20 m/s MBC3 (IAF req 2.5: 10-40 m/s), 40 m/s ISR racing
 
@@ -62,8 +62,8 @@ GRID_ALTITUDE_STEPS = 1      # 1 = single pass; 2 = dual-altitude stereo
 # ══════════════════════════════════════════════════════════
 #  PRIMARY TARGET & ORBIT
 # ══════════════════════════════════════════════════════════
-TARGET_LAT     = 47.3985
-TARGET_LON     = 8.5470
+TARGET_LAT     = 28.7069
+TARGET_LON     = 77.3892
 ORBIT_RADIUS   = 50.0    # metres — increased from 30m: at 35m/s, 30m radius needs
                          # 40.8 m/s² centripetal force which exceeds PX4's
                          # MPC_ACC_HOR_MAX (~5 m/s²), causing the drone to
@@ -83,30 +83,30 @@ ORBIT_DURATION = 15      # seconds
 SECONDARY_TARGETS = [
     {
         "name":             "ALPHA-2 Industrial Compound",
-        "lat":              47.3991,
-        "lon":              8.5482,
-        "orbit_radius_m":   50.0,   # increased: 30m @ 15m/s needs 7.5 m/s² (too high)
-        "orbit_speed_ms":   12.0,   # reduced: 50m @ 12m/s = 2.9 m/s² centripetal
+        "lat":              28.7075,
+        "lon":              77.3904,
+        "orbit_radius_m":   50.0,
+        "orbit_speed_ms":   12.0,
         "orbit_altitude_m": 70.0,
         "orbit_duration_s": 20,
         "priority":         1,
     },
     {
         "name":             "BRAVO-1 River Crossing",
-        "lat":              47.3968,
-        "lon":              8.5448,
-        "orbit_radius_m":   80.0,   # was 60m — kept large, speed reduced
-        "orbit_speed_ms":   15.0,   # reduced from 25m/s: 80m @ 15m/s = 2.8 m/s²
+        "lat":              28.7052,
+        "lon":              77.3870,
+        "orbit_radius_m":   80.0,
+        "orbit_speed_ms":   15.0,
         "orbit_altitude_m": 100.0,
         "orbit_duration_s": 15,
         "priority":         2,
     },
     {
         "name":             "CHARLIE-3 Treeline Perimeter",
-        "lat":              47.3979,
-        "lon":              8.5500,
-        "orbit_radius_m":   60.0,   # was 50m — increased slightly for physics
-        "orbit_speed_ms":   12.0,   # reduced from 20m/s: 60m @ 12m/s = 2.4 m/s²
+        "lat":              28.7063,
+        "lon":              77.3922,
+        "orbit_radius_m":   60.0,
+        "orbit_speed_ms":   12.0,
         "orbit_altitude_m": 80.0,
         "orbit_duration_s": 25,
         "priority":         3,
@@ -122,22 +122,22 @@ SECONDARY_TARGETS = [
 NO_FLY_ZONES = [
     {
         "name":      "NFZ-1 Restricted Airspace Alpha",
-        "lat":       47.3975,
-        "lon":       8.5465,
+        "lat":       28.7059,
+        "lon":       77.3887,
         "radius_m":  40.0,
         "reason":    "Civilian infrastructure — 500m GND restriction",
     },
     {
         "name":      "NFZ-2 Airport Approach Sector",
-        "lat":       47.3993,
-        "lon":       8.5440,
+        "lat":       28.7077,
+        "lon":       77.3862,
         "radius_m":  80.0,
         "reason":    "IFR approach path — hard exclusion",
     },
     {
         "name":      "NFZ-3 Military Comms Tower",
-        "lat":       47.3962,
-        "lon":       8.5490,
+        "lat":       28.7046,
+        "lon":       77.3912,
         "radius_m":  25.0,
         "reason":    "Electronic warfare zone — no overfly",
     },
@@ -152,17 +152,17 @@ NO_FLY_ZONES = [
 LOITER_WAYPOINTS = [
     {
         "name":           "LOITER-A Suspect Vehicle",
-        "lat":            47.3982,
-        "lon":            8.5458,
+        "lat":            28.7066,
+        "lon":            77.3880,
         "altitude_m":     50.0,
         "loiter_time_s":  8.0,
-        "after_wp_index": 3,   # inserted after survey WP 3
+        "after_wp_index": 3,
         "gimbal_pitch":   -45.0,
     },
     {
         "name":           "LOITER-B Building Entrance",
-        "lat":            47.3980,
-        "lon":            8.5466,
+        "lat":            28.7064,
+        "lon":            77.3888,
         "altitude_m":     40.0,
         "loiter_time_s":  10.0,
         "after_wp_index": 6,
@@ -174,16 +174,10 @@ LOITER_WAYPOINTS = [
 # ══════════════════════════════════════════════════════════
 #  SURVEY GRID GENERATOR  (single definition, shared by both files)
 # ══════════════════════════════════════════════════════════
-def generate_survey_grid(altitude_offset: float = 0.0):
+def generate_survey_grid():
     """
     Return list of (lat, lon) survey waypoints for the boustrophedon grid.
     Odd rows fly left-to-right, even rows fly right-to-left.
-
-    altitude_offset: added to ALTITUDE for multi-pass stereo sweeps.
-    Pass altitude_offset=ALTITUDE_STEP to get the second (higher) sweep.
-    The altitude itself is not embedded in the tuples — the caller uses it
-    when building MissionItem objects — but it is available via the returned
-    metadata dict for display on the GCS map.
     """
     waypoints = []
     for i in range(ROWS):
@@ -215,7 +209,7 @@ def generate_all_sweeps():
     sweeps = []
     for step in range(GRID_ALTITUDE_STEPS):
         alt_m = ALTITUDE + step * ALTITUDE_STEP
-        sweeps.append((alt_m, generate_survey_grid(altitude_offset=step * ALTITUDE_STEP)))
+        sweeps.append((alt_m, generate_survey_grid()))
     return sweeps
 
 
@@ -232,9 +226,8 @@ MAP_SLICE_BAND_M = 5.0          # ± metres around drone altitude for 2D slices
 #  Used by mpc_controller.py and isr_lidar_mpc.py when
 #  RACING_MODE = True.  All values tuned for 30–60 m/s.
 # ══════════════════════════════════════════════════════════
-import os as _os_cfg
 # BUG-C FIX: was hardcoded True — launch.sh env injection had no effect.
-RACING_MODE             = _os_cfg.environ.get("RACING_MODE", "1") not in ("0", "false", "False")
+RACING_MODE             = os.environ.get("RACING_MODE", "1") not in ("0", "false", "False")
 
 # Avoidance distances scale up at racing speeds — drone needs more room to stop
 RACING_LIDAR_WARN_DIST  = 40.0   # m  (was 25 m at ISR speed)

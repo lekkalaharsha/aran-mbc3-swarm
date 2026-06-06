@@ -9,7 +9,6 @@ import threading
 import time
 import requests
 from mavsdk import System
-import os as _os
 from mavsdk.mission import MissionItem, MissionPlan
 from mavsdk.action import OrbitYawBehavior
 from mavsdk.telemetry import LandedState
@@ -59,12 +58,12 @@ except ImportError:
 # Panel yaw offsets in body frame (CCW from forward):
 #   A=0°, B=60°, C=120°, D=180°, E=240°, F=300°
 _RADAR_TOPICS = {
-    "A": _os.environ.get("ISR_RADAR_TOPIC_A", "/radar_A/scan"),
-    "B": _os.environ.get("ISR_RADAR_TOPIC_B", "/radar_B/scan"),
-    "C": _os.environ.get("ISR_RADAR_TOPIC_C", "/radar_C/scan"),
-    "D": _os.environ.get("ISR_RADAR_TOPIC_D", "/radar_D/scan"),
-    "E": _os.environ.get("ISR_RADAR_TOPIC_E", "/radar_E/scan"),
-    "F": _os.environ.get("ISR_RADAR_TOPIC_F", "/radar_F/scan"),
+    "A": os.environ.get("ISR_RADAR_TOPIC_A", "/radar_A/scan"),
+    "B": os.environ.get("ISR_RADAR_TOPIC_B", "/radar_B/scan"),
+    "C": os.environ.get("ISR_RADAR_TOPIC_C", "/radar_C/scan"),
+    "D": os.environ.get("ISR_RADAR_TOPIC_D", "/radar_D/scan"),
+    "E": os.environ.get("ISR_RADAR_TOPIC_E", "/radar_E/scan"),
+    "F": os.environ.get("ISR_RADAR_TOPIC_F", "/radar_F/scan"),
 }
 _PANEL_YAWS_DEG = {"A": 0.0, "B": 60.0, "C": 120.0, "D": 180.0, "E": 240.0, "F": 300.0}
 
@@ -562,7 +561,7 @@ async def lidar_sim_reader():
     Also checks NO_FLY_ZONES each tick and synthesises a 360deg wall of range=2m
     around the drone if it is inside a no-fly zone, forcing immediate avoidance.
     """
-    SIM_SCENARIO = _os.environ.get("ISR_SIM_SCENARIO") or None
+    SIM_SCENARIO = os.environ.get("ISR_SIM_SCENARIO") or None
 
     log("LiDAR 360 [SIM]: running in SIMULATED mode (no gz-transport)")
 
@@ -750,6 +749,29 @@ async def telemetry_tracker(drone):
 # ══════════════════════════════════════════════════════════
 #  AVOIDANCE LOOP  (v9 — bearing fix + left/right + timeout)
 # ══════════════════════════════════════════════════════════
+async def _gps_watchdog(drone) -> None:
+    """Monitor GPS health mid-flight. On denial: HOLD (EKF baro+IMU fallback).
+    On restore: log — mission controller resumes from current state."""
+    armed_once = False
+    async for health in drone.telemetry.health():
+        if drone_state.get("armed"):
+            armed_once = True
+        if not armed_once:
+            continue
+        gps_ok = health.is_global_position_ok
+        phase  = mission_state.get("mission_phase", "")
+        if not gps_ok and phase not in {"INIT", "RTL", "LANDING", "LANDED", "GPS-DENIED"}:
+            log_warn("GPS DENIED — HOLD (EKF baro+IMU fallback active)")
+            mission_state["mission_phase"] = "GPS-DENIED"
+            try:
+                await drone.action.hold()
+            except Exception as e:
+                log_warn(f"hold() on GPS deny failed: {e}")
+        elif gps_ok and phase == "GPS-DENIED":
+            log("GPS RESTORED — mission controller will resume from current state")
+            mission_state["mission_phase"] = "GPS-RESTORE"
+
+
 async def avoidance_loop(drone):
     avoid_mpc = AvoidanceMPC(safe_distance=LIDAR_AVOID_DIST + 2.0)
     interval  = 1.0 / LIDAR_POLL_HZ
@@ -803,7 +825,10 @@ async def avoidance_loop(drone):
                 debounce = 0
                 log("Obstacle cleared (hysteresis) — resuming mission")
                 try:
-                    await drone.mission.start_mission()
+                    phase = mission_state.get("mission_phase", "")
+                    if phase not in {"FOLLOW", "GPS-DENIED", "RTL", "LANDING",
+                                     "LOITER", "SEC-1", "SEC-2", "SEC-3"}:
+                        await drone.mission.start_mission()
                 except Exception as e:
                     log_warn(f"Mission resume error: {e}")
             elif dist > LIDAR_WARN_DIST:
@@ -844,11 +869,12 @@ async def avoidance_loop(drone):
                 sectors, drone_state["heading"], bearing
             )
 
-            lateral_offset = avoid_mpc.compute_correction(
-                dist,
-                drone_heading_deg = drone_state["heading"],
-                vn_ms             = drone_state["vn_ms"],
-                ve_ms             = drone_state["ve_ms"],
+            _hdg = drone_state["heading"]
+            _vn  = drone_state["vn_ms"]
+            _ve  = drone_state["ve_ms"]
+            lateral_offset = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: avoid_mpc.compute_correction(dist, _hdg, _vn, _ve),
             )
 
             det_lat, det_lon = compute_avoidance_waypoint(
@@ -1246,10 +1272,11 @@ async def run():
     gcs_thread.start()
     log("GCS LiDAR push: started -> http://localhost:5000")
 
-    lidar_task     = asyncio.create_task(lidar_reader())
-    telem_task     = asyncio.create_task(telemetry_tracker(drone))
-    avoidance_task = asyncio.create_task(avoidance_loop(drone))
-    log("LiDAR reader / Telemetry tracker / Avoidance loop: started")
+    lidar_task      = asyncio.create_task(lidar_reader())
+    telem_task      = asyncio.create_task(telemetry_tracker(drone))
+    avoidance_task  = asyncio.create_task(avoidance_loop(drone))
+    gps_watch_task  = asyncio.create_task(_gps_watchdog(drone))
+    log("LiDAR reader / Telemetry tracker / Avoidance loop / GPS watchdog: started")
 
     # ── PHASE 2: Execute survey ───────────────────────────
     banner("PHASE 2 — EXECUTING ISR SURVEY (LiDAR ACTIVE)")
@@ -1680,7 +1707,8 @@ async def run():
     lidar_task.cancel()
     telem_task.cancel()
     avoidance_task.cancel()
-    await asyncio.gather(lidar_task, telem_task, avoidance_task,
+    gps_watch_task.cancel()
+    await asyncio.gather(lidar_task, telem_task, avoidance_task, gps_watch_task,
                          return_exceptions=True)
 
     total_targets = 1 + len(SECONDARY_TARGETS)
