@@ -109,6 +109,13 @@ PANEL_DECAY_S = 3.0
 event_log: deque = deque(maxlen=200)
 _state_lock = asyncio.Lock()
 
+_leader_state = {
+    "leader_id":      "DRONE-0",
+    "leader_model":   "mbc3_radar_drone_0",
+    "since":          0.0,
+    "election_count": 0,
+}
+
 start_time = datetime.now()
 
 
@@ -385,6 +392,32 @@ async def api_state():
         "scan_count": radar_scan_count,
         "uptime_s":   round((datetime.now() - start_time).total_seconds()),
     }
+
+
+@app.get("/api/swarm_state")
+async def api_swarm_state():
+    """leader_election.py polls this to get drone liveness."""
+    async with _state_lock:
+        drones = [dict(swarm_state[i]) for i in range(SWARM_NUM_DRONES)]
+    return {"swarm_drones": drones, "timestamp": time.time()}
+
+
+@app.get("/api/leader")
+async def api_leader_get():
+    return _leader_state
+
+
+@app.post("/api/leader")
+async def api_leader_post(request: Request):
+    payload = await _get_body(request)
+    if "leader_id" in payload:
+        _leader_state.update(payload)
+        await sio.emit("leader", _leader_state)
+        _push_event(
+            f"LEADER → {payload['leader_id']} "
+            f"(election #{payload.get('election_count', 0)})", "phase"
+        )
+    return {"ok": True}
 
 
 # ── Mission geometry for map ──────────────────────────────────────────────────
