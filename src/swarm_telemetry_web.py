@@ -85,9 +85,11 @@ swarm_state = {
         "connected":   False,
         "armed":       False,
         "phase":       "STANDBY",
-        "wp_current":  0,
-        "wp_total":    0,
-        "color":       DRONE_COLORS[i],
+        "wp_current":    0,
+        "wp_total":      0,
+        "battery_pct":   0.0,
+        "last_update_ts": 0.0,
+        "color":         DRONE_COLORS[i],
     }
     for i in range(SWARM_NUM_DRONES)
 }
@@ -107,6 +109,7 @@ panel_state = {
 PANEL_DECAY_S = 3.0
 
 event_log: deque = deque(maxlen=200)
+_event_log_path: str = ""
 _state_lock = asyncio.Lock()
 
 _leader_state = {
@@ -148,7 +151,14 @@ def _bearing_to_panel(bearing_deg: float) -> str:
 
 def _push_event(msg: str, kind: str = "info"):
     ts = datetime.now().strftime("%H:%M:%S")
-    event_log.appendleft({"ts": ts, "msg": msg, "kind": kind})
+    entry = {"ts": ts, "msg": msg, "kind": kind}
+    event_log.appendleft(entry)
+    if _event_log_path:
+        try:
+            with open(_event_log_path, "a") as _f:
+                _f.write(json.dumps(entry) + "\n")
+        except Exception:
+            pass
 
 
 # ── Socket.IO push loop ───────────────────────────────────────────────────────
@@ -193,6 +203,12 @@ async def _emit_loop():
 # ── App lifecycle ─────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _event_log_path
+    log_dir = os.path.join(os.path.dirname(_base), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    _event_log_path = os.path.join(
+        log_dir, f"gcs_events_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+    )
     task = asyncio.create_task(_emit_loop())
     yield
     task.cancel()
@@ -203,7 +219,10 @@ async def lifespan(app: FastAPI):
 
 
 # ── FastAPI + Socket.IO setup ─────────────────────────────────────────────────
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+_cors_origins = os.environ.get(
+    "GCS_CORS_ORIGINS", "http://localhost:5000,http://127.0.0.1:5000"
+).split(",")
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=_cors_origins)
 
 app = FastAPI(lifespan=lifespan)
 
@@ -238,8 +257,10 @@ async def asp_update(request: Request, _=Depends(check_auth)):
                         "connected":   d.get("connected",   False),
                         "armed":       d.get("armed",       False),
                         "phase":       d.get("phase",       d.get("flight_mode", "---")),
-                        "wp_current":  d.get("wp_current",  0),
-                        "wp_total":    d.get("wp_total",    0),
+                        "wp_current":    d.get("wp_current",    0),
+                        "wp_total":      d.get("wp_total",      0),
+                        "battery_pct":   round(d.get("battery_pct", 0.0), 1),
+                        "last_update_ts": time.time(),
                     })
                     old_phase = swarm_state[idx].get("_last_phase", "")
                     new_phase = swarm_state[idx]["phase"]
@@ -300,7 +321,7 @@ async def lidar_update():
 
 
 @app.post("/api/track")
-async def api_track(request: Request):
+async def api_track(request: Request, _=Depends(check_auth)):
     global _track_cmd
     data = await _get_body(request)
     if data.get("stop"):
@@ -408,7 +429,7 @@ async def api_leader_get():
 
 
 @app.post("/api/leader")
-async def api_leader_post(request: Request):
+async def api_leader_post(request: Request, _=Depends(check_auth)):
     payload = await _get_body(request)
     if "leader_id" in payload:
         _leader_state.update(payload)

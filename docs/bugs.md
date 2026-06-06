@@ -594,6 +594,32 @@ real current position.
 
 ---
 
-## Open bug count: 0 | In-branch (not merged): 0 | Fixed: 37 | Total: 37
+---
+
+### B15-9 | HIGH | `/api/track` POST and `/api/leader` POST missing auth dependency
+**File:** `src/swarm_telemetry_web.py` — `api_track()` line ~302, `api_leader_post()` line ~410
+**Status:** ✅ FIXED
+
+**Problem:** Both endpoints lacked `Depends(check_auth)`. Any process on localhost (or LAN if `GCS_HOST` changed from 127.0.0.1) could redirect a drone's tracking target or forge leader election results without the GCS_TOKEN. All other POST endpoints correctly used `check_auth`.
+
+**Root cause:** Endpoints added after initial auth wiring — dependency not carried forward.
+
+**Fix:** Added `_=Depends(check_auth)` parameter to both endpoints. Fail-open behaviour preserved (no-op if `GCS_TOKEN` not set) for SITL compatibility.
+
+---
+
+### B15-10 | HIGH | Socket.IO CORS `*` leaked full swarm telemetry to any browser origin
+**File:** `src/swarm_telemetry_web.py` — `socketio.AsyncServer(cors_allowed_origins="*")`
+**Status:** ✅ FIXED
+
+**Problem:** Any browser tab on the same network connecting to port 5000 received all swarm telemetry: drone positions, phases, radar tracks, leader state. Competition LAN or field network exposure risk.
+
+**Root cause:** Default permissive CORS carried over from Flask/SocketIO migration without tightening.
+
+**Fix:** `cors_allowed_origins` restricted to `["http://localhost:5000", "http://127.0.0.1:5000"]` by default. Overridable via `GCS_CORS_ORIGINS` env var (comma-separated) for multi-operator setups.
+
+---
+
+## Open bug count: 0 | In-branch (not merged): 0 | Fixed: 39 | Total: 39
 
 **Next action:** Phase I presentations — New Delhi, 13–24 July 2026.

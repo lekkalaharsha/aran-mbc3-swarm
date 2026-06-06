@@ -96,7 +96,7 @@ svg#polar{display:block}
 
 /* Event log */
 #event_wrap{grid-column:1/-1;background:var(--panel);border:1px solid var(--border);border-radius:4px;
-  padding:5px 10px;max-height:80px;overflow-y:auto}
+  padding:5px 10px;max-height:160px;overflow-y:auto}
 #event_wrap::-webkit-scrollbar{width:3px}
 #event_wrap::-webkit-scrollbar-thumb{background:var(--dim)}
 #event_log{display:flex;flex-direction:column;gap:1px}
@@ -116,7 +116,32 @@ svg#polar{display:block}
   border:1px solid var(--border);border-top:1px solid rgba(176,122,255,.4);
   border-radius:0 0 4px 4px}
 .ai_header{font-size:10px;color:#b07aff;letter-spacing:2px;margin-bottom:4px}
+#ai_confirm{display:none;align-items:center;gap:8px;margin-bottom:4px;
+  background:rgba(255,61,61,.1);border:1px solid var(--danger);border-radius:3px;padding:4px 8px}
+#ai_confirm_text{color:var(--warn);font-size:10px;flex:1}
+.ai_confirm_btn{font-family:var(--mono);font-size:10px;padding:3px 10px;cursor:pointer;border-radius:2px;letter-spacing:1px}
+#ai_confirm_yes{background:rgba(255,61,61,.2);border:1px solid var(--danger);color:var(--danger)}
+#ai_confirm_yes:hover{background:rgba(255,61,61,.4)}
+#ai_confirm_no{background:rgba(30,64,96,.4);border:1px solid var(--dim);color:var(--textdim)}
+#ai_confirm_no:hover{border-color:var(--accent);color:var(--accent)}
 #ai_form{display:flex;gap:6px;margin-bottom:4px}
+
+/* Abort button */
+#abort_btn{background:rgba(255,61,61,.15);border:1px solid var(--danger);color:var(--danger);
+  font-family:var(--mono);font-size:10px;padding:3px 10px;cursor:pointer;border-radius:2px;
+  letter-spacing:1px;margin-left:auto;flex-shrink:0}
+#abort_btn:hover{background:rgba(255,61,61,.35)}
+
+/* Leader badge */
+#leader_badge{background:rgba(0,200,255,.08);border:1px solid var(--border);
+  border-radius:3px;padding:2px 8px;font-size:10px;color:var(--accent);letter-spacing:1px}
+
+/* Drone card extras */
+.dc_stale{font-size:9px;margin-left:auto;color:var(--textdim)}
+.dc_stale.warn{color:var(--warn);animation:pulse 1.5s infinite}
+.dc_batt{font-size:10px}
+.dc_batt.low{color:var(--danger)}
+.dc_batt.med{color:var(--warn)}
 #ai_input{flex:1;background:var(--card);border:1px solid var(--border);
   color:var(--text);font-family:var(--mono);font-size:11px;
   padding:4px 8px;border-radius:2px;outline:none}
@@ -153,7 +178,9 @@ svg#polar{display:block}
   <h1>&#11041; Aran Technologies &nbsp;|&nbsp; MBC-3 SWARM COMMAND CENTER</h1>
   <span id="uptime" style="color:var(--textdim);font-size:11px">00:00:00</span>
   <span id="scan_badge">RADAR 0 scans</span>
+  <span id="leader_badge">LEADER: --</span>
   <span id="conn_status" style="color:var(--danger);font-size:11px">&#9679; CONNECTING</span>
+  <button id="abort_btn" onclick="abortMission()">&#9632; ABORT MISSION</button>
 </header>
 
 <div id="drone_grid"></div>
@@ -192,6 +219,11 @@ svg#polar{display:block}
 
 <div id="ai_panel">
   <div class="ai_header">&#11042; LLM TACTICAL ENGINE &nbsp;|&nbsp; {{ ai_model }}</div>
+  <div id="ai_confirm">
+    <span id="ai_confirm_text">CONFIRM?</span>
+    <button class="ai_confirm_btn" id="ai_confirm_yes" onclick="confirmAICmd()">EXECUTE</button>
+    <button class="ai_confirm_btn" id="ai_confirm_no" onclick="cancelAICmd()">CANCEL</button>
+  </div>
   <div id="ai_form">
     <input type="text" id="ai_input" placeholder="OPERATOR COMMAND — e.g. RTL DRONE-2, orbit ALPHA-2, abort mission..." autocomplete="off"/>
     <button id="ai_submit" onclick="submitAICmd()">SEND</button>
@@ -215,12 +247,17 @@ const droneMarkers = {};
 const droneTrails  = {};
 const trailPoints  = {};
 
-function makeDroneIcon(idx) {
+function makeDroneIcon(idx, heading) {
   const c = COLORS[idx];
+  const rot = heading || 0;
   return L.divIcon({
-    html: `<div style="background:${c};width:14px;height:14px;border-radius:50%;
-                border:2px solid white;box-shadow:0 0 6px ${c}"></div>`,
-    iconSize:[14,14], iconAnchor:[7,7], className:''
+    html: `<div style="width:20px;height:20px;transform:rotate(${rot}deg)">
+      <svg width="20" height="20" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="6" fill="${c}" stroke="white" stroke-width="1.5" opacity="0.9"/>
+        <polygon points="10,1 7,9 13,9" fill="white" opacity="0.9"/>
+      </svg>
+    </div>`,
+    iconSize:[20,20], iconAnchor:[10,10], className:''
   });
 }
 
@@ -228,7 +265,7 @@ function makeDroneIcon(idx) {
 GEO.home && [0,1,2,3,4].forEach(i => {
   const lat = GEO.home[0] + (i-2)*0.0001;
   const lon = GEO.home[1] + (i-2)*0.0001;
-  droneMarkers[i] = L.marker([lat,lon], {icon:makeDroneIcon(i)})
+  droneMarkers[i] = L.marker([lat,lon], {icon:makeDroneIcon(i, 0)})
     .bindTooltip(`DRONE-${i}`, {permanent:false}).addTo(map);
   droneTrails[i]  = L.polyline([], {color:COLORS[i], weight:2, opacity:0.7}).addTo(map);
   trailPoints[i]  = [];
@@ -285,10 +322,12 @@ function buildDroneGrid() {
         <span class="dc_id">DRONE-${i}</span>
         <span class="dc_phase" id="dc_phase_${i}">STANDBY</span>
         <span class="dot_conn bad" id="dc_conn_${i}"></span>
+        <span class="dc_stale" id="dc_stale_${i}">--</span>
       </div>
       <div class="dc_row"><span>ALT</span><span class="dc_val" id="dc_alt_${i}">0m</span></div>
       <div class="dc_row"><span>SPD</span><span class="dc_val" id="dc_spd_${i}">0m/s</span></div>
       <div class="dc_row"><span>WP</span><span class="dc_val" id="dc_wp_${i}">0/0</span></div>
+      <div class="dc_row"><span>BATT</span><span class="dc_val dc_batt" id="dc_batt_${i}">--</span></div>
       <div class="wp_bar"><div class="wp_fill" id="dc_wpbar_${i}" style="width:0%"></div></div>
     </div>`;
   }
@@ -296,9 +335,10 @@ function buildDroneGrid() {
 buildDroneGrid();
 
 function updateDroneCards(drones) {
+  const now = Date.now() / 1000;
   drones.forEach((d,i) => {
-    const card    = document.getElementById(`dc_${i}`);
-    const failed  = d.phase==='FAILED';
+    const card   = document.getElementById(`dc_${i}`);
+    const failed = d.phase==='FAILED';
     card.className = 'drone_card' + (d.armed?' armed':'') + (failed?' failed':'');
 
     document.getElementById(`dc_phase_${i}`).textContent = d.phase||'---';
@@ -308,16 +348,34 @@ function updateDroneCards(drones) {
     document.getElementById(`dc_wp_${i}`).textContent    = `${wc}/${wt}`;
     const pct = wt>0 ? Math.round(100*wc/wt) : 0;
     document.getElementById(`dc_wpbar_${i}`).style.width = pct+'%';
-    const conn = document.getElementById(`dc_conn_${i}`);
-    conn.className = 'dot_conn '+(d.connected?'ok':'bad');
+    document.getElementById(`dc_conn_${i}`).className    = 'dot_conn '+(d.connected?'ok':'bad');
 
-    // Update map marker
+    // Staleness
+    const staleEl = document.getElementById(`dc_stale_${i}`);
+    if (d.last_update_ts && d.last_update_ts > 0) {
+      const age = Math.floor(now - d.last_update_ts);
+      if (age < 3) {
+        staleEl.textContent = 'LIVE'; staleEl.className = 'dc_stale';
+      } else {
+        staleEl.textContent = `${age}s ago`; staleEl.className = 'dc_stale warn';
+      }
+    } else {
+      staleEl.textContent = '--'; staleEl.className = 'dc_stale';
+    }
+
+    // Battery
+    const battEl = document.getElementById(`dc_batt_${i}`);
+    const bpct   = d.battery_pct || 0;
+    battEl.textContent = bpct > 0 ? `${bpct}%` : '--';
+    battEl.className   = 'dc_val dc_batt' + (bpct > 0 && bpct < 20 ? ' low' : bpct < 40 ? ' med' : '');
+
+    // Map marker — update position and heading arrow
     if (d.lat && d.lon && Math.abs(d.lat)>0.001) {
-      droneMarkers[i].setLatLng([d.lat,d.lon]);
-      droneMarkers[i].setTooltipContent(`DRONE-${i} | ${d.phase} | ${d.alt}m`);
-      // Trail
-      trailPoints[i].push([d.lat,d.lon]);
-      if (trailPoints[i].length>150) trailPoints[i].shift();
+      droneMarkers[i].setLatLng([d.lat, d.lon]);
+      droneMarkers[i].setIcon(makeDroneIcon(i, d.heading || 0));
+      droneMarkers[i].setTooltipContent(`DRONE-${i} | ${d.phase} | ${d.alt}m | ${d.heading||0}°`);
+      trailPoints[i].push([d.lat, d.lon]);
+      if (trailPoints[i].length > 150) trailPoints[i].shift();
       droneTrails[i].setLatLngs(trailPoints[i]);
     }
   });
@@ -401,9 +459,12 @@ function drawRadarPolar(panelData, tracks) {
     font-family="Courier New" fill="#00ff9d">N</text>`;
   document.getElementById('polar_wedges').innerHTML = wedgeHtml;
 
-  // ── Target dots ───────────────────────────────────────────────────
+  // ── Target dots (only tracks detected by selectedDrone) ──────────────────
   let dotsHtml = '';
-  (tracks || []).forEach(t => {
+  const droneTracks = (tracks || []).filter(t =>
+    (t.drone_id || 'DRONE-0') === `DRONE-${selectedDrone}`
+  );
+  droneTracks.forEach(t => {
     const rng = t.range_m || 0;
     const brg = t.bearing_deg || 0;
     if (rng <= 0) return;
@@ -530,10 +591,29 @@ function updateEventLog(events) {
   }
 }
 
+// ── Audio alert ───────────────────────────────────────────────────────────────
+function playContactBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch(e) {}
+}
+
 // ── Contact banner ────────────────────────────────────────────────────────────
 let _lastContactMsg = '';
 let _bannerTimer = null;
 function showContactBanner(msg) {
+  playContactBeep();
   const b = document.getElementById('contact_banner');
   b.textContent = '⚠ ' + msg;
   b.classList.add('visible');
@@ -541,10 +621,29 @@ function showContactBanner(msg) {
   _bannerTimer = setTimeout(() => b.classList.remove('visible'), 4500);
 }
 
+// ── Abort mission ─────────────────────────────────────────────────────────────
+async function abortMission() {
+  if (!confirm('ABORT MISSION — RTL ALL DRONES?')) return;
+  document.getElementById('abort_btn').textContent = '⏳ ABORTING...';
+  try {
+    await fetch('/api/ai_command', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({command: 'RTL all drones immediately emergency abort'}),
+    });
+  } catch(e) {}
+  document.getElementById('abort_btn').textContent = '■ ABORT MISSION';
+}
+
 // ── Socket.IO ────────────────────────────────────────────────────────────────
 const socket = io();
 socket.on('connect',    ()=>{ document.getElementById('conn_status').textContent='● LIVE'; document.getElementById('conn_status').style.color='#3fb950'; });
 socket.on('disconnect', ()=>{ document.getElementById('conn_status').textContent='● OFFLINE'; document.getElementById('conn_status').style.color='#f85149'; });
+socket.on('leader', d => {
+  const lb = document.getElementById('leader_badge');
+  lb.textContent = `LEADER: ${d.leader_id} (#${d.election_count})`;
+  lb.style.borderColor = COLORS[parseInt(d.leader_id.split('-')[1]) || 0] || 'var(--accent)';
+});
 
 socket.on('swarm_update', d => {
   document.getElementById('uptime').textContent     = d.uptime||'--';
@@ -566,14 +665,39 @@ socket.on('swarm_update', d => {
   updateEventLog(d.events || []);
 });
 
-// ── AI command panel ─────────────────────────────────────────────────────────
-async function submitAICmd() {
-  const inp  = document.getElementById('ai_input');
-  const resp = document.getElementById('ai_response');
-  const btn  = document.getElementById('ai_submit');
-  const cmd  = inp.value.trim();
+// ── AI command panel — 2-step confirm ────────────────────────────────────────
+let _pendingCmd = null;
+
+function submitAICmd() {
+  const inp = document.getElementById('ai_input');
+  const cmd = inp.value.trim();
   if (!cmd) return;
-  btn.disabled = true;
+  _pendingCmd = cmd;
+  document.getElementById('ai_confirm_text').textContent = `EXECUTE: "${cmd}" ?`;
+  document.getElementById('ai_confirm').style.display = 'flex';
+  document.getElementById('ai_input').disabled = true;
+  document.getElementById('ai_submit').disabled = true;
+  document.getElementById('ai_response').textContent = 'Awaiting confirmation...';
+  document.getElementById('ai_response').style.color = 'var(--warn)';
+}
+
+function cancelAICmd() {
+  _pendingCmd = null;
+  document.getElementById('ai_confirm').style.display = 'none';
+  document.getElementById('ai_input').disabled = false;
+  document.getElementById('ai_submit').disabled = false;
+  document.getElementById('ai_response').textContent = 'CANCELLED';
+  document.getElementById('ai_response').style.color = 'var(--textdim)';
+}
+
+async function confirmAICmd() {
+  if (!_pendingCmd) return;
+  const cmd = _pendingCmd;
+  _pendingCmd = null;
+  document.getElementById('ai_confirm').style.display = 'none';
+  document.getElementById('ai_input').disabled = false;
+  document.getElementById('ai_submit').disabled = true;
+  const resp = document.getElementById('ai_response');
   resp.textContent = 'PROCESSING...';
   resp.style.color = 'var(--warn)';
   try {
@@ -587,9 +711,9 @@ async function submitAICmd() {
     resp.style.color = '';
     if (d.ok) {
       const delta = d.delta;
-      const src   = delta.source || '?';
-      const conf  = ((delta.confidence || 0) * 100).toFixed(0);
-      const tgts  = (delta.target_drones || []).map(i => `D${i}`).join(',') || 'ALL';
+      const src  = delta.source || '?';
+      const conf = ((delta.confidence || 0) * 100).toFixed(0);
+      const tgts = (delta.target_drones || []).map(i => `D${i}`).join(',') || 'ALL';
       const sp1 = document.createElement('span'); sp1.style.color='var(--accent2)'; sp1.textContent='▶ '+String(delta.action||'');
       const sp2 = document.createElement('span'); sp2.style.color='var(--text)';    sp2.textContent=' '+tgts;
       const sp3 = document.createElement('span'); sp3.style.color='var(--textdim)'; sp3.textContent=' '+String(delta.reasoning||'');
@@ -599,17 +723,19 @@ async function submitAICmd() {
       const sp = document.createElement('span'); sp.style.color='var(--danger)'; sp.textContent='✗ REJECTED: '+String(d.reason||'');
       resp.append(sp);
     }
-    inp.value = '';
+    document.getElementById('ai_input').value = '';
   } catch(e) {
     resp.textContent = '';
     const sp = document.createElement('span'); sp.style.color='var(--danger)'; sp.textContent='✗ GCS ERROR';
     resp.append(sp);
   }
-  btn.disabled = false;
+  document.getElementById('ai_submit').disabled = false;
 }
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ai_input').addEventListener('keydown', e => {
     if (e.key === 'Enter') submitAICmd();
+    if (e.key === 'Escape') cancelAICmd();
   });
 });
 </script>
