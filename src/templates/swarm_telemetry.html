@@ -165,6 +165,12 @@ svg#polar{display:block}
 @keyframes contact_blink{0%,100%{opacity:1}50%{opacity:.3}}
 #contact_banner.visible{opacity:1;animation:contact_blink .5s ease 3}
 
+/* Altitude separation panel */
+#alt_panel{position:absolute;bottom:10px;right:10px;z-index:800;
+  background:rgba(6,11,20,.88);border:1px solid var(--border);border-radius:4px;
+  padding:7px 8px;pointer-events:none}
+.ap_title{font-size:9px;color:var(--accent);letter-spacing:2px;margin-bottom:5px;text-align:center}
+
 /* Radar sweep */
 @keyframes radar_sweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 #polar_sweep{transform-origin:130px 130px;animation:radar_sweep 5s linear infinite}
@@ -186,7 +192,13 @@ svg#polar{display:block}
 <div id="drone_grid"></div>
 
 <div id="main_row">
-  <div id="map_wrap"><div id="map"></div></div>
+  <div id="map_wrap">
+    <div id="map"></div>
+    <div id="alt_panel">
+      <div class="ap_title">▲ ALT SEP</div>
+      <svg id="alt_svg" width="96" height="170"></svg>
+    </div>
+  </div>
 
   <div id="radar_panel">
     <div class="rp_header" style="display:flex;align-items:center">
@@ -270,6 +282,119 @@ GEO.home && [0,1,2,3,4].forEach(i => {
   droneTrails[i]  = L.polyline([], {color:COLORS[i], weight:2, opacity:0.7}).addTo(map);
   trailPoints[i]  = [];
 });
+
+// ── Flight viz layers ─────────────────────────────────────────────────────────
+const activeLegs = {};   // drone_idx → Leaflet.Polyline (drone → next WP)
+const rtlLines   = {};   // drone_idx → Leaflet.Polyline (drone → home, dashed)
+const wpDots     = {};   // drone_idx → [CircleMarker, ...]
+
+// Init per-drone WP dot arrays from static geometry
+GEO.sectors.forEach(s => {
+  const i = s.drone_idx;
+  wpDots[i] = (s.wps || []).map(([la, lo]) =>
+    L.circleMarker([la, lo], {
+      radius: 5, color: COLORS[i], fillColor: COLORS[i],
+      fillOpacity: 0.9, weight: 1.5, opacity: 0.9,
+    }).addTo(map)
+  );
+});
+
+function updateFlightViz(drones) {
+  drones.forEach((d, i) => {
+    const sector  = GEO.sectors.find(s => s.drone_idx === i);
+    const wps     = sector ? sector.wps : [];
+    const wpIdx   = d.wp_current || 0;
+    const hasPos  = d.lat && d.lon && Math.abs(d.lat) > 0.001;
+    const dPos    = hasPos ? [d.lat, d.lon] : null;
+
+    // ── WP dot coloring: completed = dim grey, remaining = drone color ────
+    if (wpDots[i]) {
+      wpDots[i].forEach((dot, j) => {
+        const done = j < wpIdx;
+        dot.setStyle({
+          color:       done ? '#1e4060' : COLORS[i],
+          fillColor:   done ? '#0b1525' : COLORS[i],
+          fillOpacity: done ? 0.25 : 0.85,
+          opacity:     done ? 0.4  : 1.0,
+          radius:      j === wpIdx ? 7 : 4,
+        });
+      });
+    }
+
+    // ── Active leg: drone → next WP ───────────────────────────────────────
+    if (dPos && wps.length > 0) {
+      const nextWP = wps[Math.min(wpIdx, wps.length - 1)];
+      if (!activeLegs[i]) {
+        activeLegs[i] = L.polyline([dPos, nextWP], {
+          color: COLORS[i], weight: 2, opacity: 0.75, dashArray: '8,5',
+        }).addTo(map);
+      } else {
+        activeLegs[i].setLatLngs([dPos, nextWP]);
+        activeLegs[i].setStyle({opacity: d.armed ? 0.75 : 0.25});
+      }
+    }
+
+    // ── RTL line: drone → home (only when phase = RTL / LANDING) ─────────
+    const rtlPhase = d.phase === 'RTL' || d.phase === 'LANDING';
+    if (dPos && rtlPhase) {
+      if (!rtlLines[i]) {
+        rtlLines[i] = L.polyline([dPos, GEO.home], {
+          color: COLORS[i], weight: 2, opacity: 0.6, dashArray: '4,8',
+        }).addTo(map);
+      } else {
+        rtlLines[i].setLatLngs([dPos, GEO.home]);
+      }
+    } else if (rtlLines[i]) {
+      map.removeLayer(rtlLines[i]);
+      delete rtlLines[i];
+    }
+  });
+}
+
+// ── Altitude cross-section panel ──────────────────────────────────────────────
+function updateAltPanel(drones) {
+  const svg = document.getElementById('alt_svg');
+  const W = 96, H = 170;
+  const ALT_MIN = 80, ALT_MAX = 160;
+  const mTop = 8, mBot = 14, mLeft = 24, mRight = 4;
+  const chartH = H - mTop - mBot;
+
+  let html = '';
+
+  // Grid lines + labels
+  [100, 120, 140].forEach(alt => {
+    const pct = (alt - ALT_MIN) / (ALT_MAX - ALT_MIN);
+    const y   = mTop + chartH * (1 - pct);
+    html += `<line x1="${mLeft}" y1="${y}" x2="${W - mRight}" y2="${y}"
+      stroke="#0e2340" stroke-width="0.8"/>`;
+    html += `<text x="0" y="${y + 3}" font-size="7" fill="#1e4060"
+      font-family="Courier New">${alt}</text>`;
+  });
+
+  // Drone dots
+  drones.forEach((d, i) => {
+    const alt  = d.alt || 0;
+    const pct  = Math.max(0, Math.min(1, (alt - ALT_MIN) / (ALT_MAX - ALT_MIN)));
+    const y    = mTop + chartH * (1 - pct);
+    const c    = COLORS[i];
+    const fade = d.connected ? 1 : 0.3;
+    // Connector tick
+    html += `<line x1="${mLeft}" y1="${y}" x2="${mLeft + 10}" y2="${y}"
+      stroke="${c}" stroke-width="0.8" opacity="${fade * 0.5}"/>`;
+    // Dot
+    html += `<circle cx="${mLeft + 14}" cy="${y}" r="5"
+      fill="${c}" stroke="white" stroke-width="1" opacity="${fade}"/>`;
+    // Label
+    html += `<text x="${mLeft + 22}" y="${y + 3}" font-size="8" fill="${c}"
+      font-family="Courier New" opacity="${fade}">D${i} ${Math.round(alt)}m</text>`;
+  });
+
+  // Bottom baseline
+  html += `<line x1="${mLeft}" y1="${H - mBot}" x2="${W - mRight}" y2="${H - mBot}"
+    stroke="#0e2340" stroke-width="1"/>`;
+
+  svg.innerHTML = html;
+}
 
 // Sector polygons (survey rows per drone)
 GEO.sectors.forEach(s => {
@@ -658,6 +783,8 @@ socket.on('swarm_update', d => {
   }
 
   updateDroneCards(d.drones || []);
+  updateFlightViz(d.drones || []);
+  updateAltPanel(d.drones || []);
   updateTargets(d.tracks || []);
   drawRadarPolar(d.panels || {}, d.tracks || []);
   updatePanelStats(d.panels || {});
