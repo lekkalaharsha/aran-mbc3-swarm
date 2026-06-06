@@ -421,8 +421,7 @@ def _build_map_geometry() -> dict:
 @app.get("/")
 async def index(request: Request):
     geo = _build_map_geometry()
-    return templates.TemplateResponse("swarm_telemetry.html", {
-        "request":  request,
+    return templates.TemplateResponse(request, "swarm_telemetry.html", {
         "colors":   DRONE_COLORS,
         "geo":      geo,
         "n_drones": SWARM_NUM_DRONES,

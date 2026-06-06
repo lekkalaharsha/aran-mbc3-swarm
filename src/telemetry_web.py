@@ -686,8 +686,7 @@ async def inject_event(request: Request, _=Depends(check_auth)):
 
 @app.get("/")
 async def index(request: Request):
-    return templates.TemplateResponse("telemetry.html", {
-        "request":                request,
+    return templates.TemplateResponse(request, "telemetry.html", {
         "home_lat":               HOME_LAT,
         "home_lon":               HOME_LON,
         "target_lat":             TARGET_LAT,
@@ -701,8 +700,7 @@ async def index(request: Request):
 
 @app.get("/asp")
 async def asp_page(request: Request):
-    return templates.TemplateResponse("asp.html", {
-        "request":  request,
+    return templates.TemplateResponse(request, "asp.html", {
         "home_lat": HOME_LAT,
         "home_lon": HOME_LON,
     })
