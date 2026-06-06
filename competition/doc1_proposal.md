@@ -23,7 +23,7 @@ Aran Technologies proposes a five-hexacopter swarm, each platform carrying six 2
 
 Command hierarchy: Ground Station > Leader Drone > Soldier autonomous mode. On leader heartbeat loss exceeding 2 seconds, the highest-battery soldier self-elects as leader via bully election protocol, assuming radar fusion and ASP publication within 2 seconds. On soldier loss, the leader LLM redistributes orphaned track IDs to the nearest active drone. Full Air Situation Picture continuity is sustained with three or more drones operational, satisfying the MBC-3 graceful degradation requirement.
 
-A Flask-based Ground Control Station displays a consolidated real-time ASP at 2.5 Hz — track table, polar radar display, leader identity, decision log, and timestamped JSON recording — on a single browser screen with no external dependency.
+A FastAPI Ground Control Station displays a consolidated real-time ASP at 2.5 Hz — track table, polar radar display, leader identity, decision log, and timestamped JSON recording — on a single browser screen with no external dependency.
 
 ### Platform Specification
 
@@ -35,8 +35,8 @@ The complete intelligence layer — CFAR software, Random Forest classifier, LLM
 
 ### Phase I Deliverable
 
-Phase I complete: SITL simulation verified (ASP, LLM reallocation, graceful degradation), broadband and drone-to-ground comms tested, 4-min ISR demo video (1920×1080) ready — live demonstration at New Delhi, 13–24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm).
+Phase I complete: SITL simulation verified (ASP, rMADER trajectory deconfliction, LLM reallocation, graceful degradation), broadband and comms tested, single-drone and 5-drone swarm demo videos (1920×1080) ready — live demonstration at New Delhi, 13–24 July 2026 (github.com/lekkalaharsha/aran-mbc3-swarm).
 
 ---
 
-*Word count: ~493 | Limit: 500*
+*Word count: ~479 | Limit: 500*

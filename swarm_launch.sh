@@ -160,6 +160,11 @@ while (( READY_COUNT < 5 && waited < 120 )); do
 done
 ok "${READY_COUNT}/5 drones ready"
 
+# ── Shared D2D HMAC key — generated once per session, exported to all children ──
+# All drone processes must share the same key for inter-drone message authentication.
+export D2D_HMAC_KEY="${D2D_HMAC_KEY:-$(openssl rand -hex 32)}"
+log "D2D_HMAC_KEY set ($(echo "${D2D_HMAC_KEY}" | wc -c | tr -d ' ')  hex chars)"
+
 # ── GCS Dashboard (swarm_telemetry_web.py — 5-drone map + radar panel) ───────
 log "Starting Swarm Command Center dashboard..."
 GCS_LOG="${SESSION_DIR}/gcs.log"
@@ -176,7 +181,7 @@ ok "  Events: redistribution + failure log"
 # Pushes positions to GCS /asp_update directly — no separate swarm_monitor needed.
 log "Starting swarm_mission (5 drones: arm→climb→survey→orbit→land sequentially)..."
 MISSION_LOG="${SESSION_DIR}/swarm_mission.log"
-(cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" python3 -u swarm_mission.py) >> "${MISSION_LOG}" 2>&1 &
+(cd "${SCRIPT_DIR}/src" && env MBC3_MODE="${MBC3_MODE}" D2D_HMAC_KEY="${D2D_HMAC_KEY}" python3 -u swarm_mission.py) >> "${MISSION_LOG}" 2>&1 &
 PIDS+=($!)
 sleep 3
 ok "Swarm mission started  |  log: ${MISSION_LOG}"

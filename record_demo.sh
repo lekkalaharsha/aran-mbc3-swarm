@@ -59,9 +59,11 @@ ok "Clean"
 # ── Window 1 (left) — swarm_launch.sh ────────────────────────────────────────
 log "Opening swarm launch terminal (left half)..."
 
+D2D_KEY="$(openssl rand -hex 32)"
 SWARM_CMD="bash -c '\
 export DISPLAY=${DISPLAY_VAR}; \
 export PATH=$HOME/.local/bin:\$PATH; \
+export D2D_HMAC_KEY=${D2D_KEY}; \
 bash ${ARAN}/swarm_launch.sh; \
 echo \"\"; echo \" Swarm stopped — window closes in 30s\"; sleep 30'"
 
@@ -70,7 +72,7 @@ gnome-terminal \
     --geometry="120x40+0+0" \
     -- bash -c "$SWARM_CMD" &
 
-log "Waiting 15s for swarm to start GCS (flask needs PX4 instance 0 + Gazebo up)..."
+log "Waiting 15s for swarm to start GCS (uvicorn needs PX4 instance 0 + Gazebo up)..."
 sleep 15
 
 # ── Window 2 (right) — kill DRONE-2 after 120s ───────────────────────────────
