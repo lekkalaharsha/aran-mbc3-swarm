@@ -57,6 +57,14 @@ _ai_cmd_queue: deque = deque(maxlen=10)   # validated deltas for swarm_mission t
 _ai_cmd_log:   deque = deque(maxlen=20)   # history for dashboard display
 
 GCS_TOKEN = os.environ.get("GCS_TOKEN", "")
+if not GCS_TOKEN:
+    print(
+        "WARNING: GCS_TOKEN not set — all POST endpoints are unauthenticated. "
+        "Set GCS_TOKEN in launch.sh for field/hardware deployments.",
+        flush=True,
+    )
+
+GCS_BIND_HOST = os.environ.get("GCS_HOST", "127.0.0.1")
 
 
 def _check_auth():
@@ -1049,7 +1057,7 @@ if __name__ == "__main__":
     import threading
     t = threading.Thread(target=_emit_loop, daemon=True)
     t.start()
-    print("[SWARM-GCS] Swarm Command Center → http://localhost:5000", flush=True)
+    print(f"[SWARM-GCS] Swarm Command Center → http://{GCS_BIND_HOST}:5000", flush=True)
     print("[SWARM-GCS] Endpoints: /asp_update  /event_push  /api/state", flush=True)
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False,
+    socketio.run(app, host=GCS_BIND_HOST, port=5000, debug=False,
                  allow_unsafe_werkzeug=True)

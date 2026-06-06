@@ -57,12 +57,17 @@ SAFE_SEP_M      = 30.0   # minimum separation between drones (metres)
 TAU_S           = 0.3    # rMADER commitment delay — covers multicast RTT
 TIME_WINDOW_S   = 10.0   # temporal window for trajectory conflict check
 
-# Shared HMAC key — set D2D_HMAC_KEY env var on all drones before flight.
-# Default is safe for SITL; change to a random secret for hardware deployment.
+# Shared HMAC key — must be identical on every drone process.
+# Set D2D_HMAC_KEY in launch.sh / swarm_launch.sh before starting any drone.
 import os
-D2D_HMAC_KEY = os.environ.get(
-    "D2D_HMAC_KEY", "mbc3-aran-d2d-key-CHANGE-IN-PRODUCTION"
-).encode()
+_d2d_key_raw = os.environ.get("D2D_HMAC_KEY")
+if not _d2d_key_raw:
+    raise SystemExit(
+        "FATAL: D2D_HMAC_KEY env var is not set. "
+        "All drone processes must share the same key. "
+        "Add: export D2D_HMAC_KEY=$(openssl rand -hex 32)  to launch.sh"
+    )
+D2D_HMAC_KEY = _d2d_key_raw.encode()
 
 
 class _D2DProtocol(asyncio.DatagramProtocol):
