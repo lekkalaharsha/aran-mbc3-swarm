@@ -50,7 +50,7 @@ PX4_MAKE_DIR="px4_sitl"
 PX4_MAKE_MODEL="${PX4_MAKE_MODEL:-gz_mbc3_radar_drone}"
 PYTHON="${PYTHON:-python3}"
 GCS_PORT=5000
-GCS_READY_TIMEOUT=20   # seconds Flask has to bind
+GCS_READY_TIMEOUT=20   # seconds uvicorn has to bind
 PX4_READY_TIMEOUT=600  # seconds SITL+Gazebo has to boot (first build: cmake ~73s + 30 targets ~5-8min)
 
 # Racing mode: inject env var so mission script loads RACING_* params
@@ -264,7 +264,7 @@ fi
 # Python packages
 if [[ "${OPT_NO_DEPS}" == false ]]; then
     log "Checking Python packages…"
-    REQUIRED=(mavsdk flask flask_socketio requests numpy scipy)
+    REQUIRED=(mavsdk fastapi uvicorn socketio requests numpy scipy)
     MISSING=()
     for pkg in "${REQUIRED[@]}"; do
         if "${PYTHON}" -c "import ${pkg}" &>/dev/null 2>&1; then
@@ -331,20 +331,7 @@ for f in "${REQUIRED_FILES[@]}"; do
 done
 [[ "${FILES_OK}" == false ]] && { log_err "Missing files — cannot continue"; exit 1; }
 
-# Auto-patch telemetry_web.py if allow_unsafe_werkzeug is missing
-# (flask-socketio ≥ 5.3 raises RuntimeError without this flag)
-if ! grep -q "allow_unsafe_werkzeug" "${SRC_DIR}/telemetry_web.py"; then
-    log_warn "telemetry_web.py: allow_unsafe_werkzeug=True not found — patching…"
-    sed -i \
-        's/socketio\.run(\(.*\)debug=False\(.*\))/socketio.run(\1debug=False\2, allow_unsafe_werkzeug=True)/' \
-        "${SRC_DIR}/telemetry_web.py" \
-        && log_ok "  telemetry_web.py patched successfully" \
-        || {
-            log_err "  Auto-patch failed — add allow_unsafe_werkzeug=True to socketio.run() manually"
-            exit 1
-        }
-fi
-log_ok "telemetry_web.py werkzeug flag confirmed"
+log_ok "telemetry_web.py (FastAPI/uvicorn)"
 
 # Pre-create map output directory (mapping_3d.py will also create it, but doing
 # it here avoids a permission surprise at end-of-mission when RTL is in progress)
@@ -794,7 +781,7 @@ GCS_LOG="${SESSION_DIR}/gcs.log"
 PID_GCS=$!
 log_info "GCS PID: ${PID_GCS}  |  log: ${GCS_LOG}"
 
-# Wait for Flask to bind on TCP port 5000
+# Wait for uvicorn to bind on TCP port 5000
 log "Waiting for GCS to bind on port ${GCS_PORT} (timeout: ${GCS_READY_TIMEOUT}s)…"
 waited=0
 gcs_ready=false
@@ -802,14 +789,13 @@ gcs_ready=false
 while (( waited < GCS_READY_TIMEOUT * 2 )); do
     sleep 0.5; (( waited++ )) || true
 
-    # Fail fast if Flask exited immediately (e.g. import error, port conflict)
+    # Fail fast if uvicorn exited immediately (e.g. import error, port conflict)
     if ! kill -0 "${PID_GCS}" 2>/dev/null; then
         log_err "GCS process died — full log:"
         cat "${GCS_LOG}" | while IFS= read -r line; do log_err "  ${line}"; done
         echo ""
         log_info "Common fixes:"
-        log_info "  Werkzeug error?  →  ensure allow_unsafe_werkzeug=True in socketio.run()"
-        log_info "  Import error?    →  pip install flask flask-socketio"
+        log_info "  Import error?    →  pip install fastapi uvicorn python-socketio"
         log_info "  Port conflict?   →  sudo lsof -ti tcp:5000 | xargs kill -9"
         exit 1
     fi
